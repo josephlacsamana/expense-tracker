@@ -90,6 +90,20 @@ function prevRange(p) {
   return [new Date(0), new Date(0)];
 }
 
+// ─── RESPONSIVE HOOK ───
+function useMediaQuery(query) {
+  const [matches, setMatches] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia(query).matches : false
+  );
+  useEffect(() => {
+    const mql = window.matchMedia(query);
+    const handler = (e) => setMatches(e.matches);
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
+  }, [query]);
+  return matches;
+}
+
 const SEED_EXP = [
   { amount: 628, category: "Food", description: "Grab Food delivery", date: "2026-03-01", addedBy: "Joseph" },
   { amount: 194, category: "Food", description: "Merienda at Jollibee", date: "2026-03-01", addedBy: "Rowena" },
@@ -125,6 +139,7 @@ const DEFAULT_PINS = { Joseph: "1234", Rowena: "5678" };
 // ─── LOGIN ───
 function LoginScreen({ onLogin, theme, toggleTheme }) {
   const T = themes[theme];
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
   const [user, setUser] = useState(null);
   const [pin, setPin] = useState("");
   const [err, setErr] = useState("");
@@ -133,22 +148,46 @@ function LoginScreen({ onLogin, theme, toggleTheme }) {
   const doLogin = () => { if (pins[user] === pin) onLogin(user); else { setErr("Wrong PIN. Try again."); setPin(""); } };
 
   return (
-    <div style={{ minHeight: "100vh", background: T.gradBg, display: "flex", justifyContent: "center", alignItems: "center", padding: 24, position: "relative" }}>
-      <button onClick={toggleTheme} style={{ position: "absolute", top: 20, right: 20, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 10, cursor: "pointer", color: T.text2, display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 600 }}>
-        {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-        {theme === "dark" ? "Light" : "Dark"}
-      </button>
-      <div style={{ width: "100%", maxWidth: 380 }}>
-        <div style={{ textAlign: "center", marginBottom: 40 }}>
-          <div style={{ width: 56, height: 56, borderRadius: 16, background: T.grad, margin: "0 auto 16px", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 8px 32px rgba(245,181,38,0.25)" }}>
-            <Coins size={28} style={{ color: theme === "dark" ? "#0C0C12" : "#FFF" }} />
+    <div style={{ minHeight: "100vh", background: T.gradBg, display: "flex", flexDirection: isDesktop ? "row" : "column", justifyContent: "center", alignItems: isDesktop ? "stretch" : "center", padding: isDesktop ? 0 : 24, position: "relative" }}>
+      {!isDesktop && (
+        <button onClick={toggleTheme} style={{ position: "absolute", top: 20, right: 20, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 10, cursor: "pointer", color: T.text2, display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 600 }}>
+          {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+          {theme === "dark" ? "Light" : "Dark"}
+        </button>
+      )}
+      {isDesktop && (
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: 60 }}>
+          <div style={{ width: 72, height: 72, borderRadius: 20, background: T.grad, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 12px 40px rgba(245,181,38,0.25)", marginBottom: 24 }}>
+            <Coins size={36} style={{ color: theme === "dark" ? "#0C0C12" : "#FFF" }} />
           </div>
-          <h1 style={{ fontSize: 30, fontWeight: 800, margin: 0, color: T.text1, letterSpacing: -0.5 }}>Expense Tracker</h1>
-          <p style={{ color: T.text3, fontSize: 13, margin: "6px 0 0", letterSpacing: 2, textTransform: "uppercase" }}>Joseph & Rowena</p>
+          <h1 style={{ fontSize: 44, fontWeight: 800, margin: 0, color: T.text1, letterSpacing: -1 }}>Expense<span style={{ color: T.gold }}>Tracker</span></h1>
+          <p style={{ color: T.text3, fontSize: 15, margin: "10px 0 0", letterSpacing: 2, textTransform: "uppercase" }}>Joseph & Rowena</p>
+          <p style={{ color: T.text3, fontSize: 13, marginTop: 8 }}>Personal finance, simplified.</p>
+          <button onClick={toggleTheme} style={{ marginTop: 32, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: "10px 18px", cursor: "pointer", color: T.text2, display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600 }}>
+            {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+            {theme === "dark" ? "Light Mode" : "Dark Mode"}
+          </button>
         </div>
+      )}
+      <div style={{ width: isDesktop ? 480 : "100%", maxWidth: isDesktop ? 480 : 380, ...(isDesktop ? { background: T.surface, borderLeft: `1px solid ${T.border}`, display: "flex", flexDirection: "column", justifyContent: "center", padding: "48px 56px", flexShrink: 0 } : {}) }}>
+        {!isDesktop && (
+          <div style={{ textAlign: "center", marginBottom: 40 }}>
+            <div style={{ width: 56, height: 56, borderRadius: 16, background: T.grad, margin: "0 auto 16px", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 8px 32px rgba(245,181,38,0.25)" }}>
+              <Coins size={28} style={{ color: theme === "dark" ? "#0C0C12" : "#FFF" }} />
+            </div>
+            <h1 style={{ fontSize: 30, fontWeight: 800, margin: 0, color: T.text1, letterSpacing: -0.5 }}>Expense Tracker</h1>
+            <p style={{ color: T.text3, fontSize: 13, margin: "6px 0 0", letterSpacing: 2, textTransform: "uppercase" }}>Joseph & Rowena</p>
+          </div>
+        )}
+        {isDesktop && (
+          <div style={{ marginBottom: 36 }}>
+            <h2 style={{ fontSize: 24, fontWeight: 800, margin: 0, color: T.text1 }}>Welcome back</h2>
+            <p style={{ color: T.text3, fontSize: 13, margin: "6px 0 0" }}>Select your profile and enter your PIN</p>
+          </div>
+        )}
         {!user ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <p style={{ color: T.text2, fontSize: 13, textAlign: "center", marginBottom: 4 }}>Who's logging in?</p>
+            <p style={{ color: T.text2, fontSize: 13, textAlign: isDesktop ? "left" : "center", marginBottom: 4 }}>Who's logging in?</p>
             {USERS.map(u => (
               <button key={u} onClick={() => setUser(u)} style={{
                 padding: "18px 20px", borderRadius: 18, border: `1px solid ${T.border}`, background: T.surface,
@@ -161,8 +200,8 @@ function LoginScreen({ onLogin, theme, toggleTheme }) {
           </div>
         ) : (
           <>
-            <div style={{ textAlign: "center", marginBottom: 28 }}>
-              <div style={{ width: 72, height: 72, borderRadius: 22, background: T.grad, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, fontWeight: 800, color: theme === "dark" ? "#0C0C12" : "#FFF", margin: "0 auto 14px", boxShadow: "0 8px 32px rgba(245,181,38,0.25)" }}>{user[0]}</div>
+            <div style={{ textAlign: isDesktop ? "left" : "center", marginBottom: 28 }}>
+              <div style={{ width: 72, height: 72, borderRadius: 22, background: T.grad, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, fontWeight: 800, color: theme === "dark" ? "#0C0C12" : "#FFF", margin: isDesktop ? "0 0 14px" : "0 auto 14px", boxShadow: "0 8px 32px rgba(245,181,38,0.25)" }}>{user[0]}</div>
               <div style={{ fontSize: 20, fontWeight: 700, color: T.text1 }}>Welcome, {user}</div>
               <button onClick={() => { setUser(null); setPin(""); setErr(""); }} style={{ background: "none", border: "none", color: T.gold, fontSize: 12, cursor: "pointer", marginTop: 4 }}>Not you?</button>
             </div>
@@ -174,14 +213,14 @@ function LoginScreen({ onLogin, theme, toggleTheme }) {
                   onKeyDown={e => { if (e.key === "Enter") doLogin(); }} placeholder="----" autoFocus
                   style={{ width: "100%", padding: "14px 14px 14px 42px", borderRadius: 12, border: `1px solid ${T.inputBorder}`, background: T.inputBg, color: T.text1, fontSize: 22, letterSpacing: 12, textAlign: "center", outline: "none", boxSizing: "border-box" }} />
               </div>
-              {err && <div style={{ color: T.err, fontSize: 12, marginTop: 8, textAlign: "center" }}>{err}</div>}
+              {err && <div style={{ color: T.err, fontSize: 12, marginTop: 8, textAlign: isDesktop ? "left" : "center" }}>{err}</div>}
             </div>
             <button onClick={doLogin} disabled={pin.length < 4} style={{
               width: "100%", padding: 16, borderRadius: 14, border: "none", cursor: pin.length >= 4 ? "pointer" : "default",
               background: T.grad, color: theme === "dark" ? "#0C0C12" : "#FFF", fontSize: 14, fontWeight: 700,
               opacity: pin.length >= 4 ? 1 : 0.3, boxShadow: "0 4px 16px rgba(245,181,38,0.2)"
             }}>Log In</button>
-            <p style={{ color: T.text3, fontSize: 10, textAlign: "center", marginTop: 14 }}>Default: Joseph=1234, Rowena=5678</p>
+            <p style={{ color: T.text3, fontSize: 10, textAlign: isDesktop ? "left" : "center", marginTop: 14 }}>Default: Joseph=1234, Rowena=5678</p>
           </>
         )}
       </div>
@@ -193,6 +232,7 @@ function LoginScreen({ onLogin, theme, toggleTheme }) {
 // ─── MAIN APP ───
 function MainApp({ user, onLogout, theme, toggleTheme }) {
   const T = themes[theme];
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
   const [tab, setTab] = useState("dashboard");
   const [sub, setSub] = useState("accounts");
   const [exp, setExp] = useState([]);
@@ -227,14 +267,21 @@ function MainApp({ user, onLogout, theme, toggleTheme }) {
   const tst = (m) => { setToast(m); setTimeout(() => setToast(null), 2500); };
 
   const pillS = (a) => ({
-    padding: "7px 14px", borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: "pointer", transition: "all 0.2s",
+    padding: isDesktop ? "8px 18px" : "7px 14px", borderRadius: 20, fontSize: isDesktop ? 12 : 11, fontWeight: 600, cursor: "pointer", transition: "all 0.2s",
     border: a ? `1px solid ${T.gold}` : `1px solid ${T.pillInactiveBorder}`,
     background: a ? T.goldMuted : T.pillInactiveBg, color: a ? T.gold : T.text3,
   });
   const cardS = { background: T.surface, border: `1px solid ${T.border}`, borderRadius: 18, padding: 18, boxShadow: T.cardShadow };
-  const inpS = { width: "100%", padding: "12px 14px", borderRadius: 12, fontSize: 14, outline: "none", boxSizing: "border-box", border: `1px solid ${T.inputBorder}`, background: T.inputBg, color: T.text1 };
-  const btnP = { padding: "14px 20px", borderRadius: 14, border: "none", cursor: "pointer", background: T.grad, color: theme === "dark" ? "#0C0C12" : "#FFF", fontSize: 14, fontWeight: 700, boxShadow: "0 4px 16px rgba(245,181,38,0.2)" };
-  const btnG = { padding: "14px 20px", borderRadius: 14, cursor: "pointer", fontSize: 14, fontWeight: 600, border: `1px solid ${T.inputBorder}`, background: "transparent", color: T.text2 };
+  const inpS = { width: "100%", padding: isDesktop ? "14px 16px" : "12px 14px", borderRadius: 12, fontSize: isDesktop ? 15 : 14, outline: "none", boxSizing: "border-box", border: `1px solid ${T.inputBorder}`, background: T.inputBg, color: T.text1 };
+  const btnP = { padding: isDesktop ? "15px 24px" : "14px 20px", borderRadius: 14, border: "none", cursor: "pointer", background: T.grad, color: theme === "dark" ? "#0C0C12" : "#FFF", fontSize: isDesktop ? 15 : 14, fontWeight: 700, boxShadow: "0 4px 16px rgba(245,181,38,0.2)" };
+  const btnG = { padding: isDesktop ? "15px 24px" : "14px 20px", borderRadius: 14, cursor: "pointer", fontSize: isDesktop ? 15 : 14, fontWeight: 600, border: `1px solid ${T.inputBorder}`, background: "transparent", color: T.text2 };
+
+  // Responsive content widths
+  const mwDash = isDesktop ? 1100 : 600;
+  const mwExp = isDesktop ? 800 : 600;
+  const mwChat = isDesktop ? 720 : 600;
+  const mwIns = isDesktop ? 800 : 600;
+  const mwMore = isDesktop ? 1100 : 600;
 
   useEffect(() => {
     (async () => {
@@ -379,217 +426,284 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
   ];
 
   const Modal = ({ children }) => (
-    <div style={{ position: "fixed", inset: 0, background: T.modalBg, zIndex: 999, display: "flex", justifyContent: "center", alignItems: "center", padding: 20, backdropFilter: "blur(4px)" }}>
-      <div style={{ background: T.modalSurface, border: `1px solid ${T.borderStrong}`, borderRadius: 24, padding: 28, width: "100%", maxWidth: 400, boxShadow: "0 24px 64px rgba(0,0,0,0.3)" }}>{children}</div>
+    <div style={{ position: "fixed", inset: 0, background: T.modalBg, zIndex: 999, display: "flex", justifyContent: "center", alignItems: "center", padding: isDesktop ? 40 : 20, backdropFilter: "blur(4px)" }}>
+      <div style={{ background: T.modalSurface, border: `1px solid ${T.borderStrong}`, borderRadius: 24, padding: isDesktop ? 36 : 28, width: "100%", maxWidth: isDesktop ? 480 : 400, boxShadow: "0 24px 64px rgba(0,0,0,0.3)" }}>{children}</div>
     </div>
   );
 
   return (
-    <div style={{ minHeight: "100vh", background: T.gradBg, color: T.text1, display: "flex", flexDirection: "column", fontFamily: "'Inter',-apple-system,BlinkMacSystemFont,sans-serif" }}>
-      {toast && <div style={{ position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)", background: T.toastBg, border: `1px solid ${T.toastBorder}`, color: T.gold, padding: "12px 24px", borderRadius: 14, fontSize: 13, fontWeight: 600, zIndex: 9999, boxShadow: "0 8px 32px rgba(245,181,38,0.15)", display: "flex", alignItems: "center", gap: 8 }}><Check size={16} />{toast}</div>}
+    <div style={{ minHeight: "100vh", background: T.gradBg, color: T.text1, display: "flex", flexDirection: isDesktop ? "row" : "column", fontFamily: "'Inter',-apple-system,BlinkMacSystemFont,sans-serif" }}>
+      {toast && <div style={{ position: "fixed", top: 20, left: isDesktop ? "calc(50% + 120px)" : "50%", transform: "translateX(-50%)", background: T.toastBg, border: `1px solid ${T.toastBorder}`, color: T.gold, padding: "12px 24px", borderRadius: 14, fontSize: 13, fontWeight: 600, zIndex: 9999, boxShadow: "0 8px 32px rgba(245,181,38,0.15)", display: "flex", alignItems: "center", gap: 8 }}><Check size={16} />{toast}</div>}
 
-      {/* Header */}
-      <div style={{ padding: "18px 20px 0", maxWidth: 600, margin: "0 auto", width: "100%", boxSizing: "border-box", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 800, margin: 0, color: T.text1, letterSpacing: -0.5 }}>Expense<span style={{ color: T.gold }}>Tracker</span></h1>
-          <p style={{ color: T.text3, fontSize: 11, margin: "2px 0 0" }}>Logged in as <span style={{ color: T.gold }}>{user}</span></p>
-        </div>
-        <div style={{ display: "flex", gap: 6 }}>
-          <button onClick={toggleTheme} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: 8, color: T.text2, cursor: "pointer", display: "flex", alignItems: "center" }}>
-            {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-          </button>
-          <button onClick={onLogout} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: "8px 12px", color: T.text2, fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, fontWeight: 600 }}><LogOut size={13} />Logout</button>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div style={{ maxWidth: 600, margin: "14px auto 0", padding: "0 20px", width: "100%", boxSizing: "border-box" }}>
-        <div style={{ display: "flex", gap: 2, background: T.surface, borderRadius: 16, padding: 4, border: `1px solid ${T.border}` }}>
-          {tabs.map(t => { const I = t.icon; const a = tab === t.id;
-            return <button key={t.id} onClick={() => setTab(t.id)} style={{ flex: 1, padding: "10px 4px", borderRadius: 12, border: "none", background: a ? T.goldMuted : "transparent", color: a ? T.gold : T.text3, fontSize: 10, fontWeight: 700, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, position: "relative" }}><I size={16} />{t.label}{a && <div style={{ position: "absolute", bottom: 2, width: 16, height: 2, borderRadius: 1, background: T.gold }} />}</button>;
+      {/* Desktop Sidebar */}
+      {isDesktop && (
+        <div style={{ width: 250, minHeight: "100vh", background: T.surface, borderRight: `1px solid ${T.border}`, padding: "28px 0", display: "flex", flexDirection: "column", flexShrink: 0, position: "sticky", top: 0, alignSelf: "flex-start" }}>
+          <div style={{ padding: "0 24px", marginBottom: 36 }}>
+            <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, color: T.text1, letterSpacing: -0.5 }}>Expense<span style={{ color: T.gold }}>Tracker</span></h1>
+            <p style={{ color: T.text3, fontSize: 11, margin: "4px 0 0" }}>Logged in as <span style={{ color: T.gold }}>{user}</span></p>
+          </div>
+          {tabs.map(t => {
+            const I = t.icon;
+            const a = tab === t.id;
+            return (
+              <button key={t.id} onClick={() => setTab(t.id)} style={{
+                display: "flex", alignItems: "center", gap: 12,
+                padding: "12px 24px", margin: "2px 10px",
+                borderRadius: 12, border: "none", cursor: "pointer",
+                background: a ? T.goldMuted : "transparent",
+                color: a ? T.gold : T.text2,
+                fontSize: 13, fontWeight: a ? 700 : 500,
+                textAlign: "left", width: "calc(100% - 20px)",
+                transition: "all 0.2s", position: "relative",
+              }}>
+                {a && <div style={{ position: "absolute", left: 0, width: 3, height: 24, borderRadius: "0 2px 2px 0", background: T.gold }} />}
+                <I size={18} />{t.label}
+              </button>
+            );
           })}
-        </div>
-      </div>
-
-      {/* DASHBOARD */}
-      {tab === "dashboard" && (
-        <div style={{ flex: 1, maxWidth: 600, margin: "0 auto", padding: "18px 20px 80px", width: "100%", boxSizing: "border-box", overflowY: "auto" }}>
-          {accts.length > 0 && (
-            <div style={{ background: `linear-gradient(135deg,${theme === "dark" ? "rgba(52,211,153,0.08)" : "rgba(5,150,105,0.06)"},transparent)`, border: `1px solid ${theme === "dark" ? "rgba(52,211,153,0.15)" : "rgba(5,150,105,0.15)"}`, borderRadius: 18, padding: "16px 18px", marginBottom: 18, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div><div style={{ fontSize: 10, color: T.text3, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>Total Balance</div><div style={{ fontSize: 26, fontWeight: 800, color: T.ok, marginTop: 2 }}>{fmt(totA)}</div></div>
-              <Wallet size={26} style={{ color: "rgba(245,181,38,0.25)" }} />
-            </div>
-          )}
-          <div style={{ display: "flex", gap: 6, marginBottom: 18, flexWrap: "wrap" }}>{PERIODS.filter(p => p !== "All").map(p => <button key={p} onClick={() => setPer(p)} style={pillS(per === p)}>{p}</button>)}</div>
-
-          <div style={{ background: `linear-gradient(135deg,${T.goldMuted},transparent)`, border: `1px solid ${T.borderStrong}`, borderRadius: 22, padding: 24, marginBottom: 18, position: "relative", overflow: "hidden" }}>
-            <div style={{ position: "absolute", top: -30, right: -30, width: 120, height: 120, borderRadius: "50%", background: "rgba(245,181,38,0.06)" }} />
-            <div style={{ fontSize: 11, color: T.text2, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>{per} Spending</div>
-            <div style={{ fontSize: 42, fontWeight: 800, marginTop: 6, letterSpacing: -2, color: T.text1 }}>{fmt(totF)}</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 4, color: pct > 0 ? T.err : T.ok, fontSize: 13, fontWeight: 700, background: pct > 0 ? "rgba(239,68,68,0.1)" : "rgba(52,211,153,0.1)", padding: "4px 10px", borderRadius: 8 }}>
-                {pct > 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}{Math.abs(pct).toFixed(1)}%
-              </div>
-              <span style={{ color: T.text3, fontSize: 11 }}>vs prev {per.toLowerCase()}</span>
-            </div>
+          <div style={{ marginTop: "auto", padding: "0 24px", display: "flex", flexDirection: "column", gap: 8 }}>
+            <button onClick={toggleTheme} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 12, border: `1px solid ${T.border}`, background: "transparent", color: T.text2, cursor: "pointer", fontSize: 12, fontWeight: 600, width: "100%" }}>
+              {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+              {theme === "dark" ? "Light Mode" : "Dark Mode"}
+            </button>
+            <button onClick={onLogout} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 12, border: `1px solid ${T.border}`, background: "transparent", color: T.text2, cursor: "pointer", fontSize: 12, fontWeight: 600, width: "100%" }}>
+              <LogOut size={16} />Logout
+            </button>
           </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 18 }}>
-            {Object.entries(byP).map(([n, a]) => (<div key={n} style={cardS}><div style={{ fontSize: 11, color: T.text2, fontWeight: 600 }}>{n}</div><div style={{ fontSize: 22, fontWeight: 800, marginTop: 4 }}>{fmt(a)}</div><div style={{ fontSize: 10, color: T.text3, marginTop: 4 }}>{totF > 0 ? (a / totF * 100).toFixed(0) : 0}% of total</div></div>))}
-          </div>
-
-          {pieD.length > 0 && (<div style={{ ...cardS, marginBottom: 18 }}><div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>By Category</div>
-            <ResponsiveContainer width="100%" height={200}><RPie><Pie data={pieD} cx="50%" cy="50%" innerRadius={55} outerRadius={85} dataKey="value" stroke="none">{pieD.map((_, i) => <Cell key={i} fill={cco[pieD[i].name] || T.text3} />)}</Pie><Tooltip content={<CTipLocal />} /></RPie></ResponsiveContainer>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 16px", marginTop: 10 }}>{pieD.map((d, i) => <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}><div style={{ width: 8, height: 8, borderRadius: 3, background: cco[d.name] || T.text3 }} /><span style={{ color: T.text2 }}>{d.name}: {fmt(d.value)}</span></div>)}</div>
-          </div>)}
-
-          {cBar.length > 0 && (<div style={{ ...cardS, marginBottom: 18 }}><div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Category Breakdown</div>
-            <ResponsiveContainer width="100%" height={180}><BarChart data={cBar}><XAxis dataKey="name" tick={{ fill: T.text3, fontSize: 10 }} axisLine={false} tickLine={false} /><YAxis tick={{ fill: T.text3, fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={fmtS} /><Tooltip content={<CTipLocal />} /><Bar dataKey="value" radius={[8, 8, 0, 0]}>{cBar.map((d, i) => <Cell key={i} fill={cco[d.full] || T.gold} />)}</Bar></BarChart></ResponsiveContainer>
-          </div>)}
-
-          {dT.length > 1 && (<div style={{ ...cardS, marginBottom: 18 }}><div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Spending Trend</div>
-            <ResponsiveContainer width="100%" height={160}><LineChart data={dT}><CartesianGrid strokeDasharray="3 3" stroke={theme === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.06)"} /><XAxis dataKey="date" tick={{ fill: T.text3, fontSize: 10 }} axisLine={false} tickLine={false} /><YAxis tick={{ fill: T.text3, fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={fmtS} /><Tooltip content={<CTipLocal />} /><Line type="monotone" dataKey="amount" stroke={T.gold} strokeWidth={2.5} dot={false} /></LineChart></ResponsiveContainer>
-          </div>)}
-
-          {budgetChart.length > 0 && (<div style={{ ...cardS, marginBottom: 18 }}><div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Budget vs Actual</div>
-            <ResponsiveContainer width="100%" height={200}><BarChart data={budgetChart}><XAxis dataKey="name" tick={{ fill: T.text3, fontSize: 10 }} axisLine={false} tickLine={false} /><YAxis tick={{ fill: T.text3, fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={fmtS} /><Tooltip content={<CTipLocal />} /><Legend wrapperStyle={{ fontSize: 10, color: T.text2 }} /><Bar dataKey="budget" fill={theme === "dark" ? "rgba(245,181,38,0.2)" : "rgba(212,155,31,0.15)"} radius={[6, 6, 0, 0]} name="Budget" /><Bar dataKey="actual" radius={[6, 6, 0, 0]} name="Actual">{budgetChart.map((d, i) => <Cell key={i} fill={d.actual > d.budget ? T.err : d.actual > d.budget * 0.8 ? T.goldLight : T.ok} />)}</Bar></BarChart></ResponsiveContainer>
-          </div>)}
-
-          {t5.length > 0 && (<div style={{ ...cardS, marginBottom: 20 }}><div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Top 5 Expenses</div>
-            {t5.map((e, i) => (<div key={e.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: i < t5.length - 1 ? `1px solid ${T.border}` : "none" }}><div><div style={{ fontSize: 13, fontWeight: 600 }}>{e.description || e.category}</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>{e.date} -- {e.addedBy}</div></div><div style={{ fontSize: 15, fontWeight: 800, color: cco[e.category] || T.gold }}>{fmt(e.amount)}</div></div>))}
-          </div>)}
         </div>
       )}
 
-      {/* EXPENSES */}
-      {tab === "expenses" && (
-        <div style={{ flex: 1, maxWidth: 600, margin: "0 auto", padding: "18px 20px 80px", width: "100%", boxSizing: "border-box", overflowY: "auto" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-            <div style={{ fontSize: 18, fontWeight: 800 }}>Expenses</div>
-            <button onClick={() => { rstF(); setSf(true); }} style={{ ...btnP, padding: "10px 16px", fontSize: 12, display: "flex", alignItems: "center", gap: 5 }}><Plus size={14} />Add</button>
-          </div>
-          <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>{PERIODS.map(p => <button key={p} onClick={() => setPer(p)} style={pillS(per === p)}>{p}</button>)}</div>
-          <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
-            <div style={{ flex: 1, position: "relative" }}><Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: T.text3 }} /><input placeholder="Search..." value={sq} onChange={e => setSq(e.target.value)} style={{ ...inpS, paddingLeft: 32, fontSize: 12 }} /></div>
-            <select value={cf} onChange={e => setCf(e.target.value)} style={{ ...inpS, width: "auto", fontSize: 12, minWidth: 80 }}><option value="All">All</option>{CATS.map(c => <option key={c} value={c}>{c}</option>)}</select>
-          </div>
-          <div style={{ fontSize: 11, color: T.text3, marginBottom: 12, display: "flex", justifyContent: "space-between" }}>
-            <span>{filt.length} expenses -- {fmt(totF)}</span>
-            <button onClick={() => setSd(v => v === "desc" ? "asc" : "desc")} style={{ background: "none", border: "none", color: T.gold, fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", gap: 3, fontWeight: 600 }}><ChevronDown size={12} />{sd === "desc" ? "Newest" : "Oldest"}</button>
-          </div>
-          {sorted.map(e => (
-            <div key={e.id} style={{ ...cardS, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px" }}>
-              <div style={{ flex: 1 }}><div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 8, height: 8, borderRadius: 3, background: cco[e.category] || T.text3 }} /><div style={{ fontSize: 13, fontWeight: 600 }}>{e.description || e.category}</div></div><div style={{ fontSize: 10, color: T.text3, marginTop: 4, marginLeft: 16 }}>{e.date} -- {e.addedBy} -- {e.category}</div></div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ fontSize: 15, fontWeight: 800 }}>{fmt(e.amount)}</div><button onClick={() => edF(e)} style={{ background: "none", border: "none", color: T.gold, cursor: "pointer", padding: 4 }}><Edit3 size={14} /></button><button onClick={() => setDc(e.id)} style={{ background: "none", border: "none", color: T.err, cursor: "pointer", padding: 4 }}><Trash2 size={14} /></button></div>
-            </div>
-          ))}
-          {filt.length === 0 && <div style={{ textAlign: "center", color: T.text3, padding: 40, fontSize: 13 }}>No expenses found</div>}
-        </div>
-      )}
+      {/* Main Content Area */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", ...(isDesktop ? { overflowY: "auto", maxHeight: "100vh" } : {}) }}>
 
-      {/* AI CHAT */}
-      {tab === "chat" && (
-        <div style={{ flex: 1, maxWidth: 600, margin: "0 auto", padding: "18px 20px", width: "100%", boxSizing: "border-box", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          <div style={{ flex: 1, overflowY: "auto", marginBottom: 14 }}>
-            {msgs.map((m, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", marginBottom: 10 }}>
-                <div style={{ maxWidth: "82%", padding: "12px 16px", borderRadius: 16, background: m.role === "user" ? T.chatUser : T.chatBot, border: m.role === "user" ? "none" : `1px solid ${T.chatBotBorder}`, color: m.role === "user" ? T.chatUserText : T.text1, fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap", fontWeight: m.role === "user" ? 600 : 400 }}>{m.content}</div>
-              </div>
-            ))}
-            {cl && <div style={{ display: "flex", marginBottom: 10 }}><div style={{ padding: "12px 16px", borderRadius: 16, background: T.chatBot, border: `1px solid ${T.chatBotBorder}`, color: T.gold, fontSize: 13 }}>Thinking...</div></div>}
-            {pe && (
-              <div style={{ ...cardS, marginBottom: 10, borderColor: T.borderStrong }}>
-                <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 10, color: T.gold }}>Confirm {pe.length} expense{pe.length > 1 ? "s" : ""}:</div>
-                {pe.map(e => <div key={e.id} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: 12 }}><span style={{ color: T.text2 }}>{e.description || e.category} ({e.category})</span><span style={{ fontWeight: 700 }}>{fmt(e.amount)}</span></div>)}
-                <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                  <button onClick={confirmP} style={{ ...btnP, flex: 1, padding: 11, fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}><Check size={14} />Save</button>
-                  <button onClick={rejectP} style={{ ...btnG, flex: 1, padding: 11, fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}><X size={14} />Discard</button>
-                </div>
+        {/* Mobile Header */}
+        {!isDesktop && (
+          <div style={{ padding: "18px 20px 0", maxWidth: 600, margin: "0 auto", width: "100%", boxSizing: "border-box", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <h1 style={{ fontSize: 24, fontWeight: 800, margin: 0, color: T.text1, letterSpacing: -0.5 }}>Expense<span style={{ color: T.gold }}>Tracker</span></h1>
+              <p style={{ color: T.text3, fontSize: 11, margin: "2px 0 0" }}>Logged in as <span style={{ color: T.gold }}>{user}</span></p>
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button onClick={toggleTheme} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: 8, color: T.text2, cursor: "pointer", display: "flex", alignItems: "center" }}>
+                {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+              </button>
+              <button onClick={onLogout} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: "8px 12px", color: T.text2, fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, fontWeight: 600 }}><LogOut size={13} />Logout</button>
+            </div>
+          </div>
+        )}
+
+        {/* Mobile Tabs */}
+        {!isDesktop && (
+          <div style={{ maxWidth: 600, margin: "14px auto 0", padding: "0 20px", width: "100%", boxSizing: "border-box" }}>
+            <div style={{ display: "flex", gap: 2, background: T.surface, borderRadius: 16, padding: 4, border: `1px solid ${T.border}` }}>
+              {tabs.map(t => { const I = t.icon; const a = tab === t.id;
+                return <button key={t.id} onClick={() => setTab(t.id)} style={{ flex: 1, padding: "10px 4px", borderRadius: 12, border: "none", background: a ? T.goldMuted : "transparent", color: a ? T.gold : T.text3, fontSize: 10, fontWeight: 700, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, position: "relative" }}><I size={16} />{t.label}{a && <div style={{ position: "absolute", bottom: 2, width: 16, height: 2, borderRadius: 1, background: T.gold }} />}</button>;
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* DASHBOARD */}
+        {tab === "dashboard" && (
+          <div style={{ flex: 1, maxWidth: mwDash, margin: "0 auto", padding: isDesktop ? "28px 36px 40px" : "18px 20px 80px", width: "100%", boxSizing: "border-box", overflowY: "auto" }}>
+            {accts.length > 0 && (
+              <div style={{ background: `linear-gradient(135deg,${theme === "dark" ? "rgba(52,211,153,0.08)" : "rgba(5,150,105,0.06)"},transparent)`, border: `1px solid ${theme === "dark" ? "rgba(52,211,153,0.15)" : "rgba(5,150,105,0.15)"}`, borderRadius: 18, padding: "16px 18px", marginBottom: 18, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div><div style={{ fontSize: 10, color: T.text3, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>Total Balance</div><div style={{ fontSize: 26, fontWeight: 800, color: T.ok, marginTop: 2 }}>{fmt(totA)}</div></div>
+                <Wallet size={26} style={{ color: "rgba(245,181,38,0.25)" }} />
               </div>
             )}
-            <div ref={cr} />
+            <div style={{ display: "flex", gap: 6, marginBottom: 18, flexWrap: "wrap" }}>{PERIODS.filter(p => p !== "All").map(p => <button key={p} onClick={() => setPer(p)} style={pillS(per === p)}>{p}</button>)}</div>
+
+            <div style={{ background: `linear-gradient(135deg,${T.goldMuted},transparent)`, border: `1px solid ${T.borderStrong}`, borderRadius: 22, padding: 24, marginBottom: 18, position: "relative", overflow: "hidden" }}>
+              <div style={{ position: "absolute", top: -30, right: -30, width: 120, height: 120, borderRadius: "50%", background: "rgba(245,181,38,0.06)" }} />
+              <div style={{ fontSize: 11, color: T.text2, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>{per} Spending</div>
+              <div style={{ fontSize: isDesktop ? 48 : 42, fontWeight: 800, marginTop: 6, letterSpacing: -2, color: T.text1 }}>{fmt(totF)}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 4, color: pct > 0 ? T.err : T.ok, fontSize: 13, fontWeight: 700, background: pct > 0 ? "rgba(239,68,68,0.1)" : "rgba(52,211,153,0.1)", padding: "4px 10px", borderRadius: 8 }}>
+                  {pct > 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}{Math.abs(pct).toFixed(1)}%
+                </div>
+                <span style={{ color: T.text3, fontSize: 11 }}>vs prev {per.toLowerCase()}</span>
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 18 }}>
+              {Object.entries(byP).map(([n, a]) => (<div key={n} style={cardS}><div style={{ fontSize: 11, color: T.text2, fontWeight: 600 }}>{n}</div><div style={{ fontSize: 22, fontWeight: 800, marginTop: 4 }}>{fmt(a)}</div><div style={{ fontSize: 10, color: T.text3, marginTop: 4 }}>{totF > 0 ? (a / totF * 100).toFixed(0) : 0}% of total</div></div>))}
+            </div>
+
+            {/* Charts grid — 2 cols on desktop, stacked on mobile */}
+            <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 18 }}>
+              {pieD.length > 0 && (<div style={{ ...cardS }}><div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>By Category</div>
+                <ResponsiveContainer width="100%" height={isDesktop ? 260 : 200}><RPie><Pie data={pieD} cx="50%" cy="50%" innerRadius={isDesktop ? 65 : 55} outerRadius={isDesktop ? 100 : 85} dataKey="value" stroke="none">{pieD.map((_, i) => <Cell key={i} fill={cco[pieD[i].name] || T.text3} />)}</Pie><Tooltip content={<CTipLocal />} /></RPie></ResponsiveContainer>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 16px", marginTop: 10 }}>{pieD.map((d, i) => <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}><div style={{ width: 8, height: 8, borderRadius: 3, background: cco[d.name] || T.text3 }} /><span style={{ color: T.text2 }}>{d.name}: {fmt(d.value)}</span></div>)}</div>
+              </div>)}
+
+              {cBar.length > 0 && (<div style={{ ...cardS }}><div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Category Breakdown</div>
+                <ResponsiveContainer width="100%" height={isDesktop ? 260 : 180}><BarChart data={cBar}><XAxis dataKey="name" tick={{ fill: T.text3, fontSize: 10 }} axisLine={false} tickLine={false} /><YAxis tick={{ fill: T.text3, fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={fmtS} /><Tooltip content={<CTipLocal />} /><Bar dataKey="value" radius={[8, 8, 0, 0]}>{cBar.map((d, i) => <Cell key={i} fill={cco[d.full] || T.gold} />)}</Bar></BarChart></ResponsiveContainer>
+              </div>)}
+
+              {dT.length > 1 && (<div style={{ ...cardS }}><div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Spending Trend</div>
+                <ResponsiveContainer width="100%" height={isDesktop ? 260 : 160}><LineChart data={dT}><CartesianGrid strokeDasharray="3 3" stroke={theme === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.06)"} /><XAxis dataKey="date" tick={{ fill: T.text3, fontSize: 10 }} axisLine={false} tickLine={false} /><YAxis tick={{ fill: T.text3, fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={fmtS} /><Tooltip content={<CTipLocal />} /><Line type="monotone" dataKey="amount" stroke={T.gold} strokeWidth={2.5} dot={false} /></LineChart></ResponsiveContainer>
+              </div>)}
+
+              {budgetChart.length > 0 && (<div style={{ ...cardS }}><div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Budget vs Actual</div>
+                <ResponsiveContainer width="100%" height={isDesktop ? 260 : 200}><BarChart data={budgetChart}><XAxis dataKey="name" tick={{ fill: T.text3, fontSize: 10 }} axisLine={false} tickLine={false} /><YAxis tick={{ fill: T.text3, fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={fmtS} /><Tooltip content={<CTipLocal />} /><Legend wrapperStyle={{ fontSize: 10, color: T.text2 }} /><Bar dataKey="budget" fill={theme === "dark" ? "rgba(245,181,38,0.2)" : "rgba(212,155,31,0.15)"} radius={[6, 6, 0, 0]} name="Budget" /><Bar dataKey="actual" radius={[6, 6, 0, 0]} name="Actual">{budgetChart.map((d, i) => <Cell key={i} fill={d.actual > d.budget ? T.err : d.actual > d.budget * 0.8 ? T.goldLight : T.ok} />)}</Bar></BarChart></ResponsiveContainer>
+              </div>)}
+            </div>
+
+            {t5.length > 0 && (<div style={{ ...cardS, marginTop: 18 }}><div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Top 5 Expenses</div>
+              {t5.map((e, i) => (<div key={e.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: i < t5.length - 1 ? `1px solid ${T.border}` : "none" }}><div><div style={{ fontSize: 13, fontWeight: 600 }}>{e.description || e.category}</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>{e.date} -- {e.addedBy}</div></div><div style={{ fontSize: 15, fontWeight: 800, color: cco[e.category] || T.gold }}>{fmt(e.amount)}</div></div>))}
+            </div>)}
           </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-            <input type="file" ref={fr} accept="image/*" onChange={doImg} style={{ display: "none" }} />
-            <button onClick={() => fr.current?.click()} disabled={cl} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 11, color: T.text2, cursor: "pointer", flexShrink: 0 }}><ImagePlus size={18} /></button>
-            <textarea value={ci} onChange={e => setCi(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); doChat(); } }} disabled={cl} placeholder="Type expense or ask..." rows={1} style={{ ...inpS, flex: 1, resize: "none", minHeight: 42 }} />
-            <button onClick={doChat} disabled={cl || !ci.trim()} style={{ background: ci.trim() ? T.grad : T.surface, border: "none", borderRadius: 12, padding: 11, color: ci.trim() ? (theme === "dark" ? "#0C0C12" : "#FFF") : T.text3, cursor: "pointer", flexShrink: 0, boxShadow: ci.trim() ? "0 4px 12px rgba(245,181,38,0.2)" : "none" }}><Send size={18} /></button>
+        )}
+
+        {/* EXPENSES */}
+        {tab === "expenses" && (
+          <div style={{ flex: 1, maxWidth: mwExp, margin: "0 auto", padding: isDesktop ? "28px 36px 40px" : "18px 20px 80px", width: "100%", boxSizing: "border-box", overflowY: "auto" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <div style={{ fontSize: 18, fontWeight: 800 }}>Expenses</div>
+              <button onClick={() => { rstF(); setSf(true); }} style={{ ...btnP, padding: "10px 16px", fontSize: 12, display: "flex", alignItems: "center", gap: 5 }}><Plus size={14} />Add</button>
+            </div>
+            <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>{PERIODS.map(p => <button key={p} onClick={() => setPer(p)} style={pillS(per === p)}>{p}</button>)}</div>
+            <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+              <div style={{ flex: 1, position: "relative" }}><Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: T.text3 }} /><input placeholder="Search..." value={sq} onChange={e => setSq(e.target.value)} style={{ ...inpS, paddingLeft: 32, fontSize: 12 }} /></div>
+              <select value={cf} onChange={e => setCf(e.target.value)} style={{ ...inpS, width: "auto", fontSize: 12, minWidth: 80 }}><option value="All">All</option>{CATS.map(c => <option key={c} value={c}>{c}</option>)}</select>
+            </div>
+            <div style={{ fontSize: 11, color: T.text3, marginBottom: 12, display: "flex", justifyContent: "space-between" }}>
+              <span>{filt.length} expenses -- {fmt(totF)}</span>
+              <button onClick={() => setSd(v => v === "desc" ? "asc" : "desc")} style={{ background: "none", border: "none", color: T.gold, fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", gap: 3, fontWeight: 600 }}><ChevronDown size={12} />{sd === "desc" ? "Newest" : "Oldest"}</button>
+            </div>
+            {sorted.map(e => (
+              <div key={e.id} style={{ ...cardS, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px" }}>
+                <div style={{ flex: 1 }}><div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 8, height: 8, borderRadius: 3, background: cco[e.category] || T.text3 }} /><div style={{ fontSize: 13, fontWeight: 600 }}>{e.description || e.category}</div></div><div style={{ fontSize: 10, color: T.text3, marginTop: 4, marginLeft: 16 }}>{e.date} -- {e.addedBy} -- {e.category}</div></div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ fontSize: 15, fontWeight: 800 }}>{fmt(e.amount)}</div><button onClick={() => edF(e)} style={{ background: "none", border: "none", color: T.gold, cursor: "pointer", padding: 4 }}><Edit3 size={14} /></button><button onClick={() => setDc(e.id)} style={{ background: "none", border: "none", color: T.err, cursor: "pointer", padding: 4 }}><Trash2 size={14} /></button></div>
+              </div>
+            ))}
+            {filt.length === 0 && <div style={{ textAlign: "center", color: T.text3, padding: 40, fontSize: 13 }}>No expenses found</div>}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* INSIGHTS */}
-      {tab === "insights" && (
-        <div style={{ flex: 1, maxWidth: 600, margin: "0 auto", padding: "18px 20px 80px", width: "100%", boxSizing: "border-box", overflowY: "auto" }}>
-          <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 14 }}>AI Insights</div>
-          <div style={{ display: "flex", gap: 6, marginBottom: 18, flexWrap: "wrap" }}>{["Weekly", "Monthly", "Quarterly", "Yearly"].map(p => <button key={p} onClick={() => setIp(p)} style={pillS(ip === p)}>{p}</button>)}</div>
-          <button onClick={genIns} disabled={il} style={{ ...btnP, width: "100%", marginBottom: 18, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: il ? 0.6 : 1 }}>
-            {il ? <><RefreshCw size={16} className="spin" />Generating...</> : <><Lightbulb size={16} />Generate {ip} Review</>}
-          </button>
-          {it && <div style={{ ...cardS, whiteSpace: "pre-wrap", fontSize: 13, lineHeight: 1.8, color: T.text2 }}>{it}</div>}
-        </div>
-      )}
+        {/* AI CHAT */}
+        {tab === "chat" && (
+          <div style={{ flex: 1, maxWidth: mwChat, margin: "0 auto", padding: isDesktop ? "28px 36px 20px" : "18px 20px", width: "100%", boxSizing: "border-box", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            <div style={{ flex: 1, overflowY: "auto", marginBottom: 14 }}>
+              {msgs.map((m, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", marginBottom: 10 }}>
+                  <div style={{ maxWidth: isDesktop ? "65%" : "82%", padding: "12px 16px", borderRadius: 16, background: m.role === "user" ? T.chatUser : T.chatBot, border: m.role === "user" ? "none" : `1px solid ${T.chatBotBorder}`, color: m.role === "user" ? T.chatUserText : T.text1, fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap", fontWeight: m.role === "user" ? 600 : 400 }}>{m.content}</div>
+                </div>
+              ))}
+              {cl && <div style={{ display: "flex", marginBottom: 10 }}><div style={{ padding: "12px 16px", borderRadius: 16, background: T.chatBot, border: `1px solid ${T.chatBotBorder}`, color: T.gold, fontSize: 13 }}>Thinking...</div></div>}
+              {pe && (
+                <div style={{ ...cardS, marginBottom: 10, borderColor: T.borderStrong }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 10, color: T.gold }}>Confirm {pe.length} expense{pe.length > 1 ? "s" : ""}:</div>
+                  {pe.map(e => <div key={e.id} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: 12 }}><span style={{ color: T.text2 }}>{e.description || e.category} ({e.category})</span><span style={{ fontWeight: 700 }}>{fmt(e.amount)}</span></div>)}
+                  <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                    <button onClick={confirmP} style={{ ...btnP, flex: 1, padding: 11, fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}><Check size={14} />Save</button>
+                    <button onClick={rejectP} style={{ ...btnG, flex: 1, padding: 11, fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}><X size={14} />Discard</button>
+                  </div>
+                </div>
+              )}
+              <div ref={cr} />
+            </div>
+            <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+              <input type="file" ref={fr} accept="image/*" onChange={doImg} style={{ display: "none" }} />
+              <button onClick={() => fr.current?.click()} disabled={cl} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 11, color: T.text2, cursor: "pointer", flexShrink: 0 }}><ImagePlus size={18} /></button>
+              <textarea value={ci} onChange={e => setCi(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); doChat(); } }} disabled={cl} placeholder="Type expense or ask..." rows={1} style={{ ...inpS, flex: 1, resize: "none", minHeight: 42 }} />
+              <button onClick={doChat} disabled={cl || !ci.trim()} style={{ background: ci.trim() ? T.grad : T.surface, border: "none", borderRadius: 12, padding: 11, color: ci.trim() ? (theme === "dark" ? "#0C0C12" : "#FFF") : T.text3, cursor: "pointer", flexShrink: 0, boxShadow: ci.trim() ? "0 4px 12px rgba(245,181,38,0.2)" : "none" }}><Send size={18} /></button>
+            </div>
+          </div>
+        )}
 
-      {/* MORE */}
-      {tab === "more" && (
-        <div style={{ flex: 1, maxWidth: 600, margin: "0 auto", padding: "18px 20px 80px", width: "100%", boxSizing: "border-box", overflowY: "auto" }}>
-          <div style={{ display: "flex", gap: 6, marginBottom: 18 }}>{["accounts", "budgets", "settings"].map(s => <button key={s} onClick={() => setSub(s)} style={pillS(sub === s)}>{s.charAt(0).toUpperCase() + s.slice(1)}</button>)}</div>
+        {/* INSIGHTS */}
+        {tab === "insights" && (
+          <div style={{ flex: 1, maxWidth: mwIns, margin: "0 auto", padding: isDesktop ? "28px 36px 40px" : "18px 20px 80px", width: "100%", boxSizing: "border-box", overflowY: "auto" }}>
+            <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 14 }}>AI Insights</div>
+            <div style={{ display: isDesktop ? "grid" : "block", gridTemplateColumns: isDesktop ? "280px 1fr" : undefined, gap: 18, alignItems: "start" }}>
+              <div>
+                <div style={{ display: "flex", gap: 6, marginBottom: 18, flexWrap: "wrap" }}>{["Weekly", "Monthly", "Quarterly", "Yearly"].map(p => <button key={p} onClick={() => setIp(p)} style={pillS(ip === p)}>{p}</button>)}</div>
+                <button onClick={genIns} disabled={il} style={{ ...btnP, width: "100%", marginBottom: isDesktop ? 0 : 18, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: il ? 0.6 : 1 }}>
+                  {il ? <><RefreshCw size={16} className="spin" />Generating...</> : <><Lightbulb size={16} />Generate {ip} Review</>}
+                </button>
+              </div>
+              <div>
+                {it && <div style={{ ...cardS, whiteSpace: "pre-wrap", fontSize: 13, lineHeight: 1.8, color: T.text2 }}>{it}</div>}
+              </div>
+            </div>
+          </div>
+        )}
 
-          {sub === "accounts" && (<>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}><div style={{ fontSize: 18, fontWeight: 800 }}>Accounts</div><button onClick={() => { rstAf(); setSaf(true); }} style={{ ...btnP, padding: "10px 16px", fontSize: 12, display: "flex", alignItems: "center", gap: 5 }}><Plus size={14} />Add</button></div>
-            {accts.length > 0 && (<div style={{ background: `linear-gradient(135deg,${theme === "dark" ? "rgba(52,211,153,0.08)" : "rgba(5,150,105,0.06)"},transparent)`, border: `1px solid ${theme === "dark" ? "rgba(52,211,153,0.15)" : "rgba(5,150,105,0.15)"}`, borderRadius: 18, padding: "16px 18px", marginBottom: 18 }}><div style={{ fontSize: 10, color: T.text3, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>Net Worth</div><div style={{ fontSize: 30, fontWeight: 800, color: T.ok, marginTop: 2 }}>{fmt(totA)}</div></div>)}
-            {accts.map(a => { const I = aIcons[a.type] || Wallet; return (
-              <div key={a.id} style={{ ...cardS, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}><div style={{ width: 42, height: 42, borderRadius: 13, background: T.goldMuted, display: "flex", alignItems: "center", justifyContent: "center" }}><I size={18} style={{ color: T.gold }} /></div><div><div style={{ fontSize: 13, fontWeight: 600 }}>{a.name}</div><div style={{ fontSize: 10, color: T.text3, textTransform: "capitalize" }}>{a.type}</div></div></div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ fontSize: 16, fontWeight: 800, color: T.ok }}>{fmt(a.balance)}</div><button onClick={() => edA(a)} style={{ background: "none", border: "none", color: T.gold, cursor: "pointer", padding: 4 }}><Edit3 size={14} /></button><button onClick={() => setDac(a.id)} style={{ background: "none", border: "none", color: T.err, cursor: "pointer", padding: 4 }}><Trash2 size={14} /></button></div>
-              </div>); })}
-          </>)}
+        {/* MORE */}
+        {tab === "more" && (
+          <div style={{ flex: 1, maxWidth: mwMore, margin: "0 auto", padding: isDesktop ? "28px 36px 40px" : "18px 20px 80px", width: "100%", boxSizing: "border-box", overflowY: "auto" }}>
+            <div style={{ display: "flex", flexDirection: isDesktop ? "column" : "row", gap: 6, marginBottom: 18, ...(isDesktop ? { position: "absolute", width: 160 } : {}) }}>
+              {["accounts", "budgets", "settings"].map(s => <button key={s} onClick={() => setSub(s)} style={pillS(sub === s)}>{s.charAt(0).toUpperCase() + s.slice(1)}</button>)}
+            </div>
 
-          {sub === "budgets" && (<>
-            <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 14 }}>Monthly Budgets</div>
-            {!sbf ? (<>
-              {CATS.map(c => (<div key={c} style={{ ...cardS, marginBottom: 8, padding: "14px 16px" }}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 8, height: 8, borderRadius: 3, background: cco[c] }} /><span style={{ fontSize: 13, fontWeight: 600 }}>{c}</span></div><span style={{ fontSize: 14, fontWeight: 800 }}>{fmt(budgets[c] || 0)}</span></div>
-                <div style={{ marginTop: 8, height: 5, borderRadius: 3, background: theme === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.06)", overflow: "hidden" }}><div style={{ height: "100%", borderRadius: 3, width: `${Math.min(100, ((mByCat[c] || 0) / (budgets[c] || 1)) * 100)}%`, background: (mByCat[c] || 0) > (budgets[c] || 0) ? T.err : (mByCat[c] || 0) > (budgets[c] || 0) * 0.8 ? T.goldLight : T.ok, transition: "width 0.3s" }} /></div>
-                <div style={{ fontSize: 10, color: T.text3, marginTop: 5 }}>Spent: {fmt(mByCat[c] || 0)} / {fmt(budgets[c] || 0)}</div></div>))}
-              <button onClick={() => { setBf({ ...budgets }); setSbf(true); }} style={{ ...btnG, width: "100%", marginTop: 8, borderColor: T.borderStrong, color: T.gold }}>Edit Budgets</button>
-            </>) : (<>
-              {CATS.map(c => (<div key={c} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}><div style={{ width: 8, height: 8, borderRadius: 3, background: cco[c], flexShrink: 0 }} /><span style={{ fontSize: 13, fontWeight: 600, width: 100, flexShrink: 0 }}>{c}</span><input type="number" inputMode="numeric" value={bf[c] || ""} onChange={e => setBf(v => ({ ...v, [c]: parseFloat(e.target.value) || 0 }))} style={{ ...inpS, flex: 1 }} /></div>))}
-              <div style={{ display: "flex", gap: 8, marginTop: 14 }}><button onClick={saveBudgets} style={{ ...btnP, flex: 1 }}>Save</button><button onClick={() => setSbf(false)} style={{ ...btnG, flex: 1 }}>Cancel</button></div>
-            </>)}
-          </>)}
+            <div style={{ ...(isDesktop ? { marginLeft: 184 } : {}) }}>
+              {sub === "accounts" && (<>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}><div style={{ fontSize: 18, fontWeight: 800 }}>Accounts</div><button onClick={() => { rstAf(); setSaf(true); }} style={{ ...btnP, padding: "10px 16px", fontSize: 12, display: "flex", alignItems: "center", gap: 5 }}><Plus size={14} />Add</button></div>
+                {accts.length > 0 && (<div style={{ background: `linear-gradient(135deg,${theme === "dark" ? "rgba(52,211,153,0.08)" : "rgba(5,150,105,0.06)"},transparent)`, border: `1px solid ${theme === "dark" ? "rgba(52,211,153,0.15)" : "rgba(5,150,105,0.15)"}`, borderRadius: 18, padding: "16px 18px", marginBottom: 18 }}><div style={{ fontSize: 10, color: T.text3, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>Net Worth</div><div style={{ fontSize: 30, fontWeight: 800, color: T.ok, marginTop: 2 }}>{fmt(totA)}</div></div>)}
+                <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 8 }}>
+                  {accts.map(a => { const I = aIcons[a.type] || Wallet; return (
+                    <div key={a.id} style={{ ...cardS, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}><div style={{ width: 42, height: 42, borderRadius: 13, background: T.goldMuted, display: "flex", alignItems: "center", justifyContent: "center" }}><I size={18} style={{ color: T.gold }} /></div><div><div style={{ fontSize: 13, fontWeight: 600 }}>{a.name}</div><div style={{ fontSize: 10, color: T.text3, textTransform: "capitalize" }}>{a.type}</div></div></div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ fontSize: 16, fontWeight: 800, color: T.ok }}>{fmt(a.balance)}</div><button onClick={() => edA(a)} style={{ background: "none", border: "none", color: T.gold, cursor: "pointer", padding: 4 }}><Edit3 size={14} /></button><button onClick={() => setDac(a.id)} style={{ background: "none", border: "none", color: T.err, cursor: "pointer", padding: 4 }}><Trash2 size={14} /></button></div>
+                    </div>); })}
+                </div>
+              </>)}
 
-          {sub === "settings" && (<>
-            <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 14 }}>Settings</div>
-            <button onClick={exportCSV} style={{ ...cardS, width: "100%", marginBottom: 8, padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}><Download size={18} style={{ color: T.gold }} /><div><div style={{ fontSize: 13, fontWeight: 600 }}>Export CSV</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>Download all expenses</div></div></button>
-            <button onClick={() => setClr(true)} style={{ ...cardS, width: "100%", marginBottom: 8, padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left", borderColor: `${T.err}30` }}><AlertTriangle size={18} style={{ color: T.err }} /><div><div style={{ fontSize: 13, fontWeight: 600, color: T.err }}>Clear All Data</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>Remove everything permanently</div></div></button>
-          </>)}
-        </div>
-      )}
+              {sub === "budgets" && (<>
+                <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 14 }}>Monthly Budgets</div>
+                {!sbf ? (<>
+                  <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 8 }}>
+                    {CATS.map(c => (<div key={c} style={{ ...cardS, padding: "14px 16px" }}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 8, height: 8, borderRadius: 3, background: cco[c] }} /><span style={{ fontSize: 13, fontWeight: 600 }}>{c}</span></div><span style={{ fontSize: 14, fontWeight: 800 }}>{fmt(budgets[c] || 0)}</span></div>
+                      <div style={{ marginTop: 8, height: 5, borderRadius: 3, background: theme === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.06)", overflow: "hidden" }}><div style={{ height: "100%", borderRadius: 3, width: `${Math.min(100, ((mByCat[c] || 0) / (budgets[c] || 1)) * 100)}%`, background: (mByCat[c] || 0) > (budgets[c] || 0) ? T.err : (mByCat[c] || 0) > (budgets[c] || 0) * 0.8 ? T.goldLight : T.ok, transition: "width 0.3s" }} /></div>
+                      <div style={{ fontSize: 10, color: T.text3, marginTop: 5 }}>Spent: {fmt(mByCat[c] || 0)} / {fmt(budgets[c] || 0)}</div></div>))}
+                  </div>
+                  <button onClick={() => { setBf({ ...budgets }); setSbf(true); }} style={{ ...btnG, width: "100%", marginTop: 8, borderColor: T.borderStrong, color: T.gold }}>Edit Budgets</button>
+                </>) : (<>
+                  <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 10 }}>
+                    {CATS.map(c => (<div key={c} style={{ display: "flex", alignItems: "center", gap: 10 }}><div style={{ width: 8, height: 8, borderRadius: 3, background: cco[c], flexShrink: 0 }} /><span style={{ fontSize: 13, fontWeight: 600, width: 100, flexShrink: 0 }}>{c}</span><input type="number" inputMode="numeric" value={bf[c] || ""} onChange={e => setBf(v => ({ ...v, [c]: parseFloat(e.target.value) || 0 }))} style={{ ...inpS, flex: 1 }} /></div>))}
+                  </div>
+                  <div style={{ display: "flex", gap: 8, marginTop: 14 }}><button onClick={saveBudgets} style={{ ...btnP, flex: 1 }}>Save</button><button onClick={() => setSbf(false)} style={{ ...btnG, flex: 1 }}>Cancel</button></div>
+                </>)}
+              </>)}
 
-      {/* MODALS */}
-      {sf && <Modal><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}><div style={{ fontSize: 18, fontWeight: 800, color: T.text1 }}>{eId ? "Edit" : "Add"} Expense</div><button onClick={rstF} style={{ background: "none", border: "none", color: T.text3, cursor: "pointer" }}><X size={22} /></button></div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <input placeholder="Amount" type="number" inputMode="decimal" value={form.amount} onChange={e => setForm(v => ({ ...v, amount: e.target.value }))} style={inpS} />
-          <select value={form.category} onChange={e => setForm(v => ({ ...v, category: e.target.value }))} style={inpS}>{CATS.map(c => <option key={c} value={c}>{c}</option>)}</select>
-          <input placeholder="Description" value={form.description} onChange={e => setForm(v => ({ ...v, description: e.target.value }))} style={inpS} />
-          <input type="date" value={form.date} onChange={e => setForm(v => ({ ...v, date: e.target.value }))} style={inpS} />
-          <select value={form.addedBy} onChange={e => setForm(v => ({ ...v, addedBy: e.target.value }))} style={inpS}>{USERS.map(u => <option key={u} value={u}>{u}</option>)}</select>
-          <button onClick={doSubmit} style={{ ...btnP, width: "100%" }}>{eId ? "Update" : "Add Expense"}</button>
-        </div>
-      </Modal>}
+              {sub === "settings" && (<>
+                <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 14 }}>Settings</div>
+                <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 8 }}>
+                  <button onClick={exportCSV} style={{ ...cardS, width: "100%", padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}><Download size={18} style={{ color: T.gold }} /><div><div style={{ fontSize: 13, fontWeight: 600 }}>Export CSV</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>Download all expenses</div></div></button>
+                  <button onClick={() => setClr(true)} style={{ ...cardS, width: "100%", padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left", borderColor: `${T.err}30` }}><AlertTriangle size={18} style={{ color: T.err }} /><div><div style={{ fontSize: 13, fontWeight: 600, color: T.err }}>Clear All Data</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>Remove everything permanently</div></div></button>
+                </div>
+              </>)}
+            </div>
+          </div>
+        )}
 
-      {saf && <Modal><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}><div style={{ fontSize: 18, fontWeight: 800, color: T.text1 }}>{eaId ? "Edit" : "Add"} Account</div><button onClick={rstAf} style={{ background: "none", border: "none", color: T.text3, cursor: "pointer" }}><X size={22} /></button></div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <input placeholder="Account name" value={af.name} onChange={e => setAf(v => ({ ...v, name: e.target.value }))} style={inpS} />
-          <input placeholder="Balance" type="number" inputMode="decimal" value={af.balance} onChange={e => setAf(v => ({ ...v, balance: e.target.value }))} style={inpS} />
-          <select value={af.type} onChange={e => setAf(v => ({ ...v, type: e.target.value }))} style={inpS}><option value="savings">Savings</option><option value="checking">Checking</option><option value="investment">Investment</option><option value="other">Other</option></select>
-          <button onClick={doAcct} style={{ ...btnP, width: "100%" }}>{eaId ? "Update" : "Add Account"}</button>
-        </div>
-      </Modal>}
+        {/* MODALS */}
+        {sf && <Modal><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}><div style={{ fontSize: 18, fontWeight: 800, color: T.text1 }}>{eId ? "Edit" : "Add"} Expense</div><button onClick={rstF} style={{ background: "none", border: "none", color: T.text3, cursor: "pointer" }}><X size={22} /></button></div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <input placeholder="Amount" type="number" inputMode="decimal" value={form.amount} onChange={e => setForm(v => ({ ...v, amount: e.target.value }))} style={inpS} />
+            <select value={form.category} onChange={e => setForm(v => ({ ...v, category: e.target.value }))} style={inpS}>{CATS.map(c => <option key={c} value={c}>{c}</option>)}</select>
+            <input placeholder="Description" value={form.description} onChange={e => setForm(v => ({ ...v, description: e.target.value }))} style={inpS} />
+            <input type="date" value={form.date} onChange={e => setForm(v => ({ ...v, date: e.target.value }))} style={inpS} />
+            <select value={form.addedBy} onChange={e => setForm(v => ({ ...v, addedBy: e.target.value }))} style={inpS}>{USERS.map(u => <option key={u} value={u}>{u}</option>)}</select>
+            <button onClick={doSubmit} style={{ ...btnP, width: "100%" }}>{eId ? "Update" : "Add Expense"}</button>
+          </div>
+        </Modal>}
 
-      {dc && <Modal><div style={{ textAlign: "center" }}><AlertTriangle size={36} style={{ color: T.err, marginBottom: 14 }} /><div style={{ fontSize: 18, fontWeight: 700, color: T.text1, marginBottom: 6 }}>Delete expense?</div><div style={{ fontSize: 12, color: T.text3, marginBottom: 20 }}>This cannot be undone.</div><div style={{ display: "flex", gap: 8 }}><button onClick={() => delE(dc)} style={{ ...btnP, flex: 1, background: T.err, boxShadow: "none" }}>Delete</button><button onClick={() => setDc(null)} style={{ ...btnG, flex: 1 }}>Cancel</button></div></div></Modal>}
-      {dac && <Modal><div style={{ textAlign: "center" }}><AlertTriangle size={36} style={{ color: T.err, marginBottom: 14 }} /><div style={{ fontSize: 18, fontWeight: 700, color: T.text1, marginBottom: 6 }}>Delete account?</div><div style={{ display: "flex", gap: 8, marginTop: 20 }}><button onClick={() => delA(dac)} style={{ ...btnP, flex: 1, background: T.err, boxShadow: "none" }}>Delete</button><button onClick={() => setDac(null)} style={{ ...btnG, flex: 1 }}>Cancel</button></div></div></Modal>}
-      {clr && <Modal><div style={{ textAlign: "center" }}><AlertTriangle size={36} style={{ color: T.err, marginBottom: 14 }} /><div style={{ fontSize: 18, fontWeight: 700, color: T.text1, marginBottom: 6 }}>Clear ALL data?</div><div style={{ fontSize: 12, color: T.text3, marginBottom: 20 }}>This removes everything permanently.</div><div style={{ display: "flex", gap: 8 }}><button onClick={clearAll} style={{ ...btnP, flex: 1, background: T.err, boxShadow: "none" }}>Clear All</button><button onClick={() => setClr(false)} style={{ ...btnG, flex: 1 }}>Cancel</button></div></div></Modal>}
+        {saf && <Modal><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}><div style={{ fontSize: 18, fontWeight: 800, color: T.text1 }}>{eaId ? "Edit" : "Add"} Account</div><button onClick={rstAf} style={{ background: "none", border: "none", color: T.text3, cursor: "pointer" }}><X size={22} /></button></div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <input placeholder="Account name" value={af.name} onChange={e => setAf(v => ({ ...v, name: e.target.value }))} style={inpS} />
+            <input placeholder="Balance" type="number" inputMode="decimal" value={af.balance} onChange={e => setAf(v => ({ ...v, balance: e.target.value }))} style={inpS} />
+            <select value={af.type} onChange={e => setAf(v => ({ ...v, type: e.target.value }))} style={inpS}><option value="savings">Savings</option><option value="checking">Checking</option><option value="investment">Investment</option><option value="other">Other</option></select>
+            <button onClick={doAcct} style={{ ...btnP, width: "100%" }}>{eaId ? "Update" : "Add Account"}</button>
+          </div>
+        </Modal>}
+
+        {dc && <Modal><div style={{ textAlign: "center" }}><AlertTriangle size={36} style={{ color: T.err, marginBottom: 14 }} /><div style={{ fontSize: 18, fontWeight: 700, color: T.text1, marginBottom: 6 }}>Delete expense?</div><div style={{ fontSize: 12, color: T.text3, marginBottom: 20 }}>This cannot be undone.</div><div style={{ display: "flex", gap: 8 }}><button onClick={() => delE(dc)} style={{ ...btnP, flex: 1, background: T.err, boxShadow: "none" }}>Delete</button><button onClick={() => setDc(null)} style={{ ...btnG, flex: 1 }}>Cancel</button></div></div></Modal>}
+        {dac && <Modal><div style={{ textAlign: "center" }}><AlertTriangle size={36} style={{ color: T.err, marginBottom: 14 }} /><div style={{ fontSize: 18, fontWeight: 700, color: T.text1, marginBottom: 6 }}>Delete account?</div><div style={{ display: "flex", gap: 8, marginTop: 20 }}><button onClick={() => delA(dac)} style={{ ...btnP, flex: 1, background: T.err, boxShadow: "none" }}>Delete</button><button onClick={() => setDac(null)} style={{ ...btnG, flex: 1 }}>Cancel</button></div></div></Modal>}
+        {clr && <Modal><div style={{ textAlign: "center" }}><AlertTriangle size={36} style={{ color: T.err, marginBottom: 14 }} /><div style={{ fontSize: 18, fontWeight: 700, color: T.text1, marginBottom: 6 }}>Clear ALL data?</div><div style={{ fontSize: 12, color: T.text3, marginBottom: 20 }}>This removes everything permanently.</div><div style={{ display: "flex", gap: 8 }}><button onClick={clearAll} style={{ ...btnP, flex: 1, background: T.err, boxShadow: "none" }}>Clear All</button><button onClick={() => setClr(false)} style={{ ...btnG, flex: 1 }}>Cancel</button></div></div></Modal>}
+      </div>
 
       <style>{`
         input::placeholder,textarea::placeholder{color:${T.text3}}
