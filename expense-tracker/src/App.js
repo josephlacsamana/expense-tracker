@@ -617,17 +617,11 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
         {tab === "insights" && (
           <div style={{ flex: 1, maxWidth: mwIns, margin: "0 auto", padding: isDesktop ? "28px 36px 40px" : "18px 20px 80px", width: "100%", boxSizing: "border-box", overflowY: "auto" }}>
             <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 14 }}>AI Insights</div>
-            <div style={{ display: isDesktop ? "grid" : "block", gridTemplateColumns: isDesktop ? "280px 1fr" : undefined, gap: 18, alignItems: "start" }}>
-              <div>
-                <div style={{ display: "flex", gap: 6, marginBottom: 18, flexWrap: "wrap" }}>{["Weekly", "Monthly", "Quarterly", "Yearly"].map(p => <button key={p} onClick={() => setIp(p)} style={pillS(ip === p)}>{p}</button>)}</div>
-                <button onClick={genIns} disabled={il} style={{ ...btnP, width: "100%", marginBottom: isDesktop ? 0 : 18, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: il ? 0.6 : 1 }}>
-                  {il ? <><RefreshCw size={16} className="spin" />Generating...</> : <><Lightbulb size={16} />Generate {ip} Review</>}
-                </button>
-              </div>
-              <div>
-                {it && <div style={{ ...cardS, whiteSpace: "pre-wrap", fontSize: 13, lineHeight: 1.8, color: T.text2 }}>{it}</div>}
-              </div>
-            </div>
+            <div style={{ display: "flex", gap: 6, marginBottom: 18, flexWrap: "wrap" }}>{["Weekly", "Monthly", "Quarterly", "Yearly"].map(p => <button key={p} onClick={() => setIp(p)} style={pillS(ip === p)}>{p}</button>)}</div>
+            <button onClick={genIns} disabled={il} style={{ ...btnP, width: isDesktop ? "auto" : "100%", marginBottom: 18, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: il ? 0.6 : 1, padding: isDesktop ? "15px 36px" : undefined }}>
+              {il ? <><RefreshCw size={16} className="spin" />Generating...</> : <><Lightbulb size={16} />Generate {ip} Review</>}
+            </button>
+            {it && <div style={{ ...cardS, whiteSpace: "pre-wrap", fontSize: 13, lineHeight: 1.8, color: T.text2 }}>{it}</div>}
           </div>
         )}
 
