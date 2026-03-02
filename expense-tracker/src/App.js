@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Plus, Trash2, Edit3, X, Check, Search, MessageSquare, LayoutDashboard, PieChart, Settings, ChevronDown, Lock, LogOut, ImagePlus, Send, RefreshCw, Download, AlertTriangle, TrendingUp, TrendingDown, PiggyBank, CreditCard, Building2, Wallet, Lightbulb, Coins, Sun, Moon } from "lucide-react";
+import { Plus, Trash2, Edit3, X, Check, Search, MessageSquare, LayoutDashboard, PieChart, Settings, ChevronDown, Lock, LogOut, ImagePlus, Send, RefreshCw, Download, AlertTriangle, TrendingUp, TrendingDown, PiggyBank, CreditCard, Building2, Wallet, Lightbulb, Coins, Sun, Moon, Repeat } from "lucide-react";
 import { PieChart as RPie, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, LineChart, Line, CartesianGrid, Legend } from "recharts";
 
 // ─── THEME TOKENS ───
@@ -313,6 +313,13 @@ function MainApp({ user, onLogout, theme, toggleTheme }) {
   const [clr, setClr] = useState(false);
   const [sbf, setSbf] = useState(false);
   const [bf, setBf] = useState({});
+  const [genBudget, setGenBudget] = useState(0);
+  const [gbEdit, setGbEdit] = useState("");
+  const [rec, setRec] = useState([]);
+  const [srf, setSrf] = useState(false);
+  const [erId, setErId] = useState(null);
+  const [rf, setRf] = useState({ amount: "", category: "Food", description: "", frequency: "monthly", nextDate: td() });
+  const [drc, setDrc] = useState(null);
   const tst = (m) => { setToast(m); setTimeout(() => setToast(null), 2500); };
 
   const pillS = (a) => ({
@@ -339,6 +346,8 @@ function MainApp({ user, onLogout, theme, toggleTheme }) {
         if (r?.value) { const p = JSON.parse(r.value); if (p.length > 0) { setExp(p);
           try { const a = await store.get("accounts"); if (a?.value) setAccts(JSON.parse(a.value)); } catch {}
           try { const b = await store.get("budgets"); if (b?.value) setBudgets(JSON.parse(b.value)); } catch {}
+          try { const g = await store.get("genBudget"); if (g?.value) setGenBudget(JSON.parse(g.value)); } catch {}
+          try { const rc = await store.get("recurring"); if (rc?.value) setRec(JSON.parse(rc.value)); } catch {}
           setLd(false); return; } }
       } catch (e) { console.error(e); }
       setExp(SEED_EXP); setAccts(SEED_ACCT);
@@ -370,12 +379,41 @@ function MainApp({ user, onLogout, theme, toggleTheme }) {
   const edA = (a) => { setAf({ name: a.name, balance: String(a.balance), type: a.type }); setEaId(a.id); setSaf(true); };
   const delA = (id) => { svA(accts.filter(a => a.id !== id)); setDac(null); tst("Account removed"); };
   const saveBudgets = () => { svB(bf); setSbf(false); tst("Budgets saved"); };
+  const svGB = async (v) => { setGenBudget(v); try { await store.set("genBudget", JSON.stringify(v)); } catch {} };
+  const svR = async (d) => { setRec(d); try { await store.set("recurring", JSON.stringify(d)); } catch {} };
+  const doRec = () => {
+    if (!rf.description.trim() || !rf.amount || isNaN(parseFloat(rf.amount))) return;
+    const en = { id: erId || uid(), amount: parseFloat(parseFloat(rf.amount).toFixed(2)), category: rf.category, description: rf.description.trim(), frequency: rf.frequency, nextDate: rf.nextDate || td(), addedBy: user, createdAt: Date.now() };
+    if (erId) { svR(rec.map(r => r.id === erId ? en : r)); tst("Recurring updated"); } else { svR([...rec, en]); tst("Recurring added"); }
+    rstRf();
+  };
+  const rstRf = () => { setRf({ amount: "", category: "Food", description: "", frequency: "monthly", nextDate: td() }); setErId(null); setSrf(false); };
+  const edRec = (r) => { setRf({ amount: String(r.amount), category: r.category, description: r.description, frequency: r.frequency, nextDate: r.nextDate }); setErId(r.id); setSrf(true); };
+  const delRec = (id) => { svR(rec.filter(r => r.id !== id)); setDrc(null); tst("Recurring removed"); };
+  const applyRec = () => {
+    const today = td();
+    const due = rec.filter(r => r.nextDate <= today);
+    if (!due.length) { tst("No recurring expenses due"); return; }
+    const newExp = due.map(r => ({ id: uid(), amount: r.amount, category: r.category, description: r.description, date: today, addedBy: r.addedBy || user, createdAt: Date.now() }));
+    svE([...newExp, ...exp]);
+    const updated = rec.map(r => {
+      if (r.nextDate > today) return r;
+      const d = new Date(r.nextDate + "T00:00:00");
+      if (r.frequency === "weekly") d.setDate(d.getDate() + 7);
+      else if (r.frequency === "yearly") d.setFullYear(d.getFullYear() + 1);
+      else d.setMonth(d.getMonth() + 1);
+      const nd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      return { ...r, nextDate: nd };
+    });
+    svR(updated);
+    tst(`Applied ${due.length} recurring expense${due.length > 1 ? "s" : ""}`);
+  };
   const exportCSV = () => {
     const h = "Date,Description,Category,Amount,Added By\n";
     const r = [...exp].sort((a, b) => a.date.localeCompare(b.date)).map(e => `${e.date},"${(e.description || "").replace(/"/g, '""')}",${e.category},${e.amount},${e.addedBy}`).join("\n");
     const b = new Blob([h + r], { type: "text/csv" }); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = "expenses.csv"; a.click(); URL.revokeObjectURL(u);
   };
-  const clearAll = async () => { setExp([]); setAccts([]); try { await store.set("expenses", JSON.stringify([])); await store.set("accounts", JSON.stringify([])); } catch {} setClr(false); tst("All data cleared"); };
+  const clearAll = async () => { setExp([]); setAccts([]); setRec([]); setGenBudget(0); try { await store.set("expenses", JSON.stringify([])); await store.set("accounts", JSON.stringify([])); await store.set("recurring", JSON.stringify([])); await store.set("genBudget", JSON.stringify(0)); } catch {} setClr(false); tst("All data cleared"); };
 
   const SYS = `You are an expense tracker assistant for a couple (Joseph and Rowena). Currency: PHP (Philippine Peso).
 RESPOND ONLY WITH VALID JSON. No markdown, no backticks. Today: ${td()}. Current user: ${user}.
@@ -476,6 +514,8 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
   const mStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
   const mExp = exp.filter(e => pld(e.date) >= mStart);
   const mByCat = mExp.reduce((a, e) => { a[e.category] = (a[e.category] || 0) + e.amount; return a; }, {});
+  const mTot = mExp.reduce((s, e) => s + e.amount, 0);
+  const gbPct = genBudget > 0 ? (mTot / genBudget) * 100 : 0;
   const budgetChart = CATS.map(c => ({ name: c.slice(0, 5), full: c, budget: budgets[c] || 0, actual: mByCat[c] || 0 })).filter(d => d.budget > 0 || d.actual > 0);
 
   const CTipLocal = ({ active, payload, label }) => {
@@ -593,6 +633,24 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
                 <span style={{ color: T.text3, fontSize: 11 }}>vs prev {per.toLowerCase()}</span>
               </div>
             </div>
+
+            {genBudget > 0 && (
+              <div style={{ ...cardS, padding: "18px 20px", marginBottom: 18 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700 }}>Monthly Budget</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: gbPct > 100 ? T.err : gbPct > 80 ? T.goldLight : T.ok }}>{gbPct.toFixed(0)}%</div>
+                </div>
+                <div style={{ height: 10, borderRadius: 5, background: theme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)", overflow: "hidden" }}>
+                  <div style={{ height: "100%", borderRadius: 5, width: `${Math.min(100, gbPct)}%`, background: gbPct > 100 ? T.err : gbPct > 80 ? T.goldLight : T.ok, transition: "width 0.3s" }} />
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
+                  <span style={{ fontSize: 11, color: T.text3 }}>{fmt(mTot)} spent</span>
+                  <span style={{ fontSize: 11, color: T.text3 }}>{fmt(genBudget)} limit</span>
+                </div>
+                {gbPct > 80 && gbPct <= 100 && <div style={{ fontSize: 11, color: T.goldLight, fontWeight: 600, marginTop: 6 }}>Approaching budget limit</div>}
+                {gbPct > 100 && <div style={{ fontSize: 11, color: T.err, fontWeight: 600, marginTop: 6 }}>Over budget by {fmt(mTot - genBudget)}</div>}
+              </div>
+            )}
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 18 }}>
               {Object.entries(byP).map(([n, a]) => (<div key={n} style={cardS}><div style={{ fontSize: 11, color: T.text2, fontWeight: 600 }}>{n}</div><div style={{ fontSize: 22, fontWeight: 800, marginTop: 4 }}>{fmt(a)}</div><div style={{ fontSize: 10, color: T.text3, marginTop: 4 }}>{totF > 0 ? (a / totF * 100).toFixed(0) : 0}% of total</div></div>))}
@@ -845,7 +903,7 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
         {tab === "more" && (
           <div style={{ flex: 1, maxWidth: mwMore, margin: "0 auto", padding: isDesktop ? "28px 36px 40px" : "18px 20px 80px", width: "100%", boxSizing: "border-box", overflowY: "auto" }}>
             <div style={{ display: "flex", flexDirection: isDesktop ? "column" : "row", gap: 6, marginBottom: 18, ...(isDesktop ? { position: "absolute", width: 160 } : {}) }}>
-              {["accounts", "budgets", "settings"].map(s => <button key={s} onClick={() => setSub(s)} style={pillS(sub === s)}>{s.charAt(0).toUpperCase() + s.slice(1)}</button>)}
+              {["accounts", "budgets", "recurring", "settings"].map(s => <button key={s} onClick={() => setSub(s)} style={pillS(sub === s)}>{s.charAt(0).toUpperCase() + s.slice(1)}</button>)}
             </div>
 
             <div style={{ ...(isDesktop ? { marginLeft: 184 } : {}) }}>
@@ -863,6 +921,15 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
 
               {sub === "budgets" && (<>
                 <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 14 }}>Monthly Budgets</div>
+                <div style={{ ...cardS, padding: "16px 18px", marginBottom: 16 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>General Monthly Budget</div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <input type="number" inputMode="numeric" placeholder="e.g. 30000" value={gbEdit || (genBudget > 0 ? genBudget : "")} onChange={e => setGbEdit(e.target.value)} style={{ ...inpS, flex: 1 }} />
+                    <button onClick={() => { const v = parseFloat(gbEdit) || 0; svGB(v); setGbEdit(""); tst(v > 0 ? `Budget set to ${fmt(v)}` : "Budget cleared"); }} style={{ ...btnP, padding: "12px 20px", whiteSpace: "nowrap" }}>Set</button>
+                  </div>
+                  {genBudget > 0 && <div style={{ fontSize: 11, color: T.text3, marginTop: 8 }}>Current: {fmt(genBudget)} / Spent this month: {fmt(mTot)} ({gbPct.toFixed(0)}%)</div>}
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10, color: T.text2 }}>Per-Category Limits (optional)</div>
                 {!sbf ? (<>
                   <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 8 }}>
                     {CATS.map(c => (<div key={c} style={{ ...cardS, padding: "14px 16px" }}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 8, height: 8, borderRadius: 3, background: cco[c] }} /><span style={{ fontSize: 13, fontWeight: 600 }}>{c}</span></div><span style={{ fontSize: 14, fontWeight: 800 }}>{fmt(budgets[c] || 0)}</span></div>
@@ -876,6 +943,40 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
                   </div>
                   <div style={{ display: "flex", gap: 8, marginTop: 14 }}><button onClick={saveBudgets} style={{ ...btnP, flex: 1 }}>Save</button><button onClick={() => setSbf(false)} style={{ ...btnG, flex: 1 }}>Cancel</button></div>
                 </>)}
+              </>)}
+
+              {sub === "recurring" && (<>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                  <div style={{ fontSize: 18, fontWeight: 800 }}>Recurring Expenses</div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={applyRec} style={{ ...btnG, padding: "10px 14px", fontSize: 12, display: "flex", alignItems: "center", gap: 5, borderColor: T.ok, color: T.ok }}><Check size={14} />Apply Due</button>
+                    <button onClick={() => { rstRf(); setSrf(true); }} style={{ ...btnP, padding: "10px 16px", fontSize: 12, display: "flex", alignItems: "center", gap: 5 }}><Plus size={14} />Add</button>
+                  </div>
+                </div>
+                {rec.length === 0 && <div style={{ ...cardS, textAlign: "center", padding: 28, color: T.text3, fontSize: 13 }}>No recurring expenses yet. Add templates for bills you pay regularly.</div>}
+                <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 8 }}>
+                  {rec.map(r => {
+                    const isDue = r.nextDate <= td();
+                    return (
+                    <div key={r.id} style={{ ...cardS, padding: "14px 16px", borderColor: isDue ? T.ok : T.border }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 600 }}>{r.description}</div>
+                          <div style={{ fontSize: 10, color: T.text3, marginTop: 3 }}>
+                            <span style={{ background: cco[r.category] || T.text3, color: "#fff", padding: "1px 6px", borderRadius: 4, fontSize: 9, fontWeight: 600 }}>{r.category}</span>
+                            {" "}{r.frequency} / Next: {r.nextDate}
+                          </div>
+                          {isDue && <div style={{ fontSize: 10, color: T.ok, fontWeight: 600, marginTop: 4 }}>Due now</div>}
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <div style={{ fontSize: 15, fontWeight: 800, color: T.gold }}>{fmt(r.amount)}</div>
+                          <button onClick={() => edRec(r)} style={{ background: "none", border: "none", color: T.gold, cursor: "pointer", padding: 4 }}><Edit3 size={14} /></button>
+                          <button onClick={() => setDrc(r.id)} style={{ background: "none", border: "none", color: T.err, cursor: "pointer", padding: 4 }}><Trash2 size={14} /></button>
+                        </div>
+                      </div>
+                    </div>
+                  ); })}
+                </div>
               </>)}
 
               {sub === "settings" && (<>
@@ -913,6 +1014,19 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
         {dc && <div style={mOvS}><div style={mInS}><div style={{ textAlign: "center" }}><AlertTriangle size={36} style={{ color: T.err, marginBottom: 14 }} /><div style={{ fontSize: 18, fontWeight: 700, color: T.text1, marginBottom: 6 }}>Delete expense?</div><div style={{ fontSize: 12, color: T.text3, marginBottom: 20 }}>This cannot be undone.</div><div style={{ display: "flex", gap: 8 }}><button onClick={() => delE(dc)} style={{ ...btnP, flex: 1, background: T.err, boxShadow: "none" }}>Delete</button><button onClick={() => setDc(null)} style={{ ...btnG, flex: 1 }}>Cancel</button></div></div></div></div>}
         {dac && <div style={mOvS}><div style={mInS}><div style={{ textAlign: "center" }}><AlertTriangle size={36} style={{ color: T.err, marginBottom: 14 }} /><div style={{ fontSize: 18, fontWeight: 700, color: T.text1, marginBottom: 6 }}>Delete account?</div><div style={{ display: "flex", gap: 8, marginTop: 20 }}><button onClick={() => delA(dac)} style={{ ...btnP, flex: 1, background: T.err, boxShadow: "none" }}>Delete</button><button onClick={() => setDac(null)} style={{ ...btnG, flex: 1 }}>Cancel</button></div></div></div></div>}
         {clr && <div style={mOvS}><div style={mInS}><div style={{ textAlign: "center" }}><AlertTriangle size={36} style={{ color: T.err, marginBottom: 14 }} /><div style={{ fontSize: 18, fontWeight: 700, color: T.text1, marginBottom: 6 }}>Clear ALL data?</div><div style={{ fontSize: 12, color: T.text3, marginBottom: 20 }}>This removes everything permanently.</div><div style={{ display: "flex", gap: 8 }}><button onClick={clearAll} style={{ ...btnP, flex: 1, background: T.err, boxShadow: "none" }}>Clear All</button><button onClick={() => setClr(false)} style={{ ...btnG, flex: 1 }}>Cancel</button></div></div></div></div>}
+
+        {srf && <div style={mOvS}><div style={mInS}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}><div style={{ fontSize: 18, fontWeight: 800, color: T.text1 }}>{erId ? "Edit" : "Add"} Recurring</div><button onClick={rstRf} style={{ background: "none", border: "none", color: T.text3, cursor: "pointer" }}><X size={22} /></button></div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <input placeholder="Description (e.g. Netflix)" value={rf.description} onChange={e => setRf(v => ({ ...v, description: e.target.value }))} style={inpS} />
+            <input placeholder="Amount" type="number" inputMode="decimal" value={rf.amount} onChange={e => setRf(v => ({ ...v, amount: e.target.value }))} style={inpS} />
+            <select value={rf.category} onChange={e => setRf(v => ({ ...v, category: e.target.value }))} style={inpS}>{CATS.map(c => <option key={c} value={c}>{c}</option>)}</select>
+            <select value={rf.frequency} onChange={e => setRf(v => ({ ...v, frequency: e.target.value }))} style={inpS}><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select>
+            <input type="date" value={rf.nextDate} onChange={e => setRf(v => ({ ...v, nextDate: e.target.value }))} style={inpS} />
+            <button onClick={doRec} style={{ ...btnP, width: "100%" }}>{erId ? "Update" : "Add Recurring"}</button>
+          </div>
+        </div></div>}
+
+        {drc && <div style={mOvS}><div style={mInS}><div style={{ textAlign: "center" }}><AlertTriangle size={36} style={{ color: T.err, marginBottom: 14 }} /><div style={{ fontSize: 18, fontWeight: 700, color: T.text1, marginBottom: 6 }}>Delete recurring expense?</div><div style={{ display: "flex", gap: 8, marginTop: 20 }}><button onClick={() => delRec(drc)} style={{ ...btnP, flex: 1, background: T.err, boxShadow: "none" }}>Delete</button><button onClick={() => setDrc(null)} style={{ ...btnG, flex: 1 }}>Cancel</button></div></div></div></div>}
       </div>
 
       <style>{`
