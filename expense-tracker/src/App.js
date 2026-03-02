@@ -501,7 +501,7 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
 
       {/* Desktop Sidebar */}
       {isDesktop && (
-        <div style={{ width: 250, minHeight: "100vh", background: T.surface, borderRight: `1px solid ${T.border}`, padding: "28px 0", display: "flex", flexDirection: "column", flexShrink: 0, position: "sticky", top: 0, alignSelf: "flex-start" }}>
+        <div style={{ width: 250, height: "100vh", background: T.surface, borderRight: `1px solid ${T.border}`, padding: "28px 0", display: "flex", flexDirection: "column", flexShrink: 0, position: "sticky", top: 0, alignSelf: "flex-start", boxSizing: "border-box" }}>
           <div style={{ padding: "0 24px", marginBottom: 36 }}>
             <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, color: T.text1, letterSpacing: -0.5 }}>Expense<span style={{ color: T.gold }}>Tracker</span></h1>
             <p style={{ color: T.text3, fontSize: 11, margin: "4px 0 0" }}>Logged in as <span style={{ color: T.gold }}>{user}</span></p>
