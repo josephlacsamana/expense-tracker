@@ -40,8 +40,9 @@ const themes = {
   }
 };
 
-const cco = { Food: "#F5B526", Transport: "#60A5FA", Bills: "#EF6B6B", Shopping: "#C084FC", Health: "#34D399", Entertainment: "#FB923C", Subscriptions: "#F472B6", Other: "#94A3B8" };
-const CATS = ["Food","Transport","Bills","Shopping","Health","Entertainment","Subscriptions","Other"];
+const DEF_CCO = { Food: "#F5B526", Transport: "#60A5FA", Bills: "#EF6B6B", Shopping: "#C084FC", Health: "#34D399", Entertainment: "#FB923C", Subscriptions: "#F472B6", Other: "#94A3B8" };
+const DEF_CATS = ["Food","Transport","Bills","Shopping","Health","Entertainment","Subscriptions","Other"];
+const EXTRA_COLORS = ["#A78BFA","#F97316","#06B6D4","#84CC16","#E879F9","#14B8A6","#F43F5E","#8B5CF6","#FBBF24","#22D3EE","#A3E635","#FB7185"];
 const PERIODS = ["Daily","Weekly","Monthly","Quarterly","Yearly","All"];
 const USERS = ["Joseph","Rowena"];
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -316,12 +317,16 @@ function MainApp({ user, onLogout, theme, toggleTheme }) {
   const [genBudget, setGenBudget] = useState(0);
   const [gbEdit, setGbEdit] = useState("");
   const [cgb, setCgb] = useState(false);
+  const [cats, setCats] = useState(DEF_CATS);
+  const [newCat, setNewCat] = useState("");
+  const [delCat, setDelCat] = useState(null);
   const [rec, setRec] = useState([]);
   const [srf, setSrf] = useState(false);
   const [erId, setErId] = useState(null);
   const [rf, setRf] = useState({ amount: "", category: "Food", description: "", frequency: "monthly", nextDate: td() });
   const [drc, setDrc] = useState(null);
   const tst = (m) => { setToast(m); setTimeout(() => setToast(null), 2500); };
+  const catColors = (() => { let ei = 0; return cats.reduce((o, c) => { if (DEF_CCO[c]) { o[c] = DEF_CCO[c]; } else { o[c] = EXTRA_COLORS[ei % EXTRA_COLORS.length]; ei++; } return o; }, {}); })();
 
   const pillS = (a) => ({
     padding: isDesktop ? "8px 18px" : "7px 14px", borderRadius: 20, fontSize: isDesktop ? 12 : 11, fontWeight: 600, cursor: "pointer", transition: "all 0.2s",
@@ -349,6 +354,7 @@ function MainApp({ user, onLogout, theme, toggleTheme }) {
           try { const b = await store.get("budgets"); if (b?.value) setBudgets(JSON.parse(b.value)); } catch {}
           try { const g = await store.get("genBudget"); if (g?.value) setGenBudget(JSON.parse(g.value)); } catch {}
           try { const rc = await store.get("recurring"); if (rc?.value) setRec(JSON.parse(rc.value)); } catch {}
+          try { const ct = await store.get("categories"); if (ct?.value) { const pc = JSON.parse(ct.value); if (Array.isArray(pc) && pc.length > 0) setCats(pc); } } catch {}
           setLd(false); return; } }
       } catch (e) { console.error(e); }
       setExp(SEED_EXP); setAccts(SEED_ACCT);
@@ -361,6 +367,7 @@ function MainApp({ user, onLogout, theme, toggleTheme }) {
   const svE = async (d) => { setExp(d); try { await store.set("expenses", JSON.stringify(d)); } catch {} };
   const svA = async (d) => { setAccts(d); try { await store.set("accounts", JSON.stringify(d)); } catch {} };
   const svB = async (d) => { setBudgets(d); try { await store.set("budgets", JSON.stringify(d)); } catch {} };
+  const svCats = async (d) => { setCats(d); try { await store.set("categories", JSON.stringify(d)); } catch {} };
   const doSubmit = () => {
     if (!form.amount || isNaN(parseFloat(form.amount))) return;
     const en = { id: eId || uid(), amount: parseFloat(parseFloat(form.amount).toFixed(2)), category: form.category, description: form.description.trim(), date: form.date || td(), addedBy: form.addedBy || user, createdAt: Date.now() };
@@ -414,13 +421,13 @@ function MainApp({ user, onLogout, theme, toggleTheme }) {
     const r = [...exp].sort((a, b) => a.date.localeCompare(b.date)).map(e => `${e.date},"${(e.description || "").replace(/"/g, '""')}",${e.category},${e.amount},${e.addedBy}`).join("\n");
     const b = new Blob([h + r], { type: "text/csv" }); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = "expenses.csv"; a.click(); URL.revokeObjectURL(u);
   };
-  const clearAll = async () => { setExp([]); setAccts([]); setRec([]); setGenBudget(0); try { await store.set("expenses", JSON.stringify([])); await store.set("accounts", JSON.stringify([])); await store.set("recurring", JSON.stringify([])); await store.set("genBudget", JSON.stringify(0)); } catch {} setClr(false); tst("All data cleared"); };
+  const clearAll = async () => { setExp([]); setAccts([]); setRec([]); setGenBudget(0); setCats(DEF_CATS); setBudgets(DEFAULT_BUDGETS); try { await store.set("expenses", JSON.stringify([])); await store.set("accounts", JSON.stringify([])); await store.set("recurring", JSON.stringify([])); await store.set("genBudget", JSON.stringify(0)); await store.set("categories", JSON.stringify(DEF_CATS)); await store.set("budgets", JSON.stringify(DEFAULT_BUDGETS)); } catch {} setClr(false); tst("All data cleared"); };
 
   const SYS = `You are an expense tracker assistant for a couple (Joseph and Rowena). Currency: PHP (Philippine Peso).
 RESPOND ONLY WITH VALID JSON. No markdown, no backticks. Today: ${td()}. Current user: ${user}.
-Format: {"expenses":[{"amount":number,"category":"Food|Transport|Bills|Shopping|Health|Entertainment|Subscriptions|Other","description":"text","date":"YYYY-MM-DD"}],"message":"confirmation text, NO emojis"}
+Format: {"expenses":[{"amount":number,"category":"${cats.join("|")}","description":"text","date":"YYYY-MM-DD"}],"message":"confirmation text, NO emojis"}
 Not expenses: {"expenses":[],"message":"response, NO emojis"}
-Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multiple. gas/grab/angkas=Transport. food/jollibee/grocery/coffee=Food. netflix/spotify=Subscriptions. meralco/pldt/water=Bills.`;
+Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multiple. Categories: ${cats.join(", ")}. If unsure pick "Other". gas/grab/angkas=Transport. food/jollibee/grocery/coffee=Food. netflix/spotify=Subscriptions. meralco/pldt/water=Bills.`;
   const callAI = async (m, s, ret = 2) => {
     for (let i = 0; i <= ret; i++) {
       try {
@@ -432,7 +439,7 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
     }
   };
   const parseR = (t) => {
-    try { let c = t.replace(/```json|```/g, "").trim(); const m = c.match(/\{[\s\S]*\}/); if (m) { const p = JSON.parse(m[0]); return { expenses: (p.expenses || []).map(e => ({ ...e, category: CATS.includes(e.category) ? e.category : "Other", date: e.date || td() })), message: p.message || "" }; } return { expenses: [], message: t.slice(0, 300) }; }
+    try { let c = t.replace(/```json|```/g, "").trim(); const m = c.match(/\{[\s\S]*\}/); if (m) { const p = JSON.parse(m[0]); return { expenses: (p.expenses || []).map(e => ({ ...e, category: cats.includes(e.category) ? e.category : "Other", date: e.date || td() })), message: p.message || "" }; } return { expenses: [], message: t.slice(0, 300) }; }
     catch { if (t && !t.startsWith("{")) return { expenses: [], message: t.slice(0, 300) }; return { expenses: [], message: "Could not parse." }; }
   };
   const doChat = async () => {
@@ -517,7 +524,7 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
   const mByCat = mExp.reduce((a, e) => { a[e.category] = (a[e.category] || 0) + e.amount; return a; }, {});
   const mTot = mExp.reduce((s, e) => s + e.amount, 0);
   const gbPct = genBudget > 0 ? (mTot / genBudget) * 100 : 0;
-  const budgetChart = CATS.map(c => ({ name: c.slice(0, 5), full: c, budget: budgets[c] || 0, actual: mByCat[c] || 0 })).filter(d => d.budget > 0 || d.actual > 0);
+  const budgetChart = cats.map(c => ({ name: c.slice(0, 5), full: c, budget: budgets[c] || 0, actual: mByCat[c] || 0 })).filter(d => d.budget > 0 || d.actual > 0);
 
   const CTipLocal = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
@@ -660,12 +667,12 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
             {/* Charts grid — 2 cols on desktop, stacked on mobile */}
             <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 18 }}>
               {pieD.length > 0 && (<div style={{ ...cardS }}><div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>By Category</div>
-                <ResponsiveContainer width="100%" height={isDesktop ? 260 : 200}><RPie><Pie data={pieD} cx="50%" cy="50%" innerRadius={isDesktop ? 65 : 55} outerRadius={isDesktop ? 100 : 85} dataKey="value" stroke="none">{pieD.map((_, i) => <Cell key={i} fill={cco[pieD[i].name] || T.text3} />)}</Pie><Tooltip content={<CTipLocal />} /></RPie></ResponsiveContainer>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 16px", marginTop: 10 }}>{pieD.map((d, i) => <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}><div style={{ width: 8, height: 8, borderRadius: 3, background: cco[d.name] || T.text3 }} /><span style={{ color: T.text2 }}>{d.name}: {fmt(d.value)}</span></div>)}</div>
+                <ResponsiveContainer width="100%" height={isDesktop ? 260 : 200}><RPie><Pie data={pieD} cx="50%" cy="50%" innerRadius={isDesktop ? 65 : 55} outerRadius={isDesktop ? 100 : 85} dataKey="value" stroke="none">{pieD.map((_, i) => <Cell key={i} fill={catColors[pieD[i].name] || T.text3} />)}</Pie><Tooltip content={<CTipLocal />} /></RPie></ResponsiveContainer>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 16px", marginTop: 10 }}>{pieD.map((d, i) => <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}><div style={{ width: 8, height: 8, borderRadius: 3, background: catColors[d.name] || T.text3 }} /><span style={{ color: T.text2 }}>{d.name}: {fmt(d.value)}</span></div>)}</div>
               </div>)}
 
               {cBar.length > 0 && (<div style={{ ...cardS }}><div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Category Breakdown</div>
-                <ResponsiveContainer width="100%" height={isDesktop ? 260 : 180}><BarChart data={cBar}><XAxis dataKey="name" tick={{ fill: T.text3, fontSize: 10 }} axisLine={false} tickLine={false} /><YAxis tick={{ fill: T.text3, fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={fmtS} /><Tooltip content={<CTipLocal />} /><Bar dataKey="value" radius={[8, 8, 0, 0]}>{cBar.map((d, i) => <Cell key={i} fill={cco[d.full] || T.gold} />)}</Bar></BarChart></ResponsiveContainer>
+                <ResponsiveContainer width="100%" height={isDesktop ? 260 : 180}><BarChart data={cBar}><XAxis dataKey="name" tick={{ fill: T.text3, fontSize: 10 }} axisLine={false} tickLine={false} /><YAxis tick={{ fill: T.text3, fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={fmtS} /><Tooltip content={<CTipLocal />} /><Bar dataKey="value" radius={[8, 8, 0, 0]}>{cBar.map((d, i) => <Cell key={i} fill={catColors[d.full] || T.gold} />)}</Bar></BarChart></ResponsiveContainer>
               </div>)}
 
               {dT.length > 1 && (<div style={{ ...cardS }}><div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Spending Trend</div>
@@ -678,7 +685,7 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
             </div>
 
             {t5.length > 0 && (<div style={{ ...cardS, marginTop: 18 }}><div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Top 5 Expenses</div>
-              {t5.map((e, i) => (<div key={e.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: i < t5.length - 1 ? `1px solid ${T.border}` : "none" }}><div><div style={{ fontSize: 13, fontWeight: 600 }}>{e.description || e.category}</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>{e.date} -- {e.addedBy}</div></div><div style={{ fontSize: 15, fontWeight: 800, color: cco[e.category] || T.gold }}>{fmt(e.amount)}</div></div>))}
+              {t5.map((e, i) => (<div key={e.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: i < t5.length - 1 ? `1px solid ${T.border}` : "none" }}><div><div style={{ fontSize: 13, fontWeight: 600 }}>{e.description || e.category}</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>{e.date} -- {e.addedBy}</div></div><div style={{ fontSize: 15, fontWeight: 800, color: catColors[e.category] || T.gold }}>{fmt(e.amount)}</div></div>))}
             </div>)}
           </div>
         )}
@@ -693,7 +700,7 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
             <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>{PERIODS.map(p => <button key={p} onClick={() => setPer(p)} style={pillS(per === p)}>{p}</button>)}</div>
             <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
               <div style={{ flex: 1, position: "relative" }}><Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: T.text3 }} /><input placeholder="Search..." value={sq} onChange={e => setSq(e.target.value)} style={{ ...inpS, paddingLeft: 32, fontSize: 12 }} /></div>
-              <select value={cf} onChange={e => setCf(e.target.value)} style={{ ...inpS, width: "auto", fontSize: 12, minWidth: 80 }}><option value="All">All</option>{CATS.map(c => <option key={c} value={c}>{c}</option>)}</select>
+              <select value={cf} onChange={e => setCf(e.target.value)} style={{ ...inpS, width: "auto", fontSize: 12, minWidth: 80 }}><option value="All">All</option>{cats.map(c => <option key={c} value={c}>{c}</option>)}</select>
             </div>
             <div style={{ fontSize: 11, color: T.text3, marginBottom: 12, display: "flex", justifyContent: "space-between" }}>
               <span>{filt.length} expenses -- {fmt(totF)}</span>
@@ -701,7 +708,7 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
             </div>
             {sorted.map(e => (
               <div key={e.id} style={{ ...cardS, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px" }}>
-                <div style={{ flex: 1 }}><div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 8, height: 8, borderRadius: 3, background: cco[e.category] || T.text3 }} /><div style={{ fontSize: 13, fontWeight: 600 }}>{e.description || e.category}</div></div><div style={{ fontSize: 10, color: T.text3, marginTop: 4, marginLeft: 16 }}>{e.date} -- {e.addedBy} -- {e.category}</div></div>
+                <div style={{ flex: 1 }}><div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 8, height: 8, borderRadius: 3, background: catColors[e.category] || T.text3 }} /><div style={{ fontSize: 13, fontWeight: 600 }}>{e.description || e.category}</div></div><div style={{ fontSize: 10, color: T.text3, marginTop: 4, marginLeft: 16 }}>{e.date} -- {e.addedBy} -- {e.category}</div></div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ fontSize: 15, fontWeight: 800 }}>{fmt(e.amount)}</div><button onClick={() => edF(e)} style={{ background: "none", border: "none", color: T.gold, cursor: "pointer", padding: 4 }}><Edit3 size={14} /></button><button onClick={() => setDc(e.id)} style={{ background: "none", border: "none", color: T.err, cursor: "pointer", padding: 4 }}><Trash2 size={14} /></button></div>
               </div>
             ))}
@@ -737,7 +744,7 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
                           <input value={editForm.description} onChange={ev => setEditForm({ ...editForm, description: ev.target.value })} placeholder="Description" style={{ ...inpS, padding: "8px 10px", fontSize: 12 }} />
                           <div style={{ display: "flex", gap: 8 }}>
                             <input type="number" value={editForm.amount} onChange={ev => setEditForm({ ...editForm, amount: ev.target.value })} placeholder="Amount" style={{ ...inpS, flex: 1, padding: "8px 10px", fontSize: 12 }} />
-                            <select value={editForm.category} onChange={ev => setEditForm({ ...editForm, category: ev.target.value })} style={{ ...inpS, flex: 1, padding: "8px 10px", fontSize: 12 }}>{CATS.map(c => <option key={c} value={c}>{c}</option>)}</select>
+                            <select value={editForm.category} onChange={ev => setEditForm({ ...editForm, category: ev.target.value })} style={{ ...inpS, flex: 1, padding: "8px 10px", fontSize: 12 }}>{cats.map(c => <option key={c} value={c}>{c}</option>)}</select>
                           </div>
                           <input type="date" value={editForm.date} onChange={ev => setEditForm({ ...editForm, date: ev.target.value })} style={{ ...inpS, padding: "8px 10px", fontSize: 12 }} />
                           <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
@@ -831,13 +838,13 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
                   <div style={{ fontSize: 14, fontWeight: 700, color: T.text1, marginBottom: 14 }}>By Category</div>
                   <ResponsiveContainer width="100%" height={180}>
                     <RPie><Pie data={Object.entries(it.data.bc).map(([name, value]) => ({ name, value }))} cx="50%" cy="50%" innerRadius={45} outerRadius={75} dataKey="value" stroke="none">
-                      {Object.keys(it.data.bc).map((c, i) => <Cell key={i} fill={cco[c] || T.text3} />)}
+                      {Object.keys(it.data.bc).map((c, i) => <Cell key={i} fill={catColors[c] || T.text3} />)}
                     </Pie><Tooltip content={<CTipLocal />} /></RPie>
                   </ResponsiveContainer>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
                     {Object.entries(it.data.bc).sort((a, b) => b[1] - a[1]).map(([c, v]) => (
                       <div key={c} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: T.text3 }}>
-                        <div style={{ width: 8, height: 8, borderRadius: 4, background: cco[c] || T.text3 }} />{c}: {fmt(v)}
+                        <div style={{ width: 8, height: 8, borderRadius: 4, background: catColors[c] || T.text3 }} />{c}: {fmt(v)}
                       </div>
                     ))}
                   </div>
@@ -937,23 +944,23 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
                 <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10, color: T.text2 }}>Per-Category Limits (optional)</div>
                 {!sbf ? (<>
                   <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 8 }}>
-                    {CATS.map(c => (<div key={c} style={{ ...cardS, padding: "14px 16px" }}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 8, height: 8, borderRadius: 3, background: cco[c] }} /><span style={{ fontSize: 13, fontWeight: 600 }}>{c}</span></div><span style={{ fontSize: 14, fontWeight: 800 }}>{fmt(budgets[c] || 0)}</span></div>
+                    {cats.map(c => (<div key={c} style={{ ...cardS, padding: "14px 16px" }}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 8, height: 8, borderRadius: 3, background: catColors[c] }} /><span style={{ fontSize: 13, fontWeight: 600 }}>{c}</span></div><span style={{ fontSize: 14, fontWeight: 800 }}>{fmt(budgets[c] || 0)}</span></div>
                       {budgets[c] > 0 && <><div style={{ marginTop: 8, height: 5, borderRadius: 3, background: theme === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.06)", overflow: "hidden" }}><div style={{ height: "100%", borderRadius: 3, width: `${Math.min(100, ((mByCat[c] || 0) / (budgets[c] || 1)) * 100)}%`, background: (mByCat[c] || 0) > (budgets[c] || 0) ? T.err : (mByCat[c] || 0) > (budgets[c] || 0) * 0.8 ? T.goldLight : T.ok, transition: "width 0.3s" }} /></div>
                       <div style={{ fontSize: 10, color: T.text3, marginTop: 5 }}>Spent: {fmt(mByCat[c] || 0)} / {fmt(budgets[c] || 0)}</div></>}
                       {budgets[c] === 0 && <div style={{ fontSize: 10, color: T.text3, marginTop: 5 }}>No limit set</div>}</div>))}
                   </div>
                   <button onClick={() => { setBf({ ...budgets }); setSbf(true); }} style={{ ...btnG, width: "100%", marginTop: 8, borderColor: T.borderStrong, color: T.gold }}>Edit Budgets</button>
-                </>) : (() => { const catTotal = CATS.reduce((s, c) => s + (bf[c] || 0), 0); const remaining = genBudget > 0 ? genBudget - catTotal : null; const overAllocated = remaining !== null && remaining < 0; return (<>
+                </>) : (() => { const catTotal = cats.reduce((s, c) => s + (bf[c] || 0), 0); const remaining = genBudget > 0 ? genBudget - catTotal : null; const overAllocated = remaining !== null && remaining < 0; return (<>
                   {genBudget > 0 && <div style={{ ...cardS, padding: "12px 16px", marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span style={{ fontSize: 12, fontWeight: 600, color: T.text2 }}>Allocated: {fmt(catTotal)} of {fmt(genBudget)}</span>
                     <span style={{ fontSize: 12, fontWeight: 700, color: overAllocated ? T.err : T.ok }}>{overAllocated ? `Over by ${fmt(Math.abs(remaining))}` : `${fmt(remaining)} remaining`}</span>
                   </div>}
                   {overAllocated && <div style={{ fontSize: 11, color: T.err, fontWeight: 600, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}><AlertTriangle size={14} />Category totals exceed your general monthly budget. You can still save, but consider adjusting.</div>}
                   <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 10 }}>
-                    {CATS.map(c => { const maxVal = genBudget > 0 ? Math.max(genBudget, bf[c] || 0) : 50000; const sliderMax = Math.ceil(maxVal / 500) * 500; return (<div key={c} style={{ ...cardS, padding: "12px 14px" }}>
+                    {cats.map(c => { const maxVal = genBudget > 0 ? Math.max(genBudget, bf[c] || 0) : 50000; const sliderMax = Math.ceil(maxVal / 500) * 500; return (<div key={c} style={{ ...cardS, padding: "12px 14px" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <div style={{ width: 8, height: 8, borderRadius: 3, background: cco[c], flexShrink: 0 }} />
+                          <div style={{ width: 8, height: 8, borderRadius: 3, background: catColors[c], flexShrink: 0 }} />
                           <span style={{ fontSize: 13, fontWeight: 600 }}>{c}</span>
                         </div>
                         <span style={{ fontSize: 13, fontWeight: 800, color: T.gold }}>{fmt(bf[c] || 0)}</span>
@@ -988,7 +995,7 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
                         <div>
                           <div style={{ fontSize: 13, fontWeight: 600 }}>{r.description}</div>
                           <div style={{ fontSize: 10, color: T.text3, marginTop: 3 }}>
-                            <span style={{ background: cco[r.category] || T.text3, color: "#fff", padding: "1px 6px", borderRadius: 4, fontSize: 9, fontWeight: 600 }}>{r.category}</span>
+                            <span style={{ background: catColors[r.category] || T.text3, color: "#fff", padding: "1px 6px", borderRadius: 4, fontSize: 9, fontWeight: 600 }}>{r.category}</span>
                             {" "}{r.frequency} / Next: {r.nextDate}
                           </div>
                           {isDue && <div style={{ fontSize: 10, color: T.ok, fontWeight: 600, marginTop: 4 }}>Due now</div>}
@@ -1006,6 +1013,23 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
 
               {sub === "settings" && (<>
                 <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 14 }}>Settings</div>
+                <div style={{ ...cardS, padding: "16px 18px", marginBottom: 16 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Categories</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+                    {cats.map(c => (
+                      <div key={c} style={{ display: "flex", alignItems: "center", gap: 6, background: theme === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)", borderRadius: 10, padding: "6px 10px" }}>
+                        <div style={{ width: 8, height: 8, borderRadius: 3, background: catColors[c], flexShrink: 0 }} />
+                        <span style={{ fontSize: 12, fontWeight: 600 }}>{c}</span>
+                        {c !== "Other" && <button onClick={() => setDelCat(c)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", color: T.text3 }}><X size={14} /></button>}
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <input type="text" placeholder="New category name" value={newCat} onChange={e => setNewCat(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { const n = newCat.trim(); if (!n || cats.includes(n) || cats.length >= 15) return; svCats([...cats.slice(0, -1), n, "Other"]); setBudgets(v => ({ ...v, [n]: 0 })); svB({ ...budgets, [n]: 0 }); setNewCat(""); tst(`Category "${n}" added`); } }} style={{ ...inpS, flex: 1 }} />
+                    <button onClick={() => { const n = newCat.trim(); if (!n || cats.includes(n) || cats.length >= 15) return; svCats([...cats.slice(0, -1), n, "Other"]); setBudgets(v => ({ ...v, [n]: 0 })); svB({ ...budgets, [n]: 0 }); setNewCat(""); tst(`Category "${n}" added`); }} style={{ ...btnP, padding: "12px 20px", whiteSpace: "nowrap" }}>Add</button>
+                  </div>
+                  {cats.length >= 15 && <div style={{ fontSize: 10, color: T.text3, marginTop: 6 }}>Maximum 15 categories reached</div>}
+                </div>
                 <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 8 }}>
                   <button onClick={exportCSV} style={{ ...cardS, width: "100%", padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}><Download size={18} style={{ color: T.gold }} /><div><div style={{ fontSize: 13, fontWeight: 600 }}>Export CSV</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>Download all expenses</div></div></button>
                   <button onClick={() => setClr(true)} style={{ ...cardS, width: "100%", padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left", borderColor: `${T.err}30` }}><AlertTriangle size={18} style={{ color: T.err }} /><div><div style={{ fontSize: 13, fontWeight: 600, color: T.err }}>Clear All Data</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>Remove everything permanently</div></div></button>
@@ -1019,7 +1043,7 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
         {sf && <div style={mOvS}><div style={mInS}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}><div style={{ fontSize: 18, fontWeight: 800, color: T.text1 }}>{eId ? "Edit" : "Add"} Expense</div><button onClick={rstF} style={{ background: "none", border: "none", color: T.text3, cursor: "pointer" }}><X size={22} /></button></div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <input placeholder="Amount" type="number" inputMode="decimal" value={form.amount} onChange={e => setForm(v => ({ ...v, amount: e.target.value }))} style={inpS} />
-            <select value={form.category} onChange={e => setForm(v => ({ ...v, category: e.target.value }))} style={inpS}>{CATS.map(c => <option key={c} value={c}>{c}</option>)}</select>
+            <select value={form.category} onChange={e => setForm(v => ({ ...v, category: e.target.value }))} style={inpS}>{cats.map(c => <option key={c} value={c}>{c}</option>)}</select>
             <input placeholder="Description" value={form.description} onChange={e => setForm(v => ({ ...v, description: e.target.value }))} style={inpS} />
             <input type="date" value={form.date} onChange={e => setForm(v => ({ ...v, date: e.target.value }))} style={inpS} />
             <select value={form.addedBy} onChange={e => setForm(v => ({ ...v, addedBy: e.target.value }))} style={inpS}>{USERS.map(u => <option key={u} value={u}>{u}</option>)}</select>
@@ -1039,12 +1063,13 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
         {dc && <div style={mOvS}><div style={mInS}><div style={{ textAlign: "center" }}><AlertTriangle size={36} style={{ color: T.err, marginBottom: 14 }} /><div style={{ fontSize: 18, fontWeight: 700, color: T.text1, marginBottom: 6 }}>Delete expense?</div><div style={{ fontSize: 12, color: T.text3, marginBottom: 20 }}>This cannot be undone.</div><div style={{ display: "flex", gap: 8 }}><button onClick={() => delE(dc)} style={{ ...btnP, flex: 1, background: T.err, boxShadow: "none" }}>Delete</button><button onClick={() => setDc(null)} style={{ ...btnG, flex: 1 }}>Cancel</button></div></div></div></div>}
         {dac && <div style={mOvS}><div style={mInS}><div style={{ textAlign: "center" }}><AlertTriangle size={36} style={{ color: T.err, marginBottom: 14 }} /><div style={{ fontSize: 18, fontWeight: 700, color: T.text1, marginBottom: 6 }}>Delete account?</div><div style={{ display: "flex", gap: 8, marginTop: 20 }}><button onClick={() => delA(dac)} style={{ ...btnP, flex: 1, background: T.err, boxShadow: "none" }}>Delete</button><button onClick={() => setDac(null)} style={{ ...btnG, flex: 1 }}>Cancel</button></div></div></div></div>}
         {clr && <div style={mOvS}><div style={mInS}><div style={{ textAlign: "center" }}><AlertTriangle size={36} style={{ color: T.err, marginBottom: 14 }} /><div style={{ fontSize: 18, fontWeight: 700, color: T.text1, marginBottom: 6 }}>Clear ALL data?</div><div style={{ fontSize: 12, color: T.text3, marginBottom: 20 }}>This removes everything permanently.</div><div style={{ display: "flex", gap: 8 }}><button onClick={clearAll} style={{ ...btnP, flex: 1, background: T.err, boxShadow: "none" }}>Clear All</button><button onClick={() => setClr(false)} style={{ ...btnG, flex: 1 }}>Cancel</button></div></div></div></div>}
+        {delCat && <div style={mOvS}><div style={mInS}><div style={{ textAlign: "center" }}><AlertTriangle size={36} style={{ color: T.err, marginBottom: 14 }} /><div style={{ fontSize: 18, fontWeight: 700, color: T.text1, marginBottom: 6 }}>Remove "{delCat}" category?</div><div style={{ fontSize: 12, color: T.text3, marginBottom: 20 }}>{exp.filter(e => e.category === delCat).length > 0 ? `${exp.filter(e => e.category === delCat).length} expense(s) will be reassigned to "Other".` : "No expenses in this category."} {rec.filter(r => r.category === delCat).length > 0 ? ` ${rec.filter(r => r.category === delCat).length} recurring template(s) will also be reassigned.` : ""}</div><div style={{ display: "flex", gap: 8 }}><button onClick={() => { const c = delCat; const newCats = cats.filter(x => x !== c); svCats(newCats); const ue = exp.map(e => e.category === c ? { ...e, category: "Other" } : e); svE(ue); const ur = rec.map(r => r.category === c ? { ...r, category: "Other" } : r); svR(ur); const nb = { ...budgets }; delete nb[c]; svB(nb); setDelCat(null); tst(`Category "${c}" removed`); }} style={{ ...btnP, flex: 1, background: T.err, boxShadow: "none" }}>Remove</button><button onClick={() => setDelCat(null)} style={{ ...btnG, flex: 1 }}>Cancel</button></div></div></div></div>}
 
         {srf && <div style={mOvS}><div style={mInS}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}><div style={{ fontSize: 18, fontWeight: 800, color: T.text1 }}>{erId ? "Edit" : "Add"} Recurring</div><button onClick={rstRf} style={{ background: "none", border: "none", color: T.text3, cursor: "pointer" }}><X size={22} /></button></div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <input placeholder="Description (e.g. Netflix)" value={rf.description} onChange={e => setRf(v => ({ ...v, description: e.target.value }))} style={inpS} />
             <input placeholder="Amount" type="number" inputMode="decimal" value={rf.amount} onChange={e => setRf(v => ({ ...v, amount: e.target.value }))} style={inpS} />
-            <select value={rf.category} onChange={e => setRf(v => ({ ...v, category: e.target.value }))} style={inpS}>{CATS.map(c => <option key={c} value={c}>{c}</option>)}</select>
+            <select value={rf.category} onChange={e => setRf(v => ({ ...v, category: e.target.value }))} style={inpS}>{cats.map(c => <option key={c} value={c}>{c}</option>)}</select>
             <select value={rf.frequency} onChange={e => setRf(v => ({ ...v, frequency: e.target.value }))} style={inpS}><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select>
             <input type="date" value={rf.nextDate} onChange={e => setRf(v => ({ ...v, nextDate: e.target.value }))} style={inpS} />
             <button onClick={doRec} style={{ ...btnP, width: "100%" }}>{erId ? "Update" : "Add Recurring"}</button>
