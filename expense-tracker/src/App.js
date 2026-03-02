@@ -1285,8 +1285,8 @@ export default function App() {
   }, []);
 
   const handleLogout = async () => {
-    if (sbReady) await supabase.auth.signOut();
-    setSession(null); setProfile(null);
+    if (sbReady) { try { await supabase.auth.signOut({ scope: "local" }); } catch {} }
+    setSession(null); setProfile(null); setAuthLoading(false);
   };
 
   if (authLoading) {
