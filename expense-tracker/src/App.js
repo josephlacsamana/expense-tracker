@@ -1266,20 +1266,23 @@ export default function App() {
   useEffect(() => {
     if (!sbReady) { setAuthLoading(false); return; }
     const handleSession = async (s) => {
-      if (!s) { setSession(null); setProfile(null); setAuthLoading(false); return; }
-      setSession(s);
-      const { data: existing } = await supabase.from("profiles").select("*").eq("id", s.user.id).single();
-      if (existing) { setProfile(existing); }
-      else {
-        const fullName = s.user.user_metadata?.full_name || s.user.user_metadata?.name || "";
-        const displayName = fullName.split(" ")[0] || s.user.email.split("@")[0];
-        const np = { id: s.user.id, email: s.user.email, display_name: displayName, avatar_url: s.user.user_metadata?.avatar_url || "" };
-        await supabase.from("profiles").insert(np);
-        setProfile(np);
-      }
+      try {
+        if (!s) { setSession(null); setProfile(null); setAuthLoading(false); return; }
+        setSession(s);
+        const { data: existing, error: profileErr } = await supabase.from("profiles").select("*").eq("id", s.user.id).single();
+        if (existing && !profileErr) { setProfile(existing); }
+        else {
+          const fullName = s.user.user_metadata?.full_name || s.user.user_metadata?.name || "";
+          const displayName = fullName.split(" ")[0] || s.user.email.split("@")[0];
+          const np = { id: s.user.id, email: s.user.email, display_name: displayName, avatar_url: s.user.user_metadata?.avatar_url || "" };
+          const { error: insertErr } = await supabase.from("profiles").insert(np);
+          if (!insertErr) setProfile(np);
+          else { setProfile({ display_name: displayName }); }
+        }
+      } catch (e) { console.error("Auth session error:", e); }
       setAuthLoading(false);
     };
-    supabase.auth.getSession().then(({ data: { session: s } }) => handleSession(s));
+    supabase.auth.getSession().then(({ data: { session: s } }) => handleSession(s)).catch(() => setAuthLoading(false));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_ev, s) => handleSession(s));
     return () => subscription.unsubscribe();
   }, []);
