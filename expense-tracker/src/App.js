@@ -1255,11 +1255,11 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
 }
 
 export default function App() {
-  const [session, setSession] = useState(null);
+  const [, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [localUser, setLocalUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [authError, setAuthError] = useState(null);
+  const [authError, setAuthError] = useState(null); // eslint-disable-line no-unused-vars
   const [theme, setTheme] = useState("light");
   const toggle = () => setTheme(v => v === "dark" ? "light" : "dark");
 
