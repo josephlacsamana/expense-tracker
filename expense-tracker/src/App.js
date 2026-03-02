@@ -436,7 +436,7 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
   const findDup = (e) => { const desc = (e.description || "").toLowerCase(); const amt = e.amount; return exp.find(x => x.category === e.category && Math.abs(x.amount - amt) / (amt || 1) <= 0.1 && desc && (x.description || "").toLowerCase().includes(desc.toLowerCase().split(" ")[0])); };
   const genIns = async () => {
     const ps = startOf(ip); const rel = exp.filter(e => pld(e.date) >= ps);
-    if (!rel.length) { setIt("No expenses for this period."); return; }
+    if (!rel.length) { setIt({ error: "No expenses for this period." }); return; }
     setIl(true); setIt(null);
     const tot = rel.reduce((s, e) => s + e.amount, 0);
     const bc = rel.reduce((a, e) => { a[e.category] = (a[e.category] || 0) + e.amount; return a; }, {});
@@ -445,8 +445,15 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
     const t5x = [...rel].sort((a, b) => b.amount - a.amount).slice(0, 5);
     const bStr = Object.entries(budgets).map(([c, v]) => `- ${c}: Budget PHP ${v}, Spent PHP ${(bc[c] || 0).toFixed(0)}`).join("\n");
     const sum = `${ip.toUpperCase()} REVIEW:\nTotal: PHP ${tot.toFixed(2)}\nPrev: PHP ${pT.toFixed(2)}\nBy category:\n${Object.entries(bc).map(([c, v]) => `- ${c}: PHP ${v.toFixed(0)}`).join("\n")}\nBy person:\n${Object.entries(bp).map(([p, v]) => `- ${p}: PHP ${v.toFixed(0)}`).join("\n")}\nTop 5:\n${t5x.map(e => `- ${e.description}: PHP ${e.amount}`).join("\n")}\nBudgets:\n${bStr}`;
-    const IS = "You are Joseph and Rowena's personal finance advisor. Filipino couple. No emojis. No markdown. Plain conversational text. Give overview, category breakdown, patterns, 3-5 actionable tips with numbers.";
-    try { const raw = await callAI([{ role: "user", content: sum }], IS); setIt(stripE(raw || "No insights.")); } catch { setIt("Failed to generate."); }
+    const IS = `You are Joseph and Rowena's personal finance advisor. Filipino couple. No emojis. Respond ONLY with valid JSON (no markdown, no code fences). Format: {"overview":"1-2 sentence summary","categoryAnalysis":"2-3 sentences about category spending","patterns":"2-3 sentences about spending patterns or habits","tips":["tip 1","tip 2","tip 3"]}. Each tip should be specific and actionable with numbers. Keep it concise.`;
+    try {
+      const raw = await callAI([{ role: "user", content: sum }], IS);
+      const clean = stripE(raw || "");
+      let parsed;
+      try { parsed = JSON.parse(clean); } catch { const m = clean.match(/\{[\s\S]*\}/); parsed = m ? JSON.parse(m[0]) : null; }
+      const data = { bc, bp, tot, pT, t5x, period: ip, count: rel.length };
+      if (parsed && parsed.overview) { setIt({ ...parsed, data }); } else { setIt({ overview: clean, categoryAnalysis: "", patterns: "", tips: [], data }); }
+    } catch { setIt({ error: "Failed to generate insights." }); }
     setIl(false);
   };
 
@@ -728,7 +735,109 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
             <button onClick={genIns} disabled={il} style={{ ...btnP, width: isDesktop ? "auto" : "100%", marginBottom: 18, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: il ? 0.6 : 1, padding: isDesktop ? "15px 36px" : undefined }}>
               {il ? <><RefreshCw size={16} className="spin" />Generating...</> : <><Lightbulb size={16} />Generate {ip} Review</>}
             </button>
-            {it && <div style={{ ...cardS, whiteSpace: "pre-wrap", fontSize: 13, lineHeight: 1.8, color: T.text2 }}>{it}</div>}
+
+            {it && it.error && <div style={{ ...cardS, fontSize: 13, color: T.text3, textAlign: "center", padding: 28 }}>{it.error}</div>}
+
+            {it && it.data && <>
+              {/* Summary Stats */}
+              <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "repeat(3, 1fr)" : "1fr 1fr", gap: 12, marginBottom: 16 }}>
+                <div style={{ ...cardS, padding: 16 }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, color: T.text3, marginBottom: 6 }}>Total Spent</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: T.gold }}>{fmt(it.data.tot)}</div>
+                  <div style={{ fontSize: 11, color: it.data.pT > 0 ? (it.data.tot > it.data.pT ? T.err : T.ok) : T.text3, marginTop: 4 }}>
+                    {it.data.pT > 0 ? `${it.data.tot > it.data.pT ? "+" : ""}${(((it.data.tot - it.data.pT) / it.data.pT) * 100).toFixed(1)}% vs prev` : "No prev data"}
+                  </div>
+                </div>
+                <div style={{ ...cardS, padding: 16 }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, color: T.text3, marginBottom: 6 }}>Transactions</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: T.text1 }}>{it.data.count}</div>
+                  <div style={{ fontSize: 11, color: T.text3, marginTop: 4 }}>this {it.data.period.toLowerCase()}</div>
+                </div>
+                <div style={{ ...cardS, padding: 16, ...(isDesktop ? {} : { gridColumn: "1 / -1" }) }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, color: T.text3, marginBottom: 6 }}>Previous {it.data.period}</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: T.text2 }}>{it.data.pT > 0 ? fmt(it.data.pT) : "--"}</div>
+                  <div style={{ fontSize: 11, color: T.text3, marginTop: 4 }}>{it.data.pT > 0 ? "comparison baseline" : "no data"}</div>
+                </div>
+              </div>
+
+              {/* Overview */}
+              {it.overview && <div style={{ ...cardS, padding: isDesktop ? 22 : 18, marginBottom: 16 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: T.gold, marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}><TrendingUp size={16} />Overview</div>
+                <div style={{ fontSize: 13, lineHeight: 1.7, color: T.text2 }}>{it.overview}</div>
+              </div>}
+
+              {/* Category Chart + Analysis */}
+              <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 12, marginBottom: 16 }}>
+                <div style={{ ...cardS, padding: isDesktop ? 22 : 18 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: T.text1, marginBottom: 14 }}>By Category</div>
+                  <ResponsiveContainer width="100%" height={180}>
+                    <RPie><Pie data={Object.entries(it.data.bc).map(([name, value]) => ({ name, value }))} cx="50%" cy="50%" innerRadius={45} outerRadius={75} dataKey="value" stroke="none">
+                      {Object.keys(it.data.bc).map((c, i) => <Cell key={i} fill={cco[c] || T.text3} />)}
+                    </Pie><Tooltip content={<CTipLocal />} /></RPie>
+                  </ResponsiveContainer>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+                    {Object.entries(it.data.bc).sort((a, b) => b[1] - a[1]).map(([c, v]) => (
+                      <div key={c} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: T.text3 }}>
+                        <div style={{ width: 8, height: 8, borderRadius: 4, background: cco[c] || T.text3 }} />{c}: {fmt(v)}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ ...cardS, padding: isDesktop ? 22 : 18 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: T.text1, marginBottom: 14 }}>By Person</div>
+                  <ResponsiveContainer width="100%" height={180}>
+                    <BarChart data={Object.entries(it.data.bp).map(([name, value]) => ({ name, value }))} barSize={isDesktop ? 48 : 36}>
+                      <XAxis dataKey="name" tick={{ fill: T.text3, fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fill: T.text3, fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={fmtS} />
+                      <Tooltip content={<CTipLocal />} />
+                      <Bar dataKey="value" radius={[8, 8, 0, 0]} fill={T.gold} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <div style={{ fontSize: 11, color: T.text3, marginTop: 8, textAlign: "center" }}>
+                    {Object.entries(it.data.bp).map(([p, v]) => `${p}: ${((v / it.data.tot) * 100).toFixed(0)}%`).join("  /  ")}
+                  </div>
+                </div>
+              </div>
+
+              {/* Category Analysis */}
+              {it.categoryAnalysis && <div style={{ ...cardS, padding: isDesktop ? 22 : 18, marginBottom: 16 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: T.gold, marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}><PieChart size={16} />Category Analysis</div>
+                <div style={{ fontSize: 13, lineHeight: 1.7, color: T.text2 }}>{it.categoryAnalysis}</div>
+              </div>}
+
+              {/* Patterns */}
+              {it.patterns && <div style={{ ...cardS, padding: isDesktop ? 22 : 18, marginBottom: 16 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: T.gold, marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}><Coins size={16} />Spending Patterns</div>
+                <div style={{ fontSize: 13, lineHeight: 1.7, color: T.text2 }}>{it.patterns}</div>
+              </div>}
+
+              {/* Top 5 */}
+              {it.data.t5x.length > 0 && <div style={{ ...cardS, padding: isDesktop ? 22 : 18, marginBottom: 16 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: T.text1, marginBottom: 14 }}>Top Expenses</div>
+                {it.data.t5x.map((e, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: i < it.data.t5x.length - 1 ? `1px solid ${T.border}` : "none" }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: T.text1 }}>{e.description || e.category}</div>
+                      <div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>{e.category} / {e.date} / {e.addedBy}</div>
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: T.gold }}>{fmt(e.amount)}</div>
+                  </div>
+                ))}
+              </div>}
+
+              {/* Tips */}
+              {it.tips && it.tips.length > 0 && <div style={{ ...cardS, padding: isDesktop ? 22 : 18, marginBottom: 16 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: T.gold, marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}><Lightbulb size={16} />Tips & Recommendations</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {it.tips.map((tip, i) => (
+                    <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                      <div style={{ minWidth: 24, height: 24, borderRadius: 12, background: T.goldMuted, color: T.gold, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700 }}>{i + 1}</div>
+                      <div style={{ fontSize: 13, lineHeight: 1.6, color: T.text2, paddingTop: 2 }}>{tip}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>}
+            </>}
           </div>
         )}
 
