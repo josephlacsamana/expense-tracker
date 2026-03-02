@@ -925,8 +925,11 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
                 <div style={{ ...cardS, padding: "16px 18px", marginBottom: 16 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>General Monthly Budget</div>
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <input type="number" inputMode="numeric" placeholder="e.g. 30000" value={gbEdit || (genBudget > 0 ? genBudget : "")} onChange={e => setGbEdit(e.target.value)} style={{ ...inpS, flex: 1 }} />
-                    <button onClick={() => { const v = parseFloat(gbEdit); if (!v || v <= 0) return; svGB(v); setGbEdit(""); tst(`Budget set to ${fmt(v)}`); }} style={{ ...btnP, padding: "12px 20px", whiteSpace: "nowrap" }}>Set</button>
+                    <div style={{ flex: 1, position: "relative" }}>
+                      <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", fontSize: 15, fontWeight: 700, color: T.text3, pointerEvents: "none" }}>{"\u20B1"}</span>
+                      <input type="text" inputMode="numeric" placeholder="e.g. 30,000" value={gbEdit || (genBudget > 0 ? new Intl.NumberFormat("en-PH").format(genBudget) : "")} onChange={e => { const raw = e.target.value.replace(/[^0-9]/g, ""); setGbEdit(raw ? new Intl.NumberFormat("en-PH").format(parseInt(raw)) : ""); }} style={{ ...inpS, flex: 1, paddingLeft: 30 }} />
+                    </div>
+                    <button onClick={() => { const v = parseFloat(String(gbEdit).replace(/[^0-9]/g, "")); if (!v || v <= 0) return; svGB(v); setGbEdit(""); tst(`Budget set to ${fmt(v)}`); }} style={{ ...btnP, padding: "12px 20px", whiteSpace: "nowrap" }}>Set</button>
                     {genBudget > 0 && <button onClick={() => setCgb(true)} style={{ ...btnG, padding: "12px 16px", whiteSpace: "nowrap", borderColor: T.err, color: T.err }}>Clear</button>}
                   </div>
                   {genBudget > 0 && <div style={{ fontSize: 11, color: T.text3, marginTop: 8 }}>Current: {fmt(genBudget)} / Spent this month: {fmt(mTot)} ({gbPct.toFixed(0)}%)</div>}
@@ -940,22 +943,31 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
                       {budgets[c] === 0 && <div style={{ fontSize: 10, color: T.text3, marginTop: 5 }}>No limit set</div>}</div>))}
                   </div>
                   <button onClick={() => { setBf({ ...budgets }); setSbf(true); }} style={{ ...btnG, width: "100%", marginTop: 8, borderColor: T.borderStrong, color: T.gold }}>Edit Budgets</button>
-                </>) : (<>
+                </>) : (() => { const catTotal = CATS.reduce((s, c) => s + (bf[c] || 0), 0); const remaining = genBudget > 0 ? genBudget - catTotal : null; const overAllocated = remaining !== null && remaining < 0; return (<>
+                  {genBudget > 0 && <div style={{ ...cardS, padding: "12px 16px", marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: T.text2 }}>Allocated: {fmt(catTotal)} of {fmt(genBudget)}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: overAllocated ? T.err : T.ok }}>{overAllocated ? `Over by ${fmt(Math.abs(remaining))}` : `${fmt(remaining)} remaining`}</span>
+                  </div>}
+                  {overAllocated && <div style={{ fontSize: 11, color: T.err, fontWeight: 600, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}><AlertTriangle size={14} />Category totals exceed your general monthly budget. You can still save, but consider adjusting.</div>}
                   <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 10 }}>
-                    {CATS.map(c => (<div key={c} style={{ ...cardS, padding: "12px 14px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                        <div style={{ width: 8, height: 8, borderRadius: 3, background: cco[c], flexShrink: 0 }} />
-                        <span style={{ fontSize: 13, fontWeight: 600 }}>{c}</span>
+                    {CATS.map(c => { const maxVal = genBudget > 0 ? Math.max(genBudget, bf[c] || 0) : 50000; const sliderMax = Math.ceil(maxVal / 500) * 500; return (<div key={c} style={{ ...cardS, padding: "12px 14px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <div style={{ width: 8, height: 8, borderRadius: 3, background: cco[c], flexShrink: 0 }} />
+                          <span style={{ fontSize: 13, fontWeight: 600 }}>{c}</span>
+                        </div>
+                        <span style={{ fontSize: 13, fontWeight: 800, color: T.gold }}>{fmt(bf[c] || 0)}</span>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <button onClick={() => setBf(v => ({ ...v, [c]: Math.max(0, (v[c] || 0) - 500) }))} style={{ width: 36, height: 36, borderRadius: 10, border: `1px solid ${T.inputBorder}`, background: T.inputBg, color: T.text1, fontSize: 18, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>-</button>
-                        <input type="number" inputMode="numeric" value={bf[c] || ""} placeholder="0" onChange={e => setBf(v => ({ ...v, [c]: Math.max(0, parseFloat(e.target.value) || 0) }))} style={{ ...inpS, flex: 1, textAlign: "center", padding: "8px 10px", fontSize: 14, fontWeight: 700 }} />
-                        <button onClick={() => setBf(v => ({ ...v, [c]: (v[c] || 0) + 500 }))} style={{ width: 36, height: 36, borderRadius: 10, border: `1px solid ${T.inputBorder}`, background: T.inputBg, color: T.text1, fontSize: 18, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>+</button>
+                      <input type="range" min={0} max={sliderMax} step={500} value={bf[c] || 0} onChange={e => setBf(v => ({ ...v, [c]: parseInt(e.target.value) }))} style={{ width: "100%", accentColor: T.gold, cursor: "pointer", height: 6 }} />
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6 }}>
+                        <span style={{ fontSize: 10, color: T.text3 }}>{fmt(0)}</span>
+                        <input type="text" inputMode="numeric" value={bf[c] || ""} placeholder="0" onChange={e => { const raw = e.target.value.replace(/[^0-9]/g, ""); setBf(v => ({ ...v, [c]: Math.max(0, parseInt(raw) || 0) })); }} style={{ ...inpS, width: 90, textAlign: "center", padding: "4px 8px", fontSize: 12, fontWeight: 700 }} />
+                        <span style={{ fontSize: 10, color: T.text3 }}>{fmtS(sliderMax)}</span>
                       </div>
-                    </div>))}
+                    </div>); })}
                   </div>
                   <div style={{ display: "flex", gap: 8, marginTop: 14 }}><button onClick={saveBudgets} style={{ ...btnP, flex: 1 }}>Save</button><button onClick={() => setSbf(false)} style={{ ...btnG, flex: 1 }}>Cancel</button></div>
-                </>)}
+                </>); })()}
               </>)}
 
               {sub === "recurring" && (<>
@@ -1052,6 +1064,9 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
         .spin{animation:spin 1s linear infinite}
         @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
         option{background:${T.selectBg};color:${T.text1}}
+        input[type=range]{-webkit-appearance:none;appearance:none;background:${theme === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"};border-radius:4px;outline:none}
+        input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:${T.gold};cursor:pointer;box-shadow:0 2px 6px rgba(245,181,38,0.3)}
+        input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:${T.gold};cursor:pointer;border:none;box-shadow:0 2px 6px rgba(245,181,38,0.3)}
       `}</style>
     </div>
   );
