@@ -910,11 +910,11 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
         {/* MORE */}
         {tab === "more" && (
           <div style={{ flex: 1, maxWidth: mwMore, margin: "0 auto", padding: isDesktop ? "28px 36px 40px" : "18px 20px 80px", width: "100%", boxSizing: "border-box", overflowY: "auto" }}>
-            <div style={{ display: "flex", flexDirection: isDesktop ? "column" : "row", gap: 6, marginBottom: 18, ...(isDesktop ? { position: "absolute", width: 160 } : {}) }}>
+            <div style={{ display: "flex", gap: 6, marginBottom: 18, flexWrap: "wrap" }}>
               {["accounts", "budgets", "recurring", "settings"].map(s => <button key={s} onClick={() => setSub(s)} style={pillS(sub === s)}>{s.charAt(0).toUpperCase() + s.slice(1)}</button>)}
             </div>
 
-            <div style={{ ...(isDesktop ? { marginLeft: 184 } : {}) }}>
+            <div>
               {sub === "accounts" && (<>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}><div style={{ fontSize: 18, fontWeight: 800 }}>Accounts</div><button onClick={() => { rstAf(); setSaf(true); }} style={{ ...btnP, padding: "10px 16px", fontSize: 12, display: "flex", alignItems: "center", gap: 5 }}><Plus size={14} />Add</button></div>
                 {accts.length > 0 && (<div style={{ background: `linear-gradient(135deg,${theme === "dark" ? "rgba(52,211,153,0.08)" : "rgba(5,150,105,0.06)"},transparent)`, border: `1px solid ${theme === "dark" ? "rgba(52,211,153,0.15)" : "rgba(5,150,105,0.15)"}`, borderRadius: 18, padding: "16px 18px", marginBottom: 18 }}><div style={{ fontSize: 10, color: T.text3, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>Net Worth</div><div style={{ fontSize: 30, fontWeight: 800, color: T.ok, marginTop: 2 }}>{fmt(totA)}</div></div>)}
