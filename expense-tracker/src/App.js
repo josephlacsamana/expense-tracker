@@ -423,8 +423,15 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
     } catch { tst("Failed to read image."); }
     if (fr.current) fr.current.value = "";
   };
-  const confirmP = () => { if (!pe) return; svE([...pe, ...exp]); tst(`${pe.length} added`); setPe(null); };
-  const rejectP = () => { setPe(null); setMsgs(v => [...v, { role: "assistant", content: "Discarded." }]); };
+  const [editIdx, setEditIdx] = useState(null); // index of entry being edited
+  const [editForm, setEditForm] = useState(null); // temp edit values
+  const confirmAll = () => { if (!pe || !pe.length) return; svE([...pe, ...exp]); tst(`${pe.length} added`); setPe(null); setEditIdx(null); };
+  const rejectAll = () => { setPe(null); setEditIdx(null); setMsgs(v => [...v, { role: "assistant", content: "Discarded." }]); };
+  const saveSingle = (i) => { if (!pe) return; const e = pe[i]; svE([e, ...exp]); tst(`Saved: ${e.description || e.category}`); const rest = pe.filter((_, j) => j !== i); setPe(rest.length ? rest : null); if (editIdx === i) { setEditIdx(null); setEditForm(null); } };
+  const discardSingle = (i) => { if (!pe) return; const rest = pe.filter((_, j) => j !== i); setPe(rest.length ? rest : null); if (editIdx === i) { setEditIdx(null); setEditForm(null); } };
+  const startEdit = (i) => { setEditIdx(i); setEditForm({ ...pe[i] }); };
+  const cancelEdit = () => { setEditIdx(null); setEditForm(null); };
+  const applyEdit = (i) => { if (!editForm) return; const u = [...pe]; u[i] = { ...editForm, amount: parseFloat(editForm.amount) || 0 }; setPe(u); setEditIdx(null); setEditForm(null); };
   const genIns = async () => {
     const ps = startOf(ip); const rel = exp.filter(e => pld(e.date) >= ps);
     if (!rel.length) { setIt("No expenses for this period."); return; }
@@ -647,14 +654,50 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
                 </div>
               ))}
               {cl && <div style={{ display: "flex", marginBottom: 10 }}><div style={{ padding: "12px 16px", borderRadius: 16, background: T.chatBot, border: `1px solid ${T.chatBotBorder}`, color: T.gold, fontSize: 13 }}>Thinking...</div></div>}
-              {pe && (
+              {pe && pe.length > 0 && (
                 <div style={{ ...cardS, marginBottom: 10, borderColor: T.borderStrong }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 10, color: T.gold }}>Confirm {pe.length} expense{pe.length > 1 ? "s" : ""}:</div>
-                  {pe.map(e => <div key={e.id} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: 12 }}><span style={{ color: T.text2 }}>{e.description || e.category} ({e.category})</span><span style={{ fontWeight: 700 }}>{fmt(e.amount)}</span></div>)}
-                  <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                    <button onClick={confirmP} style={{ ...btnP, flex: 1, padding: 11, fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}><Check size={14} />Save</button>
-                    <button onClick={rejectP} style={{ ...btnG, flex: 1, padding: 11, fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}><X size={14} />Discard</button>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: T.gold }}>{pe.length} expense{pe.length > 1 ? "s" : ""} found</div>
+                    {pe.length > 1 && (
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button onClick={confirmAll} style={{ ...btnP, padding: "7px 14px", fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}><Check size={12} />Save All</button>
+                        <button onClick={rejectAll} style={{ ...btnG, padding: "7px 14px", fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}><X size={12} />Discard All</button>
+                      </div>
+                    )}
                   </div>
+                  {pe.map((e, i) => (
+                    <div key={e.id} style={{ padding: 12, marginBottom: i < pe.length - 1 ? 8 : 0, background: theme === "dark" ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)", borderRadius: 12, border: `1px solid ${T.border}` }}>
+                      {editIdx === i && editForm ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <input value={editForm.description} onChange={ev => setEditForm({ ...editForm, description: ev.target.value })} placeholder="Description" style={{ ...inpS, flex: 1, padding: "8px 10px", fontSize: 12 }} />
+                            <input type="number" value={editForm.amount} onChange={ev => setEditForm({ ...editForm, amount: ev.target.value })} placeholder="Amount" style={{ ...inpS, width: 90, padding: "8px 10px", fontSize: 12 }} />
+                          </div>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <select value={editForm.category} onChange={ev => setEditForm({ ...editForm, category: ev.target.value })} style={{ ...inpS, flex: 1, padding: "8px 10px", fontSize: 12 }}>{CATS.map(c => <option key={c} value={c}>{c}</option>)}</select>
+                            <input type="date" value={editForm.date} onChange={ev => setEditForm({ ...editForm, date: ev.target.value })} style={{ ...inpS, padding: "8px 10px", fontSize: 12 }} />
+                          </div>
+                          <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                            <button onClick={() => applyEdit(i)} style={{ ...btnP, padding: "7px 14px", fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}><Check size={12} />Done</button>
+                            <button onClick={cancelEdit} style={{ ...btnG, padding: "7px 14px", fontSize: 11 }}>Cancel</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: T.text1 }}>{e.description || e.category}</span>
+                            <span style={{ fontSize: 14, fontWeight: 700, color: T.gold }}>{fmt(e.amount)}</span>
+                          </div>
+                          <div style={{ fontSize: 11, color: T.text3, marginBottom: 8 }}>{e.category} &middot; {e.date}</div>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <button onClick={() => saveSingle(i)} style={{ ...btnP, padding: "6px 12px", fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}><Check size={12} />Save</button>
+                            <button onClick={() => startEdit(i)} style={{ ...btnG, padding: "6px 12px", fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}><Edit3 size={12} />Edit</button>
+                            <button onClick={() => discardSingle(i)} style={{ ...btnG, padding: "6px 12px", fontSize: 11, display: "flex", alignItems: "center", gap: 4, color: T.error }}><X size={12} />Discard</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
               <div ref={cr} />

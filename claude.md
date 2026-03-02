@@ -147,11 +147,11 @@ AI-powered receipt scanning, chat-based expense logging, dashboards, analytics, 
 
 ### Phase 8 — AI Chat & Insights Improvements
 
-**8a — Image Upload Should Not Auto-Send**
-- [ ] Uploading an image in AI Chat should NOT send immediately
-- [ ] User can type additional info/context after attaching
-- [ ] Send only when user clicks Send or presses Enter
-- [ ] Show attached file as preview/thumbnail in the input area
+**8a — Image Upload Should Not Auto-Send ✅ DONE**
+- [x] Uploading an image in AI Chat should NOT send immediately
+- [x] User can type additional info/context after attaching
+- [x] Send only when user clicks Send or presses Enter
+- [x] Show attached file as preview/thumbnail in the input area
 
 **8b — AI Insights Better Styling & Charts**
 - [ ] Improve spacing and typography for easier reading
@@ -159,13 +159,13 @@ AI-powered receipt scanning, chat-based expense logging, dashboards, analytics, 
 - [ ] Better formatting: clear section headers, bullet points, spacing
 - [ ] Polished and well-structured layout, not a wall of text
 
-**8c — AI Chat Multi-Entry Save UX**
-- [ ] When AI suggests multiple entries in one response:
-  - [ ] "Save All" and "Discard All" buttons
-  - [ ] Individual "Save" button per entry
-  - [ ] Individual "Edit" button per entry (inline editing)
-  - [ ] User can selectively save, edit, or discard each entry
-  - [ ] Clear visual separation between entries
+**8c — AI Chat Multi-Entry Save UX ✅ DONE**
+- [x] When AI suggests multiple entries in one response:
+  - [x] "Save All" and "Discard All" buttons
+  - [x] Individual "Save" button per entry
+  - [x] Individual "Edit" button per entry (inline editing)
+  - [x] User can selectively save, edit, or discard each entry
+  - [x] Clear visual separation between entries
 
 ---
 
