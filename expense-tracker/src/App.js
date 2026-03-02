@@ -432,6 +432,8 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
   const startEdit = (i) => { setEditIdx(i); setEditForm({ ...pe[i] }); };
   const cancelEdit = () => { setEditIdx(null); setEditForm(null); };
   const applyEdit = (i) => { if (!editForm) return; const u = [...pe]; u[i] = { ...editForm, amount: parseFloat(editForm.amount) || 0 }; setPe(u); setEditIdx(null); setEditForm(null); };
+  const applyAndSave = (i) => { if (!editForm) return; const e = { ...editForm, amount: parseFloat(editForm.amount) || 0 }; svE([e, ...exp]); setMsgs(v => [...v, { role: "assistant", content: `Saved: ${e.description || e.category} (${e.category}) - ${fmt(e.amount)} on ${e.date}` }]); tst(`Saved: ${e.description || e.category}`); const rest = (pe || []).filter((_, j) => j !== i); setPe(rest.length ? rest : null); setEditIdx(null); setEditForm(null); };
+  const findDup = (e) => { const desc = (e.description || "").toLowerCase(); const amt = e.amount; return exp.find(x => x.category === e.category && Math.abs(x.amount - amt) / (amt || 1) <= 0.1 && desc && (x.description || "").toLowerCase().includes(desc.toLowerCase().split(" ")[0])); };
   const genIns = async () => {
     const ps = startOf(ip); const rel = exp.filter(e => pld(e.date) >= ps);
     if (!rel.length) { setIt("No expenses for this period."); return; }
@@ -665,8 +667,8 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
                       </div>
                     )}
                   </div>
-                  {pe.map((e, i) => (
-                    <div key={e.id} style={{ padding: 12, marginBottom: i < pe.length - 1 ? 8 : 0, background: theme === "dark" ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)", borderRadius: 12, border: `1px solid ${T.border}` }}>
+                  {pe.map((e, i) => { const dup = findDup(e); return (
+                    <div key={e.id} style={{ padding: 12, marginBottom: i < pe.length - 1 ? 8 : 0, background: theme === "dark" ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)", borderRadius: 12, border: `1px solid ${dup ? T.error : T.border}` }}>
                       {editIdx === i && editForm ? (
                         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                           <input value={editForm.description} onChange={ev => setEditForm({ ...editForm, description: ev.target.value })} placeholder="Description" style={{ ...inpS, padding: "8px 10px", fontSize: 12 }} />
@@ -676,7 +678,8 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
                           </div>
                           <input type="date" value={editForm.date} onChange={ev => setEditForm({ ...editForm, date: ev.target.value })} style={{ ...inpS, padding: "8px 10px", fontSize: 12 }} />
                           <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-                            <button onClick={() => applyEdit(i)} style={{ ...btnP, padding: "7px 14px", fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}><Check size={12} />Done</button>
+                            <button onClick={() => applyAndSave(i)} style={{ ...btnP, padding: "7px 14px", fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}><Check size={12} />Done & Save</button>
+                            <button onClick={() => applyEdit(i)} style={{ ...btnG, padding: "7px 14px", fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}><Check size={12} />Done</button>
                             <button onClick={cancelEdit} style={{ ...btnG, padding: "7px 14px", fontSize: 11 }}>Cancel</button>
                           </div>
                         </div>
@@ -694,8 +697,9 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
                           </div>
                         </div>
                       )}
+                      {dup && <div style={{ marginTop: 8, fontSize: 11, color: T.error, display: "flex", alignItems: "center", gap: 4 }}><AlertTriangle size={12} />Seems like there's a similar entry on {new Date(dup.date + "T00:00:00").toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" })} ({dup.description || dup.category} - {fmt(dup.amount)})</div>}
                     </div>
-                  ))}
+                  ); })}
                 </div>
               )}
               <div ref={cr} />

@@ -166,6 +166,15 @@ AI-powered receipt scanning, chat-based expense logging, dashboards, analytics, 
   - [x] Individual "Edit" button per entry (inline editing)
   - [x] User can selectively save, edit, or discard each entry
   - [x] Clear visual separation between entries
+  - [x] Edit form: Description (full row), Amount + Category (side by side), Date (full row)
+  - [x] AI gives detailed summary per each save/discard action (item name, category, amount, date)
+  - [x] Save All shows full list with total; Discard All confirms count discarded
+
+**8d — Edit Mode: Done & Save + Duplicate Detection ✅ DONE**
+- [x] Edit mode shows "Done & Save" button (applies edit AND saves to expenses in one click) in addition to "Done" (apply edit only)
+- [x] Duplicate detection: when a pending expense matches an existing expense (similar amount + similar description), show a red warning underneath: "Seems like there's a similar entry on MM/DD/YYYY"
+- [x] Match logic: same category, amount within ±10%, and description fuzzy match against existing expenses
+- [x] Duplicate card gets red border highlight + AlertTriangle icon
 
 ---
 
