@@ -668,7 +668,7 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
                     )}
                   </div>
                   {pe.map((e, i) => { const dup = findDup(e); return (
-                    <div key={e.id} style={{ padding: 12, marginBottom: i < pe.length - 1 ? 8 : 0, background: theme === "dark" ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)", borderRadius: 12, border: `1px solid ${dup ? T.error : T.border}` }}>
+                    <div key={e.id} style={{ padding: 12, marginBottom: i < pe.length - 1 ? 8 : 0, background: theme === "dark" ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)", borderRadius: 12, border: `1px solid ${dup ? T.err : T.border}` }}>
                       {editIdx === i && editForm ? (
                         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                           <input value={editForm.description} onChange={ev => setEditForm({ ...editForm, description: ev.target.value })} placeholder="Description" style={{ ...inpS, padding: "8px 10px", fontSize: 12 }} />
@@ -693,11 +693,11 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
                           <div style={{ display: "flex", gap: 6 }}>
                             <button onClick={() => saveSingle(i)} style={{ ...btnP, padding: "6px 12px", fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}><Check size={12} />Save</button>
                             <button onClick={() => startEdit(i)} style={{ ...btnG, padding: "6px 12px", fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}><Edit3 size={12} />Edit</button>
-                            <button onClick={() => discardSingle(i)} style={{ ...btnG, padding: "6px 12px", fontSize: 11, display: "flex", alignItems: "center", gap: 4, color: T.error }}><X size={12} />Discard</button>
+                            <button onClick={() => discardSingle(i)} style={{ ...btnG, padding: "6px 12px", fontSize: 11, display: "flex", alignItems: "center", gap: 4, color: T.err }}><X size={12} />Discard</button>
                           </div>
                         </div>
                       )}
-                      {dup && <div style={{ marginTop: 8, fontSize: 11, color: T.error, display: "flex", alignItems: "center", gap: 4 }}><AlertTriangle size={12} />Seems like there's a similar entry on {new Date(dup.date + "T00:00:00").toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" })} ({dup.description || dup.category} - {fmt(dup.amount)})</div>}
+                      {dup && <div style={{ marginTop: 8, fontSize: 11, color: T.err, display: "flex", alignItems: "center", gap: 4 }}><AlertTriangle size={12} />Seems like there's a similar entry on {new Date(dup.date + "T00:00:00").toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" })} ({dup.description || dup.category} - {fmt(dup.amount)})</div>}
                     </div>
                   ); })}
                 </div>
