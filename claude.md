@@ -14,22 +14,33 @@ AI-powered receipt scanning, chat-based expense logging, dashboards, analytics, 
 | **Hosting** | Vercel (free tier), Root Directory = `expense-tracker` |
 | **Stack** | React 19, recharts, lucide-react, inline styles (no CSS framework) |
 | **Responsive** | `useMediaQuery` hook — `isDesktop` (>=1024px), sidebar on desktop, bottom nav on mobile |
-| **Auth** | PIN-based login (Joseph / Rowena), stored in localStorage |
-| **Storage** | localStorage for dev, Supabase planned for production |
+| **Supabase client** | `expense-tracker/src/supabase.js` (client init, exports `supabase` + `sbReady`) |
+| **Auth** | PIN-based login (Joseph / Rowena), stored in Supabase settings table |
+| **Storage** | Supabase (production), localStorage fallback (when env vars missing) |
 | **Currency** | PHP (Philippine Peso, ₱) |
 
 ---
 
-## Data Model
+## Data Model (Supabase Tables)
 
-```
-"expenses"   → [{id, amount, category, description, date, addedBy, createdAt}]
-"categories" → ["Food", "Transport", "Bills", "Shopping", "Health", "Entertainment", "Subscriptions", "Other"]
-"accounts"   → [{name, balance, type, updatedAt}]
-"settings"   → {josephPin, rowenaPin}
-"budgets"    → {Food: 5000, Transport: 3000, ...}
-"recurring"  → [{id, amount, category, description, frequency, nextDate, addedBy}]
-```
+| Table | Columns | Notes |
+|---|---|---|
+| `expenses` | id (TEXT PK), amount, category, description, date, added_by, created_at | Main data |
+| `accounts` | id (TEXT PK), name, balance, type, updated_at | Manual bank balances |
+| `recurring` | id (TEXT PK), amount, category, description, frequency, next_date, added_by, created_at | Templates |
+| `categories` | name (TEXT PK), sort_order (INT) | Dynamic, max 15 |
+| `settings` | key (TEXT PK), value (JSONB) | Stores: `budgets`, `genBudget`, `pins` |
+
+Default categories: `["Food", "Transport", "Bills", "Shopping", "Health", "Entertainment", "Subscriptions", "Other"]`
+
+Joseph & Rowena's actual categories: `["Bills", "Health", "Entertainment", "Subscriptions", "Mortgage", "Utilities (Electric/Water/Wifi)", "Date Expense", "Grocery", "Eat Outside", "Support to parents", "Support to Mikaela", "Support to Ate Dette", "Transportation (Gas/Toll/Grab)", "Shopping or Parcels", "Other"]`
+
+**Storage flow:** `sbReady` (env vars exist) → Supabase; otherwise → localStorage fallback.
+On first Supabase load with empty tables, existing localStorage data is auto-migrated up.
+
+**Environment variables (Vercel + .env.local):**
+- `REACT_APP_SUPABASE_URL` — Supabase project URL
+- `REACT_APP_SUPABASE_ANON_KEY` — Supabase anon/public key
 
 ---
 
@@ -119,24 +130,33 @@ AI-powered receipt scanning, chat-based expense logging, dashboards, analytics, 
 - [x] PIN-based login screen (Joseph / Rowena)
 - [x] Names used everywhere (expenses, chat, dashboard, person cards)
 - [x] Auto-set "addedBy" based on logged-in user
-- [ ] Logout option in Settings
+- [x] Logout option in Settings (in sidebar on desktop)
 
-**6b — Budget Limits**
-- [ ] Set a **general monthly budget** (e.g. P30,000/month total spending limit)
-- [ ] Budget vs actual on dashboard with progress bar (green/yellow/red)
-- [ ] Warning when approaching or exceeding the monthly budget
-- [ ] **Optional:** per-category budget limits (e.g. Food: P5,000) — not required, just a nice-to-have
-- [ ] Budget settings page in More tab
+**6b — Budget Limits ✅ DONE**
+- [x] Set a general monthly budget (e.g. P30,000/month total spending limit)
+- [x] Budget vs actual on dashboard with progress bar (green/yellow/red)
+- [x] Warning when approaching or exceeding the monthly budget
+- [x] Per-category budget limits (optional, already existed)
+- [x] Budget settings page in More > Budgets tab (general + per-category)
 
-**6c — Recurring Expenses**
-- [ ] Add recurring templates (Netflix, PLDT, Meralco, etc.)
-- [ ] Frequency: monthly, weekly, yearly
-- [ ] Auto-reminder or manual "apply recurring" button
-- [ ] Edit/delete recurring templates in More tab
+**6b-patch — Budget UX Enhancements ✅ DONE**
+- [x] General budget: "Set" saves, separate "Clear" button with confirmation modal to remove budget
+- [x] Per-category budgets default to 0 (not pre-filled amounts)
+- [x] Per-category budget UI: range slider (step 500) + direct input editing, gold-themed thumb
+- [x] General budget input shows peso sign + comma-formatted number (no dots)
+- [x] Allocated vs remaining tracker: shows category total vs general budget with warning if over-allocated
+- [x] View mode shows "No limit set" for 0-budget categories, hides progress bar
 
-**6d — Budget vs Actual Chart**
-- [ ] Bar chart comparing budget vs actual per category
-- [ ] Color-coded: under (green), near limit (yellow), over (red)
+**6c — Recurring Expenses ✅ DONE**
+- [x] Add recurring templates (Netflix, PLDT, Meralco, etc.)
+- [x] Frequency: monthly, weekly, yearly
+- [x] Manual "Apply Due" button to create expenses from templates
+- [x] Edit/delete recurring templates in More > Recurring tab
+- [x] Auto-advance next date after applying
+
+**6d — Budget vs Actual Chart ✅ DONE**
+- [x] Bar chart comparing budget vs actual per category
+- [x] Color-coded: under (green), near limit (yellow), over (red)
 
 ### Phase 7 — UI/UX Overhaul (Gold Edition) ✅ DONE
 - [x] Gold/amber design system (#F5B526 primary)
@@ -153,11 +173,12 @@ AI-powered receipt scanning, chat-based expense logging, dashboards, analytics, 
 - [x] Send only when user clicks Send or presses Enter
 - [x] Show attached file as preview/thumbnail in the input area
 
-**8b — AI Insights Better Styling & Charts**
-- [ ] Improve spacing and typography for easier reading
-- [ ] Add visual charts (recharts) where relevant in insights
-- [ ] Better formatting: clear section headers, bullet points, spacing
-- [ ] Polished and well-structured layout, not a wall of text
+**8b — AI Insights Better Styling & Charts ✅ DONE**
+- [x] Improve spacing and typography for easier reading
+- [x] Add visual charts (recharts) where relevant in insights (category pie, person bar)
+- [x] Better formatting: clear section headers, bullet points, spacing
+- [x] Polished and well-structured layout: summary stats, overview, charts, category analysis, patterns, top expenses, numbered tips
+- [x] AI returns structured JSON (overview, categoryAnalysis, patterns, tips)
 
 **8c — AI Chat Multi-Entry Save UX ✅ DONE**
 - [x] When AI suggests multiple entries in one response:
@@ -176,14 +197,23 @@ AI-powered receipt scanning, chat-based expense logging, dashboards, analytics, 
 - [x] Match logic: same category, amount within ±10%, and description fuzzy match against existing expenses
 - [x] Duplicate card gets red border highlight + AlertTriangle icon
 
+**8e — Dynamic Categories (Add/Remove) ✅ DONE**
+- [x] Categories are dynamic (stored in localStorage, loaded on init)
+- [x] Settings tab: category management UI (list with color dots, add input, remove button)
+- [x] "Other" cannot be removed (AI parsing fallback)
+- [x] Max 15 categories
+- [x] Remove category: confirmation modal, reassigns expenses/recurring to "Other", removes budget entry
+- [x] New categories auto-assigned colors from EXTRA_COLORS palette
+- [x] AI system prompt uses dynamic categories list
+- [x] All forms, charts, filters, budgets use dynamic `cats` state
+
 ---
 
 ## Cost
 
 | Tier | Details | Price |
 |---|---|---|
-| **Current (Vercel)** | Vercel free tier + Claude API | ~$3-10/month (API usage) |
-| **Future (Supabase)** | + Supabase free tier for DB & auth | Same |
+| **Current** | Vercel free tier + Supabase free tier + Claude API | ~$3-10/month (API usage only) |
 
 ---
 
@@ -193,3 +223,4 @@ AI-powered receipt scanning, chat-based expense logging, dashboards, analytics, 
 - Image processing — receipt images sent to Claude API as base64
 - Session-based auth — PIN checked on load, stored in React state
 - No push notifications — browser-only app
+- Supabase free tier: 500MB database, 1GB file storage, 50K monthly active users

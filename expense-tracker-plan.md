@@ -6,6 +6,16 @@ AI-powered receipt scanning & chat-based expense logging, with dashboards, analy
 
 ---
 
+## Project Structure
+- React app lives in `expense-tracker/` subfolder
+- Single-file architecture: all components and styles in `expense-tracker/src/App.js`
+- Vercel serverless proxy at `expense-tracker/api/chat.js` (solves CORS for Anthropic API)
+- Deployed on Vercel with Root Directory set to `expense-tracker`
+- Uses React 19, recharts, lucide-react, inline styles (no CSS framework)
+- Responsive: `useMediaQuery` hook provides `isDesktop` (>=1024px) boolean
+
+---
+
 ## Architecture Decision
 
 **Stack:** Single-page React app (artifact) with Claude API for AI features + Persistent Storage
@@ -247,6 +257,30 @@ storage keys:
 6. **Currency is PHP (₱)** — all amounts displayed in Philippine Peso
 7. **Shared storage** — on Vercel deploy, use Supabase so both users see everything
 8. **Confirmation before destructive actions** (delete expense, clear data)
+
+---
+
+## Phase 8 — AI Chat & Insights Improvements
+
+### Phase 8a — Image Upload Should Not Auto-Send
+- [ ] When uploading an image/file in AI Chat, it should NOT send immediately
+- [ ] User must be able to type additional info or context after attaching
+- [ ] Sending happens only when the user clicks Send or presses Enter
+- [ ] The attached file should show as a preview/thumbnail in the input area
+
+### Phase 8b — AI Insights Better Styling & Charts
+- [ ] Improve spacing and typography in the AI Insights section for easier reading
+- [ ] Add visual charts (using recharts) where relevant in the insights response
+- [ ] Better formatting: clear section headers, bullet points, spacing between sections
+- [ ] Make the insights feel polished and well-structured, not a wall of text
+
+### Phase 8c — AI Chat Multi-Entry Save UX
+- [ ] When the AI suggests multiple expense entries in a single chat response:
+  - [ ] Show "Save All" and "Discard All" buttons at the top/bottom
+  - [ ] Each individual entry must have its own "Save" button
+  - [ ] Each individual entry must have its own "Edit" button (inline editing)
+  - [ ] User can selectively save, edit, or discard individual entries
+  - [ ] Clear visual separation between each suggested entry
 
 ---
 

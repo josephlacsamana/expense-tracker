@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Plus, Trash2, Edit3, X, Check, Search, MessageSquare, LayoutDashboard, PieChart, Settings, ChevronDown, Lock, LogOut, ImagePlus, Send, RefreshCw, Download, AlertTriangle, TrendingUp, TrendingDown, PiggyBank, CreditCard, Building2, Wallet, Lightbulb, Coins, Sun, Moon, Repeat } from "lucide-react";
 import { PieChart as RPie, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, LineChart, Line, CartesianGrid, Legend } from "recharts";
+import { supabase, sbReady } from "./supabase";
 
 // ─── THEME TOKENS ───
 const themes = {
@@ -52,21 +53,90 @@ const td = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.g
 const pld = (s) => { const [y, m, d] = (s || "").split("-").map(Number); return new Date(y, m - 1, d); };
 const aIcons = { savings: PiggyBank, checking: CreditCard, investment: Building2, other: Wallet };
 
-// Storage adapter — works in both Claude artifacts (window.storage) and local dev (localStorage)
-const store = {
+// localStorage fallback (used when Supabase env vars not set)
+const localStore = {
   get: async (key) => {
-    if (window.storage?.get) {
-      return window.storage.get(key);
-    }
+    if (window.storage?.get) return window.storage.get(key);
     const v = localStorage.getItem(key);
     return v !== null ? { value: v } : null;
   },
   set: async (key, value) => {
-    if (window.storage?.set) {
-      return window.storage.set(key, value);
-    }
+    if (window.storage?.set) return window.storage.set(key, value);
     localStorage.setItem(key, value);
     return { key, value };
+  },
+};
+
+// ─── SUPABASE HELPERS ───
+const sb = {
+  // Load all data from Supabase
+  loadAll: async () => {
+    const [eR, aR, rR, cR, bR, gR, pR] = await Promise.all([
+      supabase.from("expenses").select("*").order("created_at", { ascending: false }),
+      supabase.from("accounts").select("*"),
+      supabase.from("recurring").select("*"),
+      supabase.from("categories").select("*").order("sort_order"),
+      supabase.from("settings").select("*").eq("key", "budgets").single(),
+      supabase.from("settings").select("*").eq("key", "genBudget").single(),
+      supabase.from("settings").select("*").eq("key", "pins").single(),
+    ]);
+    return {
+      expenses: eR.data?.map(r => ({ id: r.id, amount: Number(r.amount), category: r.category, description: r.description || "", date: r.date, addedBy: r.added_by, createdAt: r.created_at })) || [],
+      accounts: aR.data?.map(r => ({ id: r.id, name: r.name, balance: Number(r.balance), type: r.type, updatedAt: r.updated_at })) || [],
+      recurring: rR.data?.map(r => ({ id: r.id, amount: Number(r.amount), category: r.category, description: r.description || "", frequency: r.frequency, nextDate: r.next_date, addedBy: r.added_by, createdAt: r.created_at })) || [],
+      categories: cR.data?.length > 0 ? cR.data.map(r => r.name) : null,
+      budgets: bR.data?.value || null,
+      genBudget: gR.data?.value ?? null,
+      pins: pR.data?.value || null,
+    };
+  },
+  // Expenses
+  upsertExpense: async (e) => {
+    await supabase.from("expenses").upsert({ id: e.id, amount: e.amount, category: e.category, description: e.description || "", date: e.date, added_by: e.addedBy, created_at: e.createdAt });
+  },
+  upsertExpenses: async (arr) => {
+    if (!arr.length) return;
+    await supabase.from("expenses").upsert(arr.map(e => ({ id: e.id, amount: e.amount, category: e.category, description: e.description || "", date: e.date, added_by: e.addedBy, created_at: e.createdAt })));
+  },
+  deleteExpense: async (id) => { await supabase.from("expenses").delete().eq("id", id); },
+  deleteAllExpenses: async () => { await supabase.from("expenses").delete().neq("id", ""); },
+  // Accounts
+  upsertAccount: async (a) => {
+    await supabase.from("accounts").upsert({ id: a.id, name: a.name, balance: a.balance, type: a.type, updated_at: a.updatedAt });
+  },
+  deleteAccount: async (id) => { await supabase.from("accounts").delete().eq("id", id); },
+  deleteAllAccounts: async () => { await supabase.from("accounts").delete().neq("id", ""); },
+  // Recurring
+  upsertRecurring: async (r) => {
+    await supabase.from("recurring").upsert({ id: r.id, amount: r.amount, category: r.category, description: r.description || "", frequency: r.frequency, next_date: r.nextDate, added_by: r.addedBy, created_at: r.createdAt });
+  },
+  upsertRecurringBulk: async (arr) => {
+    if (!arr.length) return;
+    await supabase.from("recurring").upsert(arr.map(r => ({ id: r.id, amount: r.amount, category: r.category, description: r.description || "", frequency: r.frequency, next_date: r.nextDate, added_by: r.addedBy, created_at: r.createdAt })));
+  },
+  deleteRecurring: async (id) => { await supabase.from("recurring").delete().eq("id", id); },
+  deleteAllRecurring: async () => { await supabase.from("recurring").delete().neq("id", ""); },
+  // Categories
+  saveCategories: async (cats) => {
+    await supabase.from("categories").delete().neq("name", "");
+    if (cats.length > 0) await supabase.from("categories").insert(cats.map((c, i) => ({ name: c, sort_order: i })));
+  },
+  // Settings (key-value)
+  saveSetting: async (key, value) => {
+    await supabase.from("settings").upsert({ key, value });
+  },
+  clearAllSettings: async () => { await supabase.from("settings").delete().neq("key", ""); },
+  // Migrate localStorage → Supabase (one-time)
+  migrate: async (expenses, accounts, recurring, categories, budgets, genBudget, pins) => {
+    const ops = [];
+    if (expenses.length) ops.push(sb.upsertExpenses(expenses));
+    if (accounts.length) ops.push(supabase.from("accounts").upsert(accounts.map(a => ({ id: a.id, name: a.name, balance: a.balance, type: a.type, updated_at: a.updatedAt }))));
+    if (recurring.length) ops.push(sb.upsertRecurringBulk(recurring));
+    if (categories.length) ops.push(sb.saveCategories(categories));
+    if (budgets) ops.push(sb.saveSetting("budgets", budgets));
+    if (genBudget) ops.push(sb.saveSetting("genBudget", genBudget));
+    if (pins) ops.push(sb.saveSetting("pins", pins));
+    await Promise.all(ops);
   },
 };
 
@@ -193,7 +263,10 @@ function LoginScreen({ onLogin, theme, toggleTheme }) {
   const [pin, setPin] = useState("");
   const [err, setErr] = useState("");
   const [pins, setPins] = useState(DEFAULT_PINS);
-  useEffect(() => { (async () => { try { const r = await store.get("pins"); if (r?.value) setPins(JSON.parse(r.value)); } catch {} })(); }, []);
+  useEffect(() => { (async () => { try {
+    if (sbReady) { const r = await supabase.from("settings").select("*").eq("key", "pins").single(); if (r.data?.value) setPins(r.data.value); }
+    else { const r = await localStore.get("pins"); if (r?.value) setPins(JSON.parse(r.value)); }
+  } catch {} })(); }, []);
   const doLogin = () => { if (pins[user] === pin) onLogin(user); else { setErr("Wrong PIN. Try again."); setPin(""); } };
 
   return (
@@ -348,62 +421,104 @@ function MainApp({ user, onLogout, theme, toggleTheme }) {
   useEffect(() => {
     (async () => {
       try {
-        const r = await store.get("expenses");
+        if (sbReady) {
+          // ─── LOAD FROM SUPABASE ───
+          const d = await sb.loadAll();
+          if (d.expenses.length > 0) {
+            setExp(d.expenses);
+            if (d.accounts.length) setAccts(d.accounts);
+            if (d.budgets) setBudgets(d.budgets);
+            if (d.genBudget !== null) setGenBudget(d.genBudget);
+            if (d.recurring.length) setRec(d.recurring);
+            if (d.categories) setCats(d.categories);
+            setLd(false); return;
+          }
+          // Supabase empty — try migrating localStorage data up
+          try {
+            const lsE = localStorage.getItem("expenses");
+            if (lsE) {
+              const lExp = JSON.parse(lsE);
+              if (lExp.length > 0) {
+                const lAccts = JSON.parse(localStorage.getItem("accounts") || "[]");
+                const lRec = JSON.parse(localStorage.getItem("recurring") || "[]");
+                const lCats = JSON.parse(localStorage.getItem("categories") || "null");
+                const lBudgets = JSON.parse(localStorage.getItem("budgets") || "null");
+                const lGenB = JSON.parse(localStorage.getItem("genBudget") || "null");
+                const lPins = JSON.parse(localStorage.getItem("pins") || "null");
+                await sb.migrate(lExp, lAccts, lRec, lCats || [], lBudgets, lGenB, lPins);
+                setExp(lExp);
+                if (lAccts.length) setAccts(lAccts);
+                if (lBudgets) setBudgets(lBudgets);
+                if (lGenB !== null) setGenBudget(lGenB);
+                if (lRec.length) setRec(lRec);
+                if (lCats && lCats.length) setCats(lCats);
+                setLd(false); return;
+              }
+            }
+          } catch {}
+          // Nothing in localStorage either — seed
+          setExp(SEED_EXP); setAccts(SEED_ACCT);
+          await sb.upsertExpenses(SEED_EXP);
+          await supabase.from("accounts").upsert(SEED_ACCT.map(a => ({ id: a.id, name: a.name, balance: a.balance, type: a.type, updated_at: a.updatedAt })));
+          setLd(false); return;
+        }
+        // ─── FALLBACK: LOAD FROM LOCALSTORAGE ───
+        const r = await localStore.get("expenses");
         if (r?.value) { const p = JSON.parse(r.value); if (p.length > 0) { setExp(p);
-          try { const a = await store.get("accounts"); if (a?.value) setAccts(JSON.parse(a.value)); } catch {}
-          try { const b = await store.get("budgets"); if (b?.value) setBudgets(JSON.parse(b.value)); } catch {}
-          try { const g = await store.get("genBudget"); if (g?.value) setGenBudget(JSON.parse(g.value)); } catch {}
-          try { const rc = await store.get("recurring"); if (rc?.value) setRec(JSON.parse(rc.value)); } catch {}
-          try { const ct = await store.get("categories"); if (ct?.value) { const pc = JSON.parse(ct.value); if (Array.isArray(pc) && pc.length > 0) setCats(pc); } } catch {}
+          try { const a = await localStore.get("accounts"); if (a?.value) setAccts(JSON.parse(a.value)); } catch {}
+          try { const b = await localStore.get("budgets"); if (b?.value) setBudgets(JSON.parse(b.value)); } catch {}
+          try { const g = await localStore.get("genBudget"); if (g?.value) setGenBudget(JSON.parse(g.value)); } catch {}
+          try { const rc = await localStore.get("recurring"); if (rc?.value) setRec(JSON.parse(rc.value)); } catch {}
+          try { const ct = await localStore.get("categories"); if (ct?.value) { const pc = JSON.parse(ct.value); if (Array.isArray(pc) && pc.length > 0) setCats(pc); } } catch {}
           setLd(false); return; } }
       } catch (e) { console.error(e); }
       setExp(SEED_EXP); setAccts(SEED_ACCT);
-      try { await store.set("expenses", JSON.stringify(SEED_EXP)); await store.set("accounts", JSON.stringify(SEED_ACCT)); } catch {}
+      try { await localStore.set("expenses", JSON.stringify(SEED_EXP)); await localStore.set("accounts", JSON.stringify(SEED_ACCT)); } catch {}
       setLd(false);
     })();
   }, []);
   useEffect(() => { cr.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, pe]);
 
-  const svE = async (d) => { setExp(d); try { await store.set("expenses", JSON.stringify(d)); } catch {} };
-  const svA = async (d) => { setAccts(d); try { await store.set("accounts", JSON.stringify(d)); } catch {} };
-  const svB = async (d) => { setBudgets(d); try { await store.set("budgets", JSON.stringify(d)); } catch {} };
-  const svCats = async (d) => { setCats(d); try { await store.set("categories", JSON.stringify(d)); } catch {} };
+  const svE = async (d, opts) => { setExp(d); try { if (sbReady) { if (opts?.deleteId) await sb.deleteExpense(opts.deleteId); else if (opts?.upsert) await sb.upsertExpense(opts.upsert); else if (opts?.upsertMany) await sb.upsertExpenses(opts.upsertMany); else await sb.upsertExpenses(d); } else await localStore.set("expenses", JSON.stringify(d)); } catch {} };
+  const svA = async (d, opts) => { setAccts(d); try { if (sbReady) { if (opts?.deleteId) await sb.deleteAccount(opts.deleteId); else if (opts?.upsert) await sb.upsertAccount(opts.upsert); else await supabase.from("accounts").upsert(d.map(a => ({ id: a.id, name: a.name, balance: a.balance, type: a.type, updated_at: a.updatedAt }))); } else await localStore.set("accounts", JSON.stringify(d)); } catch {} };
+  const svB = async (d) => { setBudgets(d); try { if (sbReady) await sb.saveSetting("budgets", d); else await localStore.set("budgets", JSON.stringify(d)); } catch {} };
+  const svCats = async (d) => { setCats(d); try { if (sbReady) await sb.saveCategories(d); else await localStore.set("categories", JSON.stringify(d)); } catch {} };
   const doSubmit = () => {
     if (!form.amount || isNaN(parseFloat(form.amount))) return;
     const en = { id: eId || uid(), amount: parseFloat(parseFloat(form.amount).toFixed(2)), category: form.category, description: form.description.trim(), date: form.date || td(), addedBy: form.addedBy || user, createdAt: Date.now() };
-    if (eId) { svE(exp.map(e => e.id === eId ? en : e)); tst("Updated"); } else { svE([en, ...exp]); tst("Added"); }
+    if (eId) { svE(exp.map(e => e.id === eId ? en : e), { upsert: en }); tst("Updated"); } else { svE([en, ...exp], { upsert: en }); tst("Added"); }
     rstF();
   };
   const rstF = () => { setForm({ amount: "", category: "Food", description: "", date: td(), addedBy: user }); setEId(null); setSf(false); };
   const edF = (e) => { setForm({ amount: String(e.amount), category: e.category, description: e.description, date: e.date, addedBy: e.addedBy }); setEId(e.id); setSf(true); };
-  const delE = (id) => { svE(exp.filter(e => e.id !== id)); setDc(null); tst("Deleted"); };
+  const delE = (id) => { svE(exp.filter(e => e.id !== id), { deleteId: id }); setDc(null); tst("Deleted"); };
   const doAcct = () => {
     if (!af.name.trim() || !af.balance || isNaN(parseFloat(af.balance))) return;
     const en = { id: eaId || uid(), name: af.name.trim(), balance: parseFloat(parseFloat(af.balance).toFixed(2)), type: af.type, updatedAt: Date.now() };
-    if (eaId) { svA(accts.map(a => a.id === eaId ? en : a)); tst("Account updated"); } else { svA([...accts, en]); tst("Account added"); }
+    if (eaId) { svA(accts.map(a => a.id === eaId ? en : a), { upsert: en }); tst("Account updated"); } else { svA([...accts, en], { upsert: en }); tst("Account added"); }
     rstAf();
   };
   const rstAf = () => { setAf({ name: "", balance: "", type: "savings" }); setEaId(null); setSaf(false); };
   const edA = (a) => { setAf({ name: a.name, balance: String(a.balance), type: a.type }); setEaId(a.id); setSaf(true); };
-  const delA = (id) => { svA(accts.filter(a => a.id !== id)); setDac(null); tst("Account removed"); };
+  const delA = (id) => { svA(accts.filter(a => a.id !== id), { deleteId: id }); setDac(null); tst("Account removed"); };
   const saveBudgets = () => { svB(bf); setSbf(false); tst("Budgets saved"); };
-  const svGB = async (v) => { setGenBudget(v); try { await store.set("genBudget", JSON.stringify(v)); } catch {} };
-  const svR = async (d) => { setRec(d); try { await store.set("recurring", JSON.stringify(d)); } catch {} };
+  const svGB = async (v) => { setGenBudget(v); try { if (sbReady) await sb.saveSetting("genBudget", v); else await localStore.set("genBudget", JSON.stringify(v)); } catch {} };
+  const svR = async (d, opts) => { setRec(d); try { if (sbReady) { if (opts?.deleteId) await sb.deleteRecurring(opts.deleteId); else if (opts?.upsert) await sb.upsertRecurring(opts.upsert); else if (opts?.upsertMany) await sb.upsertRecurringBulk(opts.upsertMany); else await sb.upsertRecurringBulk(d); } else await localStore.set("recurring", JSON.stringify(d)); } catch {} };
   const doRec = () => {
     if (!rf.description.trim() || !rf.amount || isNaN(parseFloat(rf.amount))) return;
     const en = { id: erId || uid(), amount: parseFloat(parseFloat(rf.amount).toFixed(2)), category: rf.category, description: rf.description.trim(), frequency: rf.frequency, nextDate: rf.nextDate || td(), addedBy: user, createdAt: Date.now() };
-    if (erId) { svR(rec.map(r => r.id === erId ? en : r)); tst("Recurring updated"); } else { svR([...rec, en]); tst("Recurring added"); }
+    if (erId) { svR(rec.map(r => r.id === erId ? en : r), { upsert: en }); tst("Recurring updated"); } else { svR([...rec, en], { upsert: en }); tst("Recurring added"); }
     rstRf();
   };
   const rstRf = () => { setRf({ amount: "", category: "Food", description: "", frequency: "monthly", nextDate: td() }); setErId(null); setSrf(false); };
   const edRec = (r) => { setRf({ amount: String(r.amount), category: r.category, description: r.description, frequency: r.frequency, nextDate: r.nextDate }); setErId(r.id); setSrf(true); };
-  const delRec = (id) => { svR(rec.filter(r => r.id !== id)); setDrc(null); tst("Recurring removed"); };
+  const delRec = (id) => { svR(rec.filter(r => r.id !== id), { deleteId: id }); setDrc(null); tst("Recurring removed"); };
   const applyRec = () => {
     const today = td();
     const due = rec.filter(r => r.nextDate <= today);
     if (!due.length) { tst("No recurring expenses due"); return; }
     const newExp = due.map(r => ({ id: uid(), amount: r.amount, category: r.category, description: r.description, date: today, addedBy: r.addedBy || user, createdAt: Date.now() }));
-    svE([...newExp, ...exp]);
+    svE([...newExp, ...exp], { upsertMany: newExp });
     const updated = rec.map(r => {
       if (r.nextDate > today) return r;
       const d = new Date(r.nextDate + "T00:00:00");
@@ -413,7 +528,8 @@ function MainApp({ user, onLogout, theme, toggleTheme }) {
       const nd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
       return { ...r, nextDate: nd };
     });
-    svR(updated);
+    const changedRec = updated.filter((r, i) => r.nextDate !== rec[i]?.nextDate);
+    svR(updated, { upsertMany: changedRec });
     tst(`Applied ${due.length} recurring expense${due.length > 1 ? "s" : ""}`);
   };
   const exportCSV = () => {
@@ -421,7 +537,7 @@ function MainApp({ user, onLogout, theme, toggleTheme }) {
     const r = [...exp].sort((a, b) => a.date.localeCompare(b.date)).map(e => `${e.date},"${(e.description || "").replace(/"/g, '""')}",${e.category},${e.amount},${e.addedBy}`).join("\n");
     const b = new Blob([h + r], { type: "text/csv" }); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = "expenses.csv"; a.click(); URL.revokeObjectURL(u);
   };
-  const clearAll = async () => { setExp([]); setAccts([]); setRec([]); setGenBudget(0); setCats(DEF_CATS); setBudgets(DEFAULT_BUDGETS); try { await store.set("expenses", JSON.stringify([])); await store.set("accounts", JSON.stringify([])); await store.set("recurring", JSON.stringify([])); await store.set("genBudget", JSON.stringify(0)); await store.set("categories", JSON.stringify(DEF_CATS)); await store.set("budgets", JSON.stringify(DEFAULT_BUDGETS)); } catch {} setClr(false); tst("All data cleared"); };
+  const clearAll = async () => { setExp([]); setAccts([]); setRec([]); setGenBudget(0); setCats(DEF_CATS); setBudgets(DEFAULT_BUDGETS); try { if (sbReady) { await Promise.all([sb.deleteAllExpenses(), sb.deleteAllAccounts(), sb.deleteAllRecurring(), sb.saveCategories(DEF_CATS), sb.saveSetting("budgets", DEFAULT_BUDGETS), sb.saveSetting("genBudget", 0)]); } else { await localStore.set("expenses", JSON.stringify([])); await localStore.set("accounts", JSON.stringify([])); await localStore.set("recurring", JSON.stringify([])); await localStore.set("genBudget", JSON.stringify(0)); await localStore.set("categories", JSON.stringify(DEF_CATS)); await localStore.set("budgets", JSON.stringify(DEFAULT_BUDGETS)); } } catch {} setClr(false); tst("All data cleared"); };
 
   const SYS = `You are an expense tracker assistant for a couple (Joseph and Rowena). Currency: PHP (Philippine Peso).
 RESPOND ONLY WITH VALID JSON. No markdown, no backticks. Today: ${td()}. Current user: ${user}.
@@ -471,14 +587,14 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
   };
   const [editIdx, setEditIdx] = useState(null); // index of entry being edited
   const [editForm, setEditForm] = useState(null); // temp edit values
-  const confirmAll = () => { if (!pe || !pe.length) return; svE([...pe, ...exp]); const sum = pe.map(e => `  ${e.description || e.category} (${e.category}) - ${fmt(e.amount)}`).join("\n"); setMsgs(v => [...v, { role: "assistant", content: `Saved ${pe.length} expenses:\n${sum}\nTotal: ${fmt(pe.reduce((s, e) => s + e.amount, 0))}` }]); tst(`${pe.length} added`); setPe(null); setEditIdx(null); };
+  const confirmAll = () => { if (!pe || !pe.length) return; svE([...pe, ...exp], { upsertMany: pe }); const sum = pe.map(e => `  ${e.description || e.category} (${e.category}) - ${fmt(e.amount)}`).join("\n"); setMsgs(v => [...v, { role: "assistant", content: `Saved ${pe.length} expenses:\n${sum}\nTotal: ${fmt(pe.reduce((s, e) => s + e.amount, 0))}` }]); tst(`${pe.length} added`); setPe(null); setEditIdx(null); };
   const rejectAll = () => { const n = pe?.length || 0; setPe(null); setEditIdx(null); setMsgs(v => [...v, { role: "assistant", content: `Discarded all ${n} expenses. No changes were saved.` }]); };
-  const saveSingle = (i) => { if (!pe) return; const e = pe[i]; svE([e, ...exp]); setMsgs(v => [...v, { role: "assistant", content: `Saved: ${e.description || e.category} (${e.category}) - ${fmt(e.amount)} on ${e.date}` }]); tst(`Saved: ${e.description || e.category}`); const rest = pe.filter((_, j) => j !== i); setPe(rest.length ? rest : null); if (editIdx === i) { setEditIdx(null); setEditForm(null); } };
+  const saveSingle = (i) => { if (!pe) return; const e = pe[i]; svE([e, ...exp], { upsert: e }); setMsgs(v => [...v, { role: "assistant", content: `Saved: ${e.description || e.category} (${e.category}) - ${fmt(e.amount)} on ${e.date}` }]); tst(`Saved: ${e.description || e.category}`); const rest = pe.filter((_, j) => j !== i); setPe(rest.length ? rest : null); if (editIdx === i) { setEditIdx(null); setEditForm(null); } };
   const discardSingle = (i) => { if (!pe) return; const e = pe[i]; setMsgs(v => [...v, { role: "assistant", content: `Discarded: ${e.description || e.category} (${e.category}) - ${fmt(e.amount)}` }]); const rest = pe.filter((_, j) => j !== i); setPe(rest.length ? rest : null); if (editIdx === i) { setEditIdx(null); setEditForm(null); } };
   const startEdit = (i) => { setEditIdx(i); setEditForm({ ...pe[i] }); };
   const cancelEdit = () => { setEditIdx(null); setEditForm(null); };
   const applyEdit = (i) => { if (!editForm) return; const u = [...pe]; u[i] = { ...editForm, amount: parseFloat(editForm.amount) || 0 }; setPe(u); setEditIdx(null); setEditForm(null); };
-  const applyAndSave = (i) => { if (!editForm) return; const e = { ...editForm, amount: parseFloat(editForm.amount) || 0 }; svE([e, ...exp]); setMsgs(v => [...v, { role: "assistant", content: `Saved: ${e.description || e.category} (${e.category}) - ${fmt(e.amount)} on ${e.date}` }]); tst(`Saved: ${e.description || e.category}`); const rest = (pe || []).filter((_, j) => j !== i); setPe(rest.length ? rest : null); setEditIdx(null); setEditForm(null); };
+  const applyAndSave = (i) => { if (!editForm) return; const e = { ...editForm, amount: parseFloat(editForm.amount) || 0 }; svE([e, ...exp], { upsert: e }); setMsgs(v => [...v, { role: "assistant", content: `Saved: ${e.description || e.category} (${e.category}) - ${fmt(e.amount)} on ${e.date}` }]); tst(`Saved: ${e.description || e.category}`); const rest = (pe || []).filter((_, j) => j !== i); setPe(rest.length ? rest : null); setEditIdx(null); setEditForm(null); };
   const findDup = (e) => { const desc = (e.description || "").toLowerCase(); const amt = e.amount; return exp.find(x => x.category === e.category && Math.abs(x.amount - amt) / (amt || 1) <= 0.1 && desc && (x.description || "").toLowerCase().includes(desc.toLowerCase().split(" ")[0])); };
   const genIns = async () => {
     const ps = startOf(ip); const rel = exp.filter(e => pld(e.date) >= ps);
