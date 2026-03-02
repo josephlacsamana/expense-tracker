@@ -304,6 +304,7 @@ function MainApp({ user, onLogout, theme, toggleTheme }) {
   const [ci, setCi] = useState("");
   const [cl, setCl] = useState(false);
   const [pe, setPe] = useState(null);
+  const [att, setAtt] = useState(null); // attached image: {b64, name, type, preview}
   const cr = useRef(null);
   const fr = useRef(null);
   const [ip, setIp] = useState("Weekly");
@@ -396,9 +397,19 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
     catch { if (t && !t.startsWith("{")) return { expenses: [], message: t.slice(0, 300) }; return { expenses: [], message: "Could not parse." }; }
   };
   const doChat = async () => {
-    if (!ci.trim() || cl) return;
-    const m = ci.trim(); setCi(""); setMsgs(v => [...v, { role: "user", content: m }]); setCl(true);
-    try { const raw = await callAI([{ role: "user", content: m }], SYS); const p = parseR(raw); const t = stripE(p.message || "Done.");
+    const hasText = ci.trim(); const hasImg = !!att;
+    if ((!hasText && !hasImg) || cl) return;
+    const m = ci.trim(); setCi(""); const img = att; setAtt(null); setCl(true);
+    if (img) { if (img.preview) URL.revokeObjectURL(img.preview); }
+    const label = img ? (m ? `[Receipt: ${img.name}] ${m}` : `[Receipt: ${img.name}]`) : m;
+    setMsgs(v => [...v, { role: "user", content: label }]);
+    try {
+      let content;
+      if (img) {
+        const parts = [{ type: "image", source: { type: "base64", media_type: img.type, data: img.b64 } }, { type: "text", text: m || "Extract all items and totals from this receipt. Return as expenses JSON." }];
+        content = [{ role: "user", content: parts }];
+      } else { content = [{ role: "user", content: m }]; }
+      const raw = await callAI(content, SYS); const p = parseR(raw); const t = stripE(p.message || "Done.");
       if (p.expenses?.length > 0) setPe(p.expenses.map(e => ({ ...e, id: uid(), addedBy: user, createdAt: Date.now() })));
       setMsgs(v => [...v, { role: "assistant", content: t }]);
     } catch { setMsgs(v => [...v, { role: "assistant", content: "Something went wrong." }]); }
@@ -406,15 +417,11 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
   };
   const doImg = async (ev) => {
     const file = ev.target.files?.[0]; if (!file) return;
-    setCl(true); setMsgs(v => [...v, { role: "user", content: `[Uploaded: ${file.name}]` }]);
     try {
       const b64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(",")[1]); r.onerror = () => rej("fail"); r.readAsDataURL(file); });
-      const raw = await callAI([{ role: "user", content: [{ type: "image", source: { type: "base64", media_type: file.type || "image/jpeg", data: b64 } }, { type: "text", text: "Extract all items and totals from this receipt. Return as expenses JSON." }] }], SYS);
-      const p = parseR(raw); const t = stripE(p.message || "Receipt processed.");
-      if (p.expenses?.length > 0) setPe(p.expenses.map(ex => ({ ...ex, id: uid(), addedBy: user, createdAt: Date.now() })));
-      setMsgs(v => [...v, { role: "assistant", content: t }]);
-    } catch { setMsgs(v => [...v, { role: "assistant", content: "Failed. Try typing it." }]); }
-    setCl(false); if (fr.current) fr.current.value = "";
+      setAtt({ b64, name: file.name, type: file.type || "image/jpeg", preview: URL.createObjectURL(file) });
+    } catch { tst("Failed to read image."); }
+    if (fr.current) fr.current.value = "";
   };
   const confirmP = () => { if (!pe) return; svE([...pe, ...exp]); tst(`${pe.length} added`); setPe(null); };
   const rejectP = () => { setPe(null); setMsgs(v => [...v, { role: "assistant", content: "Discarded." }]); };
@@ -652,11 +659,21 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
               )}
               <div ref={cr} />
             </div>
+            {att && (
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", marginBottom: 6, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12 }}>
+                <img src={att.preview} alt="attached" style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 8, border: `1px solid ${T.border}` }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: T.text1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{att.name}</div>
+                  <div style={{ fontSize: 11, color: T.text3 }}>Ready to send — type a note or hit Send</div>
+                </div>
+                <button onClick={() => { if (att.preview) URL.revokeObjectURL(att.preview); setAtt(null); }} style={{ background: "none", border: "none", color: T.text3, cursor: "pointer", padding: 4 }}><X size={16} /></button>
+              </div>
+            )}
             <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
               <input type="file" ref={fr} accept="image/*" onChange={doImg} style={{ display: "none" }} />
               <button onClick={() => fr.current?.click()} disabled={cl} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 11, color: T.text2, cursor: "pointer", flexShrink: 0 }}><ImagePlus size={18} /></button>
-              <textarea value={ci} onChange={e => setCi(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); doChat(); } }} disabled={cl} placeholder="Type expense or ask..." rows={1} style={{ ...inpS, flex: 1, resize: "none", minHeight: 42 }} />
-              <button onClick={doChat} disabled={cl || !ci.trim()} style={{ background: ci.trim() ? T.grad : T.surface, border: "none", borderRadius: 12, padding: 11, color: ci.trim() ? (theme === "dark" ? "#0C0C12" : "#FFF") : T.text3, cursor: "pointer", flexShrink: 0, boxShadow: ci.trim() ? "0 4px 12px rgba(245,181,38,0.2)" : "none" }}><Send size={18} /></button>
+              <textarea value={ci} onChange={e => setCi(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); doChat(); } }} disabled={cl} placeholder={att ? "Add a note about this receipt..." : "Type expense or ask..."} rows={1} style={{ ...inpS, flex: 1, resize: "none", minHeight: 42 }} />
+              <button onClick={doChat} disabled={cl || (!ci.trim() && !att)} style={{ background: (ci.trim() || att) ? T.grad : T.surface, border: "none", borderRadius: 12, padding: 11, color: (ci.trim() || att) ? (theme === "dark" ? "#0C0C12" : "#FFF") : T.text3, cursor: "pointer", flexShrink: 0, boxShadow: (ci.trim() || att) ? "0 4px 12px rgba(245,181,38,0.2)" : "none" }}><Send size={18} /></button>
             </div>
           </div>
         )}
