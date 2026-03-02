@@ -1264,27 +1264,34 @@ export default function App() {
   const toggle = () => setTheme(v => v === "dark" ? "light" : "dark");
 
   useEffect(() => {
-    if (!sbReady) { setAuthLoading(false); return; }
+    if (!sbReady) { console.log("[auth] no supabase, local mode"); setAuthLoading(false); return; }
+    // Safety: never stay on loading forever
+    const timeout = setTimeout(() => { console.log("[auth] timeout, forcing load"); setAuthLoading(false); }, 5000);
     const handleSession = async (s) => {
+      console.log("[auth] handleSession, has session:", !!s);
       try {
-        if (!s) { setSession(null); setProfile(null); setAuthLoading(false); return; }
+        if (!s) { setSession(null); setProfile(null); clearTimeout(timeout); setAuthLoading(false); return; }
         setSession(s);
+        console.log("[auth] fetching profile for:", s.user.id);
         const { data: existing, error: profileErr } = await supabase.from("profiles").select("*").eq("id", s.user.id).single();
+        console.log("[auth] profile result:", existing, "error:", profileErr);
         if (existing && !profileErr) { setProfile(existing); }
         else {
           const fullName = s.user.user_metadata?.full_name || s.user.user_metadata?.name || "";
           const displayName = fullName.split(" ")[0] || s.user.email.split("@")[0];
           const np = { id: s.user.id, email: s.user.email, display_name: displayName, avatar_url: s.user.user_metadata?.avatar_url || "" };
+          console.log("[auth] creating profile:", np);
           const { error: insertErr } = await supabase.from("profiles").insert(np);
           if (!insertErr) setProfile(np);
-          else { setProfile({ display_name: displayName }); }
+          else { console.log("[auth] insert error:", insertErr); setProfile({ display_name: displayName }); }
         }
-      } catch (e) { console.error("Auth session error:", e); }
+      } catch (e) { console.error("[auth] error:", e); }
+      clearTimeout(timeout);
       setAuthLoading(false);
     };
-    supabase.auth.getSession().then(({ data: { session: s } }) => handleSession(s)).catch(() => setAuthLoading(false));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_ev, s) => handleSession(s));
-    return () => subscription.unsubscribe();
+    supabase.auth.getSession().then(({ data: { session: s } }) => { console.log("[auth] getSession done"); handleSession(s); }).catch((e) => { console.error("[auth] getSession failed:", e); clearTimeout(timeout); setAuthLoading(false); });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_ev, s) => { console.log("[auth] stateChange:", _ev); handleSession(s); });
+    return () => { subscription.unsubscribe(); clearTimeout(timeout); };
   }, []);
 
   const handleLogout = async () => {
