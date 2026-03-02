@@ -45,7 +45,7 @@ const DEF_CCO = { Food: "#F5B526", Transport: "#60A5FA", Bills: "#EF6B6B", Shopp
 const DEF_CATS = ["Food","Transport","Bills","Shopping","Health","Entertainment","Subscriptions","Other"];
 const EXTRA_COLORS = ["#A78BFA","#F97316","#06B6D4","#84CC16","#E879F9","#14B8A6","#F43F5E","#8B5CF6","#FBBF24","#22D3EE","#A3E635","#FB7185"];
 const PERIODS = ["Daily","Weekly","Monthly","Quarterly","Yearly","All"];
-const USERS = ["Joseph","Rowena"];
+const LOCAL_USERS = ["Joseph","Rowena"];
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const fmt = (n) => "\u20B1" + new Intl.NumberFormat("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 const fmtS = (n) => n >= 1000 ? "\u20B1" + (n / 1000).toFixed(1) + "k" : "\u20B1" + n.toFixed(0);
@@ -256,18 +256,33 @@ const DEFAULT_BUDGETS = { Food: 0, Transport: 0, Bills: 0, Shopping: 0, Health: 
 const DEFAULT_PINS = { Joseph: "1234", Rowena: "5678" };
 
 // ─── LOGIN ───
-function LoginScreen({ onLogin, theme, toggleTheme }) {
+const GoogleIcon = () => (<svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>);
+
+function LoginScreen({ onLogin, theme, toggleTheme, authError, localMode }) {
   const T = themes[theme];
   const isDesktop = useMediaQuery("(min-width: 1024px)");
-  const [user, setUser] = useState(null);
+  // PIN state (only used in localMode)
+  const [selectedUser, setSelectedUser] = useState(null);
   const [pin, setPin] = useState("");
   const [err, setErr] = useState("");
   const [pins, setPins] = useState(DEFAULT_PINS);
-  useEffect(() => { (async () => { try {
-    if (sbReady) { const r = await supabase.from("settings").select("*").eq("key", "pins").single(); if (r.data?.value) setPins(r.data.value); }
-    else { const r = await localStore.get("pins"); if (r?.value) setPins(JSON.parse(r.value)); }
-  } catch {} })(); }, []);
-  const doLogin = () => { if (pins[user] === pin) onLogin(user); else { setErr("Wrong PIN. Try again."); setPin(""); } };
+  const [signingIn, setSigningIn] = useState(false);
+
+  useEffect(() => {
+    if (localMode) { (async () => { try { const r = await localStore.get("pins"); if (r?.value) setPins(JSON.parse(r.value)); } catch {} })(); }
+  }, [localMode]);
+
+  const doLocalLogin = () => { if (pins[selectedUser] === pin) onLogin(selectedUser); else { setErr("Wrong PIN. Try again."); setPin(""); } };
+
+  const doGoogleLogin = async () => {
+    setSigningIn(true); setErr("");
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.origin } });
+      if (error) { setErr(error.message); setSigningIn(false); }
+    } catch { setErr("Failed to start sign in."); setSigningIn(false); }
+  };
+
+  const brandText = "Shared Finance";
 
   return (
     <div style={{ minHeight: "100vh", background: T.gradBg, display: "flex", flexDirection: isDesktop ? "row" : "column", justifyContent: "center", alignItems: isDesktop ? "stretch" : "center", padding: isDesktop ? 0 : 24, position: "relative" }}>
@@ -283,7 +298,7 @@ function LoginScreen({ onLogin, theme, toggleTheme }) {
             <Coins size={36} style={{ color: theme === "dark" ? "#0C0C12" : "#FFF" }} />
           </div>
           <h1 style={{ fontSize: 44, fontWeight: 800, margin: 0, color: T.text1, letterSpacing: -1 }}>Expense<span style={{ color: T.gold }}>Tracker</span></h1>
-          <p style={{ color: T.text3, fontSize: 15, margin: "10px 0 0", letterSpacing: 2, textTransform: "uppercase" }}>Joseph & Rowena</p>
+          <p style={{ color: T.text3, fontSize: 15, margin: "10px 0 0", letterSpacing: 2, textTransform: "uppercase" }}>{brandText}</p>
           <p style={{ color: T.text3, fontSize: 13, marginTop: 8 }}>Personal finance, simplified.</p>
           <button onClick={toggleTheme} style={{ marginTop: 32, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: "10px 18px", cursor: "pointer", color: T.text2, display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600 }}>
             {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
@@ -298,52 +313,76 @@ function LoginScreen({ onLogin, theme, toggleTheme }) {
               <Coins size={28} style={{ color: theme === "dark" ? "#0C0C12" : "#FFF" }} />
             </div>
             <h1 style={{ fontSize: 30, fontWeight: 800, margin: 0, color: T.text1, letterSpacing: -0.5 }}>Expense Tracker</h1>
-            <p style={{ color: T.text3, fontSize: 13, margin: "6px 0 0", letterSpacing: 2, textTransform: "uppercase" }}>Joseph & Rowena</p>
+            <p style={{ color: T.text3, fontSize: 13, margin: "6px 0 0", letterSpacing: 2, textTransform: "uppercase" }}>{brandText}</p>
           </div>
         )}
         {isDesktop && (
           <div style={{ marginBottom: 36 }}>
             <h2 style={{ fontSize: 24, fontWeight: 800, margin: 0, color: T.text1 }}>Welcome back</h2>
-            <p style={{ color: T.text3, fontSize: 13, margin: "6px 0 0" }}>Select your profile and enter your PIN</p>
+            <p style={{ color: T.text3, fontSize: 13, margin: "6px 0 0" }}>{localMode ? "Select your profile and enter your PIN" : "Sign in to continue"}</p>
           </div>
         )}
-        {!user ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <p style={{ color: T.text2, fontSize: 13, textAlign: isDesktop ? "left" : "center", marginBottom: 4 }}>Who's logging in?</p>
-            {USERS.map(u => (
-              <button key={u} onClick={() => setUser(u)} style={{
-                padding: "18px 20px", borderRadius: 18, border: `1px solid ${T.border}`, background: T.surface,
-                color: T.text1, fontSize: 16, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 14, transition: "all 0.2s", boxShadow: T.cardShadow
-              }}>
-                <div style={{ width: 46, height: 46, borderRadius: 14, background: T.grad, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 800, color: theme === "dark" ? "#0C0C12" : "#FFF", boxShadow: "0 4px 12px rgba(245,181,38,0.2)" }}>{u[0]}</div>
-                {u}
-              </button>
-            ))}
-          </div>
-        ) : (
-          <>
-            <div style={{ textAlign: isDesktop ? "left" : "center", marginBottom: 28 }}>
-              <div style={{ width: 72, height: 72, borderRadius: 22, background: T.grad, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, fontWeight: 800, color: theme === "dark" ? "#0C0C12" : "#FFF", margin: isDesktop ? "0 0 14px" : "0 auto 14px", boxShadow: "0 8px 32px rgba(245,181,38,0.25)" }}>{user[0]}</div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: T.text1 }}>Welcome, {user}</div>
-              <button onClick={() => { setUser(null); setPin(""); setErr(""); }} style={{ background: "none", border: "none", color: T.gold, fontSize: 12, cursor: "pointer", marginTop: 4 }}>Not you?</button>
+        {localMode ? (
+          /* ─── PIN LOGIN (localStorage fallback) ─── */
+          !selectedUser ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <p style={{ color: T.text2, fontSize: 13, textAlign: isDesktop ? "left" : "center", marginBottom: 4 }}>Who's logging in?</p>
+              {LOCAL_USERS.map(u => (
+                <button key={u} onClick={() => setSelectedUser(u)} style={{
+                  padding: "18px 20px", borderRadius: 18, border: `1px solid ${T.border}`, background: T.surface,
+                  color: T.text1, fontSize: 16, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 14, transition: "all 0.2s", boxShadow: T.cardShadow
+                }}>
+                  <div style={{ width: 46, height: 46, borderRadius: 14, background: T.grad, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 800, color: theme === "dark" ? "#0C0C12" : "#FFF", boxShadow: "0 4px 12px rgba(245,181,38,0.2)" }}>{u[0]}</div>
+                  {u}
+                </button>
+              ))}
             </div>
-            <div style={{ marginBottom: 18 }}>
-              <label style={{ fontSize: 11, color: T.text3, fontWeight: 600, display: "block", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Enter PIN</label>
-              <div style={{ position: "relative" }}>
-                <Lock size={16} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: T.text3 }} />
-                <input type="password" inputMode="numeric" maxLength={4} value={pin} onChange={e => { setPin(e.target.value.replace(/\D/g, "")); setErr(""); }}
-                  onKeyDown={e => { if (e.key === "Enter") doLogin(); }} placeholder="----" autoFocus
-                  style={{ width: "100%", padding: "14px 14px 14px 42px", borderRadius: 12, border: `1px solid ${T.inputBorder}`, background: T.inputBg, color: T.text1, fontSize: 22, letterSpacing: 12, textAlign: "center", outline: "none", boxSizing: "border-box" }} />
+          ) : (
+            <>
+              <div style={{ textAlign: isDesktop ? "left" : "center", marginBottom: 28 }}>
+                <div style={{ width: 72, height: 72, borderRadius: 22, background: T.grad, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, fontWeight: 800, color: theme === "dark" ? "#0C0C12" : "#FFF", margin: isDesktop ? "0 0 14px" : "0 auto 14px", boxShadow: "0 8px 32px rgba(245,181,38,0.25)" }}>{selectedUser[0]}</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: T.text1 }}>Welcome, {selectedUser}</div>
+                <button onClick={() => { setSelectedUser(null); setPin(""); setErr(""); }} style={{ background: "none", border: "none", color: T.gold, fontSize: 12, cursor: "pointer", marginTop: 4 }}>Not you?</button>
               </div>
-              {err && <div style={{ color: T.err, fontSize: 12, marginTop: 8, textAlign: isDesktop ? "left" : "center" }}>{err}</div>}
-            </div>
-            <button onClick={doLogin} disabled={pin.length < 4} style={{
-              width: "100%", padding: 16, borderRadius: 14, border: "none", cursor: pin.length >= 4 ? "pointer" : "default",
-              background: T.grad, color: theme === "dark" ? "#0C0C12" : "#FFF", fontSize: 14, fontWeight: 700,
-              opacity: pin.length >= 4 ? 1 : 0.3, boxShadow: "0 4px 16px rgba(245,181,38,0.2)"
-            }}>Log In</button>
-            <p style={{ color: T.text3, fontSize: 10, textAlign: isDesktop ? "left" : "center", marginTop: 14 }}>Default: Joseph=1234, Rowena=5678</p>
-          </>
+              <div style={{ marginBottom: 18 }}>
+                <label style={{ fontSize: 11, color: T.text3, fontWeight: 600, display: "block", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Enter PIN</label>
+                <div style={{ position: "relative" }}>
+                  <Lock size={16} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: T.text3 }} />
+                  <input type="password" inputMode="numeric" maxLength={4} value={pin} onChange={e => { setPin(e.target.value.replace(/\D/g, "")); setErr(""); }}
+                    onKeyDown={e => { if (e.key === "Enter") doLocalLogin(); }} placeholder="----" autoFocus
+                    style={{ width: "100%", padding: "14px 14px 14px 42px", borderRadius: 12, border: `1px solid ${T.inputBorder}`, background: T.inputBg, color: T.text1, fontSize: 22, letterSpacing: 12, textAlign: "center", outline: "none", boxSizing: "border-box" }} />
+                </div>
+                {err && <div style={{ color: T.err, fontSize: 12, marginTop: 8, textAlign: isDesktop ? "left" : "center" }}>{err}</div>}
+              </div>
+              <button onClick={doLocalLogin} disabled={pin.length < 4} style={{
+                width: "100%", padding: 16, borderRadius: 14, border: "none", cursor: pin.length >= 4 ? "pointer" : "default",
+                background: T.grad, color: theme === "dark" ? "#0C0C12" : "#FFF", fontSize: 14, fontWeight: 700,
+                opacity: pin.length >= 4 ? 1 : 0.3, boxShadow: "0 4px 16px rgba(245,181,38,0.2)"
+              }}>Log In</button>
+              <p style={{ color: T.text3, fontSize: 10, textAlign: isDesktop ? "left" : "center", marginTop: 14 }}>Default: Joseph=1234, Rowena=5678</p>
+            </>
+          )
+        ) : (
+          /* ─── GOOGLE LOGIN (Supabase mode) ─── */
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {!isDesktop && (
+              <div style={{ marginBottom: 8 }}>
+                <h2 style={{ fontSize: 22, fontWeight: 800, margin: 0, color: T.text1, textAlign: "center" }}>Welcome back</h2>
+                <p style={{ color: T.text3, fontSize: 13, margin: "6px 0 0", textAlign: "center" }}>Sign in to continue</p>
+              </div>
+            )}
+            <button onClick={doGoogleLogin} disabled={signingIn} style={{
+              width: "100%", padding: "16px 20px", borderRadius: 14, border: `1px solid ${T.border}`, background: T.surface,
+              color: T.text1, fontSize: 15, fontWeight: 600, cursor: signingIn ? "default" : "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 12, opacity: signingIn ? 0.5 : 1,
+              transition: "all 0.2s", boxShadow: T.cardShadow
+            }}>
+              <GoogleIcon />
+              {signingIn ? "Signing in..." : "Sign in with Google"}
+            </button>
+            {(err || authError) && (<div style={{ color: T.err, fontSize: 12, textAlign: "center" }}>{authError || err}</div>)}
+            <p style={{ color: T.text3, fontSize: 11, textAlign: "center", margin: 0 }}>Your Google account is used for login only.</p>
+          </div>
         )}
       </div>
       <style>{`input::placeholder{color:${T.text3}} input:focus{border-color:${T.gold}!important;box-shadow:0 0 0 3px rgba(245,181,38,0.12)!important} button:active{transform:scale(0.97)}`}</style>
@@ -398,6 +437,7 @@ function MainApp({ user, onLogout, theme, toggleTheme }) {
   const [erId, setErId] = useState(null);
   const [rf, setRf] = useState({ amount: "", category: "Food", description: "", frequency: "monthly", nextDate: td() });
   const [drc, setDrc] = useState(null);
+  const [users, setUsers] = useState([user]);
   const tst = (m) => { setToast(m); setTimeout(() => setToast(null), 2500); };
   const catColors = (() => { let ei = 0; return cats.reduce((o, c) => { if (DEF_CCO[c]) { o[c] = DEF_CCO[c]; } else { o[c] = EXTRA_COLORS[ei % EXTRA_COLORS.length]; ei++; } return o; }, {}); })();
 
@@ -478,6 +518,7 @@ function MainApp({ user, onLogout, theme, toggleTheme }) {
     })();
   }, []);
   useEffect(() => { cr.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, pe]);
+  useEffect(() => { if (sbReady) { supabase.from("profiles").select("display_name").then(({ data }) => { if (data?.length) setUsers(data.map(p => p.display_name)); }); } }, []);
 
   const svE = async (d, opts) => { setExp(d); try { if (sbReady) { if (opts?.deleteId) await sb.deleteExpense(opts.deleteId); else if (opts?.upsert) await sb.upsertExpense(opts.upsert); else if (opts?.upsertMany) await sb.upsertExpenses(opts.upsertMany); else await sb.upsertExpenses(d); } else await localStore.set("expenses", JSON.stringify(d)); } catch {} };
   const svA = async (d, opts) => { setAccts(d); try { if (sbReady) { if (opts?.deleteId) await sb.deleteAccount(opts.deleteId); else if (opts?.upsert) await sb.upsertAccount(opts.upsert); else await supabase.from("accounts").upsert(d.map(a => ({ id: a.id, name: a.name, balance: a.balance, type: a.type, updated_at: a.updatedAt }))); } else await localStore.set("accounts", JSON.stringify(d)); } catch {} };
@@ -539,7 +580,7 @@ function MainApp({ user, onLogout, theme, toggleTheme }) {
   };
   const clearAll = async () => { setExp([]); setAccts([]); setRec([]); setGenBudget(0); setCats(DEF_CATS); setBudgets(DEFAULT_BUDGETS); try { if (sbReady) { await Promise.all([sb.deleteAllExpenses(), sb.deleteAllAccounts(), sb.deleteAllRecurring(), sb.saveCategories(DEF_CATS), sb.saveSetting("budgets", DEFAULT_BUDGETS), sb.saveSetting("genBudget", 0)]); } else { await localStore.set("expenses", JSON.stringify([])); await localStore.set("accounts", JSON.stringify([])); await localStore.set("recurring", JSON.stringify([])); await localStore.set("genBudget", JSON.stringify(0)); await localStore.set("categories", JSON.stringify(DEF_CATS)); await localStore.set("budgets", JSON.stringify(DEFAULT_BUDGETS)); } } catch {} setClr(false); tst("All data cleared"); };
 
-  const SYS = `You are an expense tracker assistant for a couple (Joseph and Rowena). Currency: PHP (Philippine Peso).
+  const SYS = `You are an expense tracker assistant for a couple (${users.join(" and ")}). Currency: PHP (Philippine Peso).
 RESPOND ONLY WITH VALID JSON. No markdown, no backticks. Today: ${td()}. Current user: ${user}.
 Format: {"expenses":[{"amount":number,"category":"${cats.join("|")}","description":"text","date":"YYYY-MM-DD"}],"message":"confirmation text, NO emojis"}
 Not expenses: {"expenses":[],"message":"response, NO emojis"}
@@ -607,7 +648,7 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
     const t5x = [...rel].sort((a, b) => b.amount - a.amount).slice(0, 5);
     const bStr = Object.entries(budgets).map(([c, v]) => `- ${c}: Budget PHP ${v}, Spent PHP ${(bc[c] || 0).toFixed(0)}`).join("\n");
     const sum = `${ip.toUpperCase()} REVIEW:\nTotal: PHP ${tot.toFixed(2)}\nPrev: PHP ${pT.toFixed(2)}\nBy category:\n${Object.entries(bc).map(([c, v]) => `- ${c}: PHP ${v.toFixed(0)}`).join("\n")}\nBy person:\n${Object.entries(bp).map(([p, v]) => `- ${p}: PHP ${v.toFixed(0)}`).join("\n")}\nTop 5:\n${t5x.map(e => `- ${e.description}: PHP ${e.amount}`).join("\n")}\nBudgets:\n${bStr}`;
-    const IS = `You are Joseph and Rowena's personal finance advisor. Filipino couple. No emojis. Respond ONLY with valid JSON (no markdown, no code fences). Format: {"overview":"1-2 sentence summary","categoryAnalysis":"2-3 sentences about category spending","patterns":"2-3 sentences about spending patterns or habits","tips":["tip 1","tip 2","tip 3"]}. Each tip should be specific and actionable with numbers. Keep it concise.`;
+    const IS = `You are ${users.join(" and ")}'s personal finance advisor. Filipino couple. No emojis. Respond ONLY with valid JSON (no markdown, no code fences). Format: {"overview":"1-2 sentence summary","categoryAnalysis":"2-3 sentences about category spending","patterns":"2-3 sentences about spending patterns or habits","tips":["tip 1","tip 2","tip 3"]}. Each tip should be specific and actionable with numbers. Keep it concise.`;
     try {
       const raw = await callAI([{ role: "user", content: sum }], IS);
       const clean = stripE(raw || "");
@@ -1162,7 +1203,7 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
             <select value={form.category} onChange={e => setForm(v => ({ ...v, category: e.target.value }))} style={inpS}>{cats.map(c => <option key={c} value={c}>{c}</option>)}</select>
             <input placeholder="Description" value={form.description} onChange={e => setForm(v => ({ ...v, description: e.target.value }))} style={inpS} />
             <input type="date" value={form.date} onChange={e => setForm(v => ({ ...v, date: e.target.value }))} style={inpS} />
-            <select value={form.addedBy} onChange={e => setForm(v => ({ ...v, addedBy: e.target.value }))} style={inpS}>{USERS.map(u => <option key={u} value={u}>{u}</option>)}</select>
+            <select value={form.addedBy} onChange={e => setForm(v => ({ ...v, addedBy: e.target.value }))} style={inpS}>{users.map(u => <option key={u} value={u}>{u}</option>)}</select>
             <button onClick={doSubmit} style={{ ...btnP, width: "100%" }}>{eId ? "Update" : "Add Expense"}</button>
           </div>
         </div></div>}
@@ -1214,8 +1255,55 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
 }
 
 export default function App() {
-  const [user, setUser] = useState(null);
+  const [session, setSession] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [localUser, setLocalUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState(null);
   const [theme, setTheme] = useState("light");
   const toggle = () => setTheme(v => v === "dark" ? "light" : "dark");
-  return user ? <MainApp user={user} onLogout={() => setUser(null)} theme={theme} toggleTheme={toggle} /> : <LoginScreen onLogin={setUser} theme={theme} toggleTheme={toggle} />;
+
+  useEffect(() => {
+    if (!sbReady) { setAuthLoading(false); return; }
+    const handleSession = async (s) => {
+      if (!s) { setSession(null); setProfile(null); setAuthLoading(false); return; }
+      setSession(s);
+      const { data: existing } = await supabase.from("profiles").select("*").eq("id", s.user.id).single();
+      if (existing) { setProfile(existing); }
+      else {
+        const fullName = s.user.user_metadata?.full_name || s.user.user_metadata?.name || "";
+        const displayName = fullName.split(" ")[0] || s.user.email.split("@")[0];
+        const np = { id: s.user.id, email: s.user.email, display_name: displayName, avatar_url: s.user.user_metadata?.avatar_url || "" };
+        await supabase.from("profiles").insert(np);
+        setProfile(np);
+      }
+      setAuthLoading(false);
+    };
+    supabase.auth.getSession().then(({ data: { session: s } }) => handleSession(s));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_ev, s) => handleSession(s));
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    if (sbReady) await supabase.auth.signOut();
+    setSession(null); setProfile(null);
+  };
+
+  if (authLoading) {
+    const T = themes[theme];
+    return (<div style={{ minHeight: "100vh", background: T.gradBg, display: "flex", justifyContent: "center", alignItems: "center" }}>
+      <div style={{ color: T.gold, fontSize: 16, fontWeight: 600 }}>Loading...</div>
+    </div>);
+  }
+
+  if (sbReady) {
+    const user = profile?.display_name || null;
+    return user
+      ? <MainApp user={user} onLogout={handleLogout} theme={theme} toggleTheme={toggle} />
+      : <LoginScreen theme={theme} toggleTheme={toggle} authError={authError} />;
+  }
+
+  return localUser
+    ? <MainApp user={localUser} onLogout={() => setLocalUser(null)} theme={theme} toggleTheme={toggle} />
+    : <LoginScreen onLogin={setLocalUser} theme={theme} toggleTheme={toggle} localMode={true} />;
 }

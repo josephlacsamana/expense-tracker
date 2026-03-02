@@ -15,7 +15,7 @@ AI-powered receipt scanning, chat-based expense logging, dashboards, analytics, 
 | **Stack** | React 19, recharts, lucide-react, inline styles (no CSS framework) |
 | **Responsive** | `useMediaQuery` hook — `isDesktop` (>=1024px), sidebar on desktop, bottom nav on mobile |
 | **Supabase client** | `expense-tracker/src/supabase.js` (client init, exports `supabase` + `sbReady`) |
-| **Auth** | PIN-based login (Joseph / Rowena), stored in Supabase settings table |
+| **Auth** | Google OAuth via Supabase Auth (PIN fallback for localStorage mode) |
 | **Storage** | Supabase (production), localStorage fallback (when env vars missing) |
 | **Currency** | PHP (Philippine Peso, ₱) |
 
@@ -206,6 +206,51 @@ On first Supabase load with empty tables, existing localStorage data is auto-mig
 - [x] New categories auto-assigned colors from EXTRA_COLORS palette
 - [x] AI system prompt uses dynamic categories list
 - [x] All forms, charts, filters, budgets use dynamic `cats` state
+
+### Phase 9 — Google Auth & Multi-Household System
+
+**9a — Google Authentication** (code done, manual Supabase/Google setup needed)
+- [x] Replace PIN-based login with "Sign in with Google" button
+- [x] Store user profile (name, email, avatar) in a `profiles` table
+- [x] Session management via Supabase Auth (auto-refresh, persist across tabs)
+- [x] Show user name in sidebar from Google profile (dynamic, not hardcoded)
+- [x] Logout button uses Supabase signOut
+- [x] Dynamic user names in AI prompts and expense form dropdown
+- [x] PIN login preserved as localStorage fallback (local dev)
+- [ ] Enable Google Auth provider in Supabase dashboard (manual step)
+- [ ] Create `profiles` table in Supabase SQL Editor (manual step)
+- [ ] Configure Google OAuth in Google Cloud Console (manual step)
+
+**9b — Multi-Household Database**
+- [ ] Create `households` table (id, name, owner_id, created_at)
+- [ ] Create `household_members` table (household_id, user_id, role: "owner"/"member", joined_at)
+- [ ] Add `household_id` column to all data tables (expenses, accounts, recurring, categories, settings)
+- [ ] Migrate existing data: create a default household, assign current data to it
+- [ ] Enable Row Level Security (RLS) on all tables — users can only see data for their household
+- [ ] Update all Supabase queries to filter by household_id
+- [ ] Auto-create a new household when a user signs up directly (not via invite)
+
+**9c — Invite Link System**
+- [ ] Create `invites` table (id, household_id, created_by, token, used, used_by, created_at, expires_at)
+- [ ] "Invite Partner" button in Settings — generates a single-use invite link
+- [ ] Invite link format: `https://your-app.vercel.app/invite/{token}`
+- [ ] When someone opens an invite link: sign in with Google → auto-join that household as "member"
+- [ ] Token validation: reject expired, already-used, or invalid tokens
+- [ ] Show invite status in Settings (pending/accepted)
+
+**9d — Role-Based Permissions**
+- [ ] Owner role: full access to everything (the person who created the household)
+- [ ] Member role: full access to all features EXCEPT Settings > Clear All Data
+- [ ] Hide or disable "Clear All Data" button for members
+- [ ] Show role badge in Settings (Owner / Member)
+- [ ] Owner can see list of household members in Settings
+
+**9e — Profile & Household UI**
+- [ ] Profile section in Settings: name, email, avatar (from Google)
+- [ ] Household name display (editable by owner)
+- [ ] "addedBy" field uses actual user names from profiles (not hardcoded)
+- [ ] Person filter on Dashboard/Expenses uses real household member names
+- [ ] Summary cards show per-person breakdown using real names
 
 ---
 
