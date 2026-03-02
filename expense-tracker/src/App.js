@@ -947,7 +947,7 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
 
               {sub === "recurring" && (<>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-                  <div style={{ fontSize: 18, fontWeight: 800 }}>Recurring Expenses</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, display: "flex", alignItems: "center", gap: 8 }}><Repeat size={18} />Recurring Expenses</div>
                   <div style={{ display: "flex", gap: 8 }}>
                     <button onClick={applyRec} style={{ ...btnG, padding: "10px 14px", fontSize: 12, display: "flex", alignItems: "center", gap: 5, borderColor: T.ok, color: T.ok }}><Check size={14} />Apply Due</button>
                     <button onClick={() => { rstRf(); setSrf(true); }} style={{ ...btnP, padding: "10px 16px", fontSize: 12, display: "flex", alignItems: "center", gap: 5 }}><Plus size={14} />Add</button>
