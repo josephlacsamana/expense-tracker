@@ -181,7 +181,7 @@ const SEED_ACCT = [
   { id: uid(), name: "BPI Checking", balance: 12500, type: "checking", updatedAt: Date.now() },
   { id: uid(), name: "GCash", balance: 3200, type: "other", updatedAt: Date.now() },
 ];
-const DEFAULT_BUDGETS = { Food: 8000, Transport: 3000, Bills: 10000, Shopping: 5000, Health: 3000, Entertainment: 3000, Subscriptions: 2000, Other: 2000 };
+const DEFAULT_BUDGETS = { Food: 0, Transport: 0, Bills: 0, Shopping: 0, Health: 0, Entertainment: 0, Subscriptions: 0, Other: 0 };
 const DEFAULT_PINS = { Joseph: "1234", Rowena: "5678" };
 
 // ─── LOGIN ───
@@ -315,6 +315,7 @@ function MainApp({ user, onLogout, theme, toggleTheme }) {
   const [bf, setBf] = useState({});
   const [genBudget, setGenBudget] = useState(0);
   const [gbEdit, setGbEdit] = useState("");
+  const [cgb, setCgb] = useState(false);
   const [rec, setRec] = useState([]);
   const [srf, setSrf] = useState(false);
   const [erId, setErId] = useState(null);
@@ -925,7 +926,8 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
                   <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>General Monthly Budget</div>
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     <input type="number" inputMode="numeric" placeholder="e.g. 30000" value={gbEdit || (genBudget > 0 ? genBudget : "")} onChange={e => setGbEdit(e.target.value)} style={{ ...inpS, flex: 1 }} />
-                    <button onClick={() => { const v = parseFloat(gbEdit) || 0; svGB(v); setGbEdit(""); tst(v > 0 ? `Budget set to ${fmt(v)}` : "Budget cleared"); }} style={{ ...btnP, padding: "12px 20px", whiteSpace: "nowrap" }}>Set</button>
+                    <button onClick={() => { const v = parseFloat(gbEdit); if (!v || v <= 0) return; svGB(v); setGbEdit(""); tst(`Budget set to ${fmt(v)}`); }} style={{ ...btnP, padding: "12px 20px", whiteSpace: "nowrap" }}>Set</button>
+                    {genBudget > 0 && <button onClick={() => setCgb(true)} style={{ ...btnG, padding: "12px 16px", whiteSpace: "nowrap", borderColor: T.err, color: T.err }}>Clear</button>}
                   </div>
                   {genBudget > 0 && <div style={{ fontSize: 11, color: T.text3, marginTop: 8 }}>Current: {fmt(genBudget)} / Spent this month: {fmt(mTot)} ({gbPct.toFixed(0)}%)</div>}
                 </div>
@@ -933,13 +935,24 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
                 {!sbf ? (<>
                   <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 8 }}>
                     {CATS.map(c => (<div key={c} style={{ ...cardS, padding: "14px 16px" }}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 8, height: 8, borderRadius: 3, background: cco[c] }} /><span style={{ fontSize: 13, fontWeight: 600 }}>{c}</span></div><span style={{ fontSize: 14, fontWeight: 800 }}>{fmt(budgets[c] || 0)}</span></div>
-                      <div style={{ marginTop: 8, height: 5, borderRadius: 3, background: theme === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.06)", overflow: "hidden" }}><div style={{ height: "100%", borderRadius: 3, width: `${Math.min(100, ((mByCat[c] || 0) / (budgets[c] || 1)) * 100)}%`, background: (mByCat[c] || 0) > (budgets[c] || 0) ? T.err : (mByCat[c] || 0) > (budgets[c] || 0) * 0.8 ? T.goldLight : T.ok, transition: "width 0.3s" }} /></div>
-                      <div style={{ fontSize: 10, color: T.text3, marginTop: 5 }}>Spent: {fmt(mByCat[c] || 0)} / {fmt(budgets[c] || 0)}</div></div>))}
+                      {budgets[c] > 0 && <><div style={{ marginTop: 8, height: 5, borderRadius: 3, background: theme === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.06)", overflow: "hidden" }}><div style={{ height: "100%", borderRadius: 3, width: `${Math.min(100, ((mByCat[c] || 0) / (budgets[c] || 1)) * 100)}%`, background: (mByCat[c] || 0) > (budgets[c] || 0) ? T.err : (mByCat[c] || 0) > (budgets[c] || 0) * 0.8 ? T.goldLight : T.ok, transition: "width 0.3s" }} /></div>
+                      <div style={{ fontSize: 10, color: T.text3, marginTop: 5 }}>Spent: {fmt(mByCat[c] || 0)} / {fmt(budgets[c] || 0)}</div></>}
+                      {budgets[c] === 0 && <div style={{ fontSize: 10, color: T.text3, marginTop: 5 }}>No limit set</div>}</div>))}
                   </div>
                   <button onClick={() => { setBf({ ...budgets }); setSbf(true); }} style={{ ...btnG, width: "100%", marginTop: 8, borderColor: T.borderStrong, color: T.gold }}>Edit Budgets</button>
                 </>) : (<>
                   <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 10 }}>
-                    {CATS.map(c => (<div key={c} style={{ display: "flex", alignItems: "center", gap: 10 }}><div style={{ width: 8, height: 8, borderRadius: 3, background: cco[c], flexShrink: 0 }} /><span style={{ fontSize: 13, fontWeight: 600, width: 100, flexShrink: 0 }}>{c}</span><input type="number" inputMode="numeric" value={bf[c] || ""} onChange={e => setBf(v => ({ ...v, [c]: parseFloat(e.target.value) || 0 }))} style={{ ...inpS, flex: 1 }} /></div>))}
+                    {CATS.map(c => (<div key={c} style={{ ...cardS, padding: "12px 14px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                        <div style={{ width: 8, height: 8, borderRadius: 3, background: cco[c], flexShrink: 0 }} />
+                        <span style={{ fontSize: 13, fontWeight: 600 }}>{c}</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <button onClick={() => setBf(v => ({ ...v, [c]: Math.max(0, (v[c] || 0) - 500) }))} style={{ width: 36, height: 36, borderRadius: 10, border: `1px solid ${T.inputBorder}`, background: T.inputBg, color: T.text1, fontSize: 18, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>-</button>
+                        <input type="number" inputMode="numeric" value={bf[c] || ""} placeholder="0" onChange={e => setBf(v => ({ ...v, [c]: Math.max(0, parseFloat(e.target.value) || 0) }))} style={{ ...inpS, flex: 1, textAlign: "center", padding: "8px 10px", fontSize: 14, fontWeight: 700 }} />
+                        <button onClick={() => setBf(v => ({ ...v, [c]: (v[c] || 0) + 500 }))} style={{ width: 36, height: 36, borderRadius: 10, border: `1px solid ${T.inputBorder}`, background: T.inputBg, color: T.text1, fontSize: 18, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>+</button>
+                      </div>
+                    </div>))}
                   </div>
                   <div style={{ display: "flex", gap: 8, marginTop: 14 }}><button onClick={saveBudgets} style={{ ...btnP, flex: 1 }}>Save</button><button onClick={() => setSbf(false)} style={{ ...btnG, flex: 1 }}>Cancel</button></div>
                 </>)}
@@ -1026,6 +1039,7 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
           </div>
         </div></div>}
 
+        {cgb && <div style={mOvS}><div style={mInS}><div style={{ textAlign: "center" }}><AlertTriangle size={36} style={{ color: T.err, marginBottom: 14 }} /><div style={{ fontSize: 18, fontWeight: 700, color: T.text1, marginBottom: 6 }}>Clear monthly budget?</div><div style={{ fontSize: 13, color: T.text3, marginBottom: 20 }}>This will remove your general monthly budget limit of {fmt(genBudget)}. The budget progress bar will no longer show on the dashboard.</div><div style={{ display: "flex", gap: 8 }}><button onClick={() => { svGB(0); setGbEdit(""); setCgb(false); tst("Budget cleared"); }} style={{ ...btnP, flex: 1, background: T.err, boxShadow: "none" }}>Clear Budget</button><button onClick={() => setCgb(false)} style={{ ...btnG, flex: 1 }}>Cancel</button></div></div></div></div>}
         {drc && <div style={mOvS}><div style={mInS}><div style={{ textAlign: "center" }}><AlertTriangle size={36} style={{ color: T.err, marginBottom: 14 }} /><div style={{ fontSize: 18, fontWeight: 700, color: T.text1, marginBottom: 6 }}>Delete recurring expense?</div><div style={{ display: "flex", gap: 8, marginTop: 20 }}><button onClick={() => delRec(drc)} style={{ ...btnP, flex: 1, background: T.err, boxShadow: "none" }}>Delete</button><button onClick={() => setDrc(null)} style={{ ...btnG, flex: 1 }}>Cancel</button></div></div></div></div>}
       </div>
 
