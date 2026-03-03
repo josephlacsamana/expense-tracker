@@ -52,6 +52,8 @@ const fmtS = (n) => n >= 1000 ? "\u20B1" + (n / 1000).toFixed(1) + "k" : "\u20B1
 const td = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 const pld = (s) => { const [y, m, d] = (s || "").split("-").map(Number); return new Date(y, m - 1, d); };
 const aIcons = { savings: PiggyBank, checking: CreditCard, investment: Building2, other: Wallet };
+const dIcons = { "Credit Card": CreditCard, "Mortgage": Building2, "Personal Loan": Wallet, "Car Loan": Coins, "Other": PiggyBank };
+const DEBT_TYPES = ["Credit Card", "Mortgage", "Personal Loan", "Car Loan", "Other"];
 
 // localStorage fallback (used when Supabase env vars not set)
 const localStore = {
@@ -71,7 +73,7 @@ const localStore = {
 const sb = {
   // Load all data from Supabase
   loadAll: async () => {
-    const [eR, aR, rR, cR, bR, gR, pR] = await Promise.all([
+    const [eR, aR, rR, cR, bR, gR, pR, dR, dpR] = await Promise.all([
       supabase.from("expenses").select("*").order("created_at", { ascending: false }),
       supabase.from("accounts").select("*"),
       supabase.from("recurring").select("*"),
@@ -79,6 +81,8 @@ const sb = {
       supabase.from("settings").select("*").eq("key", "budgets").maybeSingle(),
       supabase.from("settings").select("*").eq("key", "genBudget").maybeSingle(),
       supabase.from("settings").select("*").eq("key", "pins").maybeSingle(),
+      supabase.from("debts").select("*").order("created_at", { ascending: false }),
+      supabase.from("debt_payments").select("*").order("created_at", { ascending: false }),
     ]);
     return {
       expenses: eR.data?.map(r => ({ id: r.id, amount: Number(r.amount), category: r.category, description: r.description || "", date: r.date, addedBy: r.added_by, accountId: r.account_id || null, createdAt: r.created_at })) || [],
@@ -88,6 +92,8 @@ const sb = {
       budgets: bR.data?.value || null,
       genBudget: gR.data?.value ?? null,
       pins: pR.data?.value || null,
+      debts: dR.data?.map(r => ({ id: r.id, name: r.name, type: r.type, totalAmount: Number(r.total_amount), currentBalance: Number(r.current_balance), dueDate: r.due_date ? Number(r.due_date) : null, interestRate: Number(r.interest_rate || 0), minPayment: Number(r.min_payment || 0), addedBy: r.added_by, createdAt: r.created_at, updatedAt: r.updated_at })) || [],
+      debtPayments: dpR.data?.map(r => ({ id: r.id, debtId: r.debt_id, amount: Number(r.amount), date: r.date, newBalance: Number(r.new_balance), createdAt: r.created_at })) || [],
     };
   },
   // Expenses
@@ -116,6 +122,15 @@ const sb = {
   },
   deleteRecurring: async (id) => { await supabase.from("recurring").delete().eq("id", id); },
   deleteAllRecurring: async () => { await supabase.from("recurring").delete().neq("id", ""); },
+  // Debts
+  upsertDebt: async (d) => {
+    await supabase.from("debts").upsert({ id: d.id, name: d.name, type: d.type, total_amount: d.totalAmount, current_balance: d.currentBalance, due_date: d.dueDate, interest_rate: d.interestRate, min_payment: d.minPayment, added_by: d.addedBy, created_at: d.createdAt, updated_at: d.updatedAt });
+  },
+  deleteDebt: async (id) => { await supabase.from("debt_payments").delete().eq("debt_id", id); await supabase.from("debts").delete().eq("id", id); },
+  deleteAllDebts: async () => { await supabase.from("debt_payments").delete().neq("id", ""); await supabase.from("debts").delete().neq("id", ""); },
+  upsertDebtPayment: async (p) => {
+    await supabase.from("debt_payments").upsert({ id: p.id, debt_id: p.debtId, amount: p.amount, date: p.date, new_balance: p.newBalance, created_at: p.createdAt });
+  },
   // Categories
   saveCategories: async (cats) => {
     await supabase.from("categories").delete().neq("name", "");
@@ -440,6 +455,16 @@ function MainApp({ user, householdId, householdRole, onLogout, theme, toggleThem
   const [erId, setErId] = useState(null);
   const [rf, setRf] = useState({ amount: "", category: "Food", description: "", frequency: "monthly", nextDate: td() });
   const [drc, setDrc] = useState(null);
+  const [debts, setDebts] = useState([]);
+  const [dPays, setDPays] = useState([]);
+  const [sdf, setSdf] = useState(false);
+  const [edtId, setEdtId] = useState(null);
+  const [ddf, setDdf] = useState({ name: "", type: "Credit Card", totalAmount: "", currentBalance: "", dueDate: "", interestRate: "", minPayment: "" });
+  const [ddDc, setDdDc] = useState(null);
+  const [spay, setSpay] = useState(null);
+  const [payAmt, setPayAmt] = useState("");
+  const [payDate, setPayDate] = useState(td());
+  const [viewDt, setViewDt] = useState(null);
   const [inviteModal, setInviteModal] = useState(false);
   const [inviteLink, setInviteLink] = useState("");
   const [inviteCopied, setInviteCopied] = useState(false);
@@ -477,6 +502,8 @@ function MainApp({ user, householdId, householdRole, onLogout, theme, toggleThem
             if (d.budgets) setBudgets(d.budgets);
             if (d.genBudget !== null) setGenBudget(d.genBudget);
             if (d.recurring.length) setRec(d.recurring);
+            if (d.debts.length) setDebts(d.debts);
+            if (d.debtPayments.length) setDPays(d.debtPayments);
             if (d.categories) setCats(d.categories);
             setLd(false); return;
           }
@@ -498,6 +525,8 @@ function MainApp({ user, householdId, householdRole, onLogout, theme, toggleThem
                 if (lBudgets) setBudgets(lBudgets);
                 if (lGenB !== null) setGenBudget(lGenB);
                 if (lRec.length) setRec(lRec);
+                try { const lD = JSON.parse(localStorage.getItem("debts") || "[]"); if (lD.length) setDebts(lD); } catch {}
+                try { const lDP = JSON.parse(localStorage.getItem("debtPayments") || "[]"); if (lDP.length) setDPays(lDP); } catch {}
                 if (lCats && lCats.length) setCats(lCats);
                 setLd(false); return;
               }
@@ -517,6 +546,8 @@ function MainApp({ user, householdId, householdRole, onLogout, theme, toggleThem
           try { const g = await localStore.get("genBudget"); if (g?.value) setGenBudget(JSON.parse(g.value)); } catch {}
           try { const rc = await localStore.get("recurring"); if (rc?.value) setRec(JSON.parse(rc.value)); } catch {}
           try { const ct = await localStore.get("categories"); if (ct?.value) { const pc = JSON.parse(ct.value); if (Array.isArray(pc) && pc.length > 0) setCats(pc); } } catch {}
+          try { const dt = await localStore.get("debts"); if (dt?.value) setDebts(JSON.parse(dt.value)); } catch {}
+          try { const dtp = await localStore.get("debtPayments"); if (dtp?.value) setDPays(JSON.parse(dtp.value)); } catch {}
           setLd(false); return; } }
       } catch (e) { console.error(e); }
       setExp(SEED_EXP); setAccts(SEED_ACCT);
@@ -574,6 +605,8 @@ function MainApp({ user, householdId, householdRole, onLogout, theme, toggleThem
   const saveBudgets = () => { svB(bf); setSbf(false); tst("Budgets saved"); };
   const svGB = async (v) => { setGenBudget(v); try { if (sbReady) await sb.saveSetting("genBudget", v); else await localStore.set("genBudget", JSON.stringify(v)); } catch {} };
   const svR = async (d, opts) => { setRec(d); try { if (sbReady) { if (opts?.deleteId) await sb.deleteRecurring(opts.deleteId); else if (opts?.upsert) await sb.upsertRecurring(opts.upsert); else if (opts?.upsertMany) await sb.upsertRecurringBulk(opts.upsertMany); else await sb.upsertRecurringBulk(d); } else await localStore.set("recurring", JSON.stringify(d)); } catch {} };
+  const svD = async (d, opts) => { setDebts(d); try { if (sbReady) { if (opts?.deleteId) await sb.deleteDebt(opts.deleteId); else if (opts?.upsert) await sb.upsertDebt(opts.upsert); } else await localStore.set("debts", JSON.stringify(d)); } catch {} };
+  const svDP = async (d, opts) => { setDPays(d); try { if (sbReady) { if (opts?.upsert) await sb.upsertDebtPayment(opts.upsert); } else await localStore.set("debtPayments", JSON.stringify(d)); } catch {} };
   const doRec = () => {
     if (!rf.description.trim() || !rf.amount || isNaN(parseFloat(rf.amount))) return;
     const en = { id: erId || uid(), amount: parseFloat(parseFloat(rf.amount).toFixed(2)), category: rf.category, description: rf.description.trim(), frequency: rf.frequency, nextDate: rf.nextDate || td(), addedBy: user, createdAt: Date.now() };
@@ -583,6 +616,33 @@ function MainApp({ user, householdId, householdRole, onLogout, theme, toggleThem
   const rstRf = () => { setRf({ amount: "", category: "Food", description: "", frequency: "monthly", nextDate: td() }); setErId(null); setSrf(false); };
   const edRec = (r) => { setRf({ amount: String(r.amount), category: r.category, description: r.description, frequency: r.frequency, nextDate: r.nextDate }); setErId(r.id); setSrf(true); };
   const delRec = (id) => { svR(rec.filter(r => r.id !== id), { deleteId: id }); setDrc(null); tst("Recurring removed"); };
+  const doDebt = () => {
+    if (!ddf.name.trim() || !ddf.totalAmount || isNaN(parseFloat(ddf.totalAmount))) return;
+    const en = { id: edtId || uid(), name: ddf.name.trim(), type: ddf.type, totalAmount: parseFloat(parseFloat(ddf.totalAmount).toFixed(2)), currentBalance: parseFloat(parseFloat(ddf.currentBalance || ddf.totalAmount).toFixed(2)), dueDate: parseInt(ddf.dueDate) || null, interestRate: parseFloat(ddf.interestRate) || 0, minPayment: parseFloat(ddf.minPayment) || 0, addedBy: user, createdAt: edtId ? (debts.find(d => d.id === edtId)?.createdAt || Date.now()) : Date.now(), updatedAt: Date.now() };
+    if (edtId) { svD(debts.map(d => d.id === edtId ? en : d), { upsert: en }); tst("Debt updated"); } else { svD([...debts, en], { upsert: en }); tst("Debt added"); }
+    rstDf();
+  };
+  const rstDf = () => { setDdf({ name: "", type: "Credit Card", totalAmount: "", currentBalance: "", dueDate: "", interestRate: "", minPayment: "" }); setEdtId(null); setSdf(false); };
+  const edDebt = (d) => { setDdf({ name: d.name, type: d.type, totalAmount: String(d.totalAmount), currentBalance: String(d.currentBalance), dueDate: d.dueDate ? String(d.dueDate) : "", interestRate: String(d.interestRate || ""), minPayment: String(d.minPayment || "") }); setEdtId(d.id); setSdf(true); };
+  const delDebt = (id) => {
+    svD(debts.filter(d => d.id !== id), { deleteId: id });
+    const newPays = dPays.filter(p => p.debtId !== id);
+    svDP(newPays);
+    setDdDc(null); if (viewDt === id) setViewDt(null); tst("Debt removed");
+  };
+  const doPayment = () => {
+    if (!spay || !payAmt || isNaN(parseFloat(payAmt))) return;
+    const amt = parseFloat(parseFloat(payAmt).toFixed(2));
+    const debt = debts.find(d => d.id === spay);
+    if (!debt) return;
+    const newBal = Math.max(0, debt.currentBalance - amt);
+    const payment = { id: uid(), debtId: spay, amount: amt, date: payDate || td(), newBalance: newBal, createdAt: Date.now() };
+    const updDebt = { ...debt, currentBalance: newBal, updatedAt: Date.now() };
+    svD(debts.map(d => d.id === spay ? updDebt : d), { upsert: updDebt });
+    svDP([payment, ...dPays], { upsert: payment });
+    setSpay(null); setPayAmt(""); setPayDate(td());
+    tst(`Payment of ${fmt(amt)} recorded`);
+  };
   const applyRec = () => {
     const today = td();
     const due = rec.filter(r => r.nextDate <= today);
@@ -607,7 +667,7 @@ function MainApp({ user, householdId, householdRole, onLogout, theme, toggleThem
     const r = [...exp].sort((a, b) => a.date.localeCompare(b.date)).map(e => `${e.date},"${(e.description || "").replace(/"/g, '""')}",${e.category},${e.amount},${e.addedBy}`).join("\n");
     const b = new Blob([h + r], { type: "text/csv" }); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = "expenses.csv"; a.click(); URL.revokeObjectURL(u);
   };
-  const clearAll = async () => { setExp([]); setAccts([]); setRec([]); setGenBudget(0); setCats(DEF_CATS); setBudgets(DEFAULT_BUDGETS); try { if (sbReady) { await Promise.all([sb.deleteAllExpenses(), sb.deleteAllAccounts(), sb.deleteAllRecurring(), sb.saveCategories(DEF_CATS), sb.saveSetting("budgets", DEFAULT_BUDGETS), sb.saveSetting("genBudget", 0)]); } else { await localStore.set("expenses", JSON.stringify([])); await localStore.set("accounts", JSON.stringify([])); await localStore.set("recurring", JSON.stringify([])); await localStore.set("genBudget", JSON.stringify(0)); await localStore.set("categories", JSON.stringify(DEF_CATS)); await localStore.set("budgets", JSON.stringify(DEFAULT_BUDGETS)); } } catch {} setClr(false); tst("All data cleared"); };
+  const clearAll = async () => { setExp([]); setAccts([]); setRec([]); setDebts([]); setDPays([]); setGenBudget(0); setCats(DEF_CATS); setBudgets(DEFAULT_BUDGETS); try { if (sbReady) { await Promise.all([sb.deleteAllExpenses(), sb.deleteAllAccounts(), sb.deleteAllRecurring(), sb.deleteAllDebts(), sb.saveCategories(DEF_CATS), sb.saveSetting("budgets", DEFAULT_BUDGETS), sb.saveSetting("genBudget", 0)]); } else { await localStore.set("expenses", JSON.stringify([])); await localStore.set("accounts", JSON.stringify([])); await localStore.set("recurring", JSON.stringify([])); await localStore.set("debts", JSON.stringify([])); await localStore.set("debtPayments", JSON.stringify([])); await localStore.set("genBudget", JSON.stringify(0)); await localStore.set("categories", JSON.stringify(DEF_CATS)); await localStore.set("budgets", JSON.stringify(DEFAULT_BUDGETS)); } } catch {} setClr(false); tst("All data cleared"); };
 
   const generateInvite = async () => {
     if (!sbReady || !householdId) return;
@@ -1037,7 +1097,7 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
         {tab === "accounts" && (
           <div style={{ flex: 1, maxWidth: mwAcc, margin: "0 auto", padding: isDesktop ? "28px 36px 40px" : "18px 20px 80px", width: "100%", boxSizing: "border-box", overflowY: "auto" }}>
             <div style={{ display: "flex", gap: 6, marginBottom: 18, flexWrap: "wrap" }}>
-              {["accounts", "budgets"].map(s => <button key={s} onClick={() => setAccSub(s)} style={pillS(accSub === s)}>{s.charAt(0).toUpperCase() + s.slice(1)}</button>)}
+              {["accounts", "budgets", "debts"].map(s => <button key={s} onClick={() => setAccSub(s)} style={pillS(accSub === s)}>{s.charAt(0).toUpperCase() + s.slice(1)}</button>)}
             </div>
             <div>
               {accSub === "accounts" && (<>
@@ -1115,6 +1175,42 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
                   </div>
                   <div style={{ display: "flex", gap: 8, marginTop: 14 }}><button onClick={saveBudgets} style={{ ...btnP, flex: 1 }}>Save</button><button onClick={() => setSbf(false)} style={{ ...btnG, flex: 1 }}>Cancel</button></div>
                 </>); })()}
+              </>)}
+              {accSub === "debts" && (<>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}><div style={{ fontSize: 18, fontWeight: 800 }}>Debts</div><button onClick={() => { rstDf(); setSdf(true); }} style={{ ...btnP, padding: "10px 16px", fontSize: 12, display: "flex", alignItems: "center", gap: 5 }}><Plus size={14} />Add</button></div>
+                {debts.length > 0 && (() => { const tOw = debts.reduce((s, d) => s + d.currentBalance, 0); const tMin = debts.reduce((s, d) => s + (d.minPayment || 0), 0); const nD = debts.filter(d => d.dueDate).sort((a, b) => { const t = new Date().getDate(); const da = a.dueDate >= t ? a.dueDate - t : a.dueDate + 30 - t; const db = b.dueDate >= t ? b.dueDate - t : b.dueDate + 30 - t; return da - db; })[0]; return (
+                  <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr 1fr" : "1fr 1fr", gap: 10, marginBottom: 16 }}>
+                    <div style={{ ...cardS, padding: 16 }}><div style={{ fontSize: 10, color: T.text3, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>Total Owed</div><div style={{ fontSize: 22, fontWeight: 800, color: T.err, marginTop: 4 }}>{fmt(tOw)}</div></div>
+                    <div style={{ ...cardS, padding: 16 }}><div style={{ fontSize: 10, color: T.text3, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>Min. Payments</div><div style={{ fontSize: 22, fontWeight: 800, color: T.text1, marginTop: 4 }}>{fmt(tMin)}</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>per month</div></div>
+                    {nD && <div style={{ ...cardS, padding: 16, ...(isDesktop ? {} : { gridColumn: "1 / -1" }) }}><div style={{ fontSize: 10, color: T.text3, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>Next Due</div><div style={{ fontSize: 16, fontWeight: 800, color: T.gold, marginTop: 4 }}>{nD.name}</div><div style={{ fontSize: 11, color: T.text3, marginTop: 2 }}>Day {nD.dueDate} of every month</div></div>}
+                  </div>); })()}
+                {debts.length === 0 && <div style={{ ...cardS, textAlign: "center", padding: 28, color: T.text3, fontSize: 13 }}>No debts tracked yet. Add your credit cards, loans, or mortgages.</div>}
+                <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 8 }}>
+                  {debts.map(d => { const DI = dIcons[d.type] || Coins; const pd = d.totalAmount - d.currentBalance; const pdP = d.totalAmount > 0 ? (pd / d.totalAmount) * 100 : 0; const pays = dPays.filter(p => p.debtId === d.id).sort((a, b) => b.createdAt - a.createdAt); const isEx = viewDt === d.id; return (
+                    <div key={d.id} style={{ ...cardS, padding: 0, overflow: "hidden" }}>
+                      <div style={{ padding: "14px 16px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}><div style={{ width: 38, height: 38, borderRadius: 11, background: T.goldMuted, display: "flex", alignItems: "center", justifyContent: "center" }}><DI size={16} style={{ color: T.gold }} /></div><div><div style={{ fontSize: 13, fontWeight: 700 }}>{d.name}</div><div style={{ fontSize: 10, color: T.text3 }}>{d.type}{d.dueDate ? ` -- Due day ${d.dueDate}` : ""}</div></div></div>
+                          <div style={{ textAlign: "right" }}><div style={{ fontSize: 16, fontWeight: 800, color: d.currentBalance > 0 ? T.err : T.ok }}>{fmt(d.currentBalance)}</div><div style={{ fontSize: 10, color: T.text3 }}>of {fmt(d.totalAmount)}</div></div>
+                        </div>
+                        <div style={{ marginTop: 10, height: 6, borderRadius: 3, background: theme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)", overflow: "hidden" }}><div style={{ height: "100%", borderRadius: 3, width: `${Math.min(100, pdP)}%`, background: pdP >= 100 ? T.ok : T.gold, transition: "width 0.3s" }} /></div>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}><span style={{ fontSize: 10, color: T.text3 }}>{pdP.toFixed(0)}% paid ({fmt(pd)})</span>{d.interestRate > 0 && <span style={{ fontSize: 10, color: T.text3 }}>{d.interestRate}% APR</span>}</div>
+                        {d.minPayment > 0 && <div style={{ fontSize: 10, color: T.text3, marginTop: 3 }}>Min payment: {fmt(d.minPayment)}/mo</div>}
+                        <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+                          {d.currentBalance > 0 && <button onClick={() => setSpay(d.id)} style={{ ...btnP, padding: "7px 14px", fontSize: 11, flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}><Coins size={12} />Pay</button>}
+                          <button onClick={() => setViewDt(isEx ? null : d.id)} style={{ ...btnG, padding: "7px 14px", fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}><ChevronDown size={12} style={{ transform: isEx ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />{pays.length}</button>
+                          <button onClick={() => edDebt(d)} style={{ background: "none", border: "none", color: T.gold, cursor: "pointer", padding: 4 }}><Edit3 size={14} /></button>
+                          <button onClick={() => setDdDc(d.id)} style={{ background: "none", border: "none", color: T.err, cursor: "pointer", padding: 4 }}><Trash2 size={14} /></button>
+                        </div>
+                      </div>
+                      {isEx && <div style={{ borderTop: `1px solid ${T.border}`, padding: "10px 16px", background: theme === "dark" ? "rgba(0,0,0,0.2)" : "rgba(0,0,0,0.02)" }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: T.text2, marginBottom: 8 }}>Payment History</div>
+                        {pays.length === 0 && <div style={{ fontSize: 11, color: T.text3, padding: "8px 0" }}>No payments recorded yet.</div>}
+                        {pays.slice(0, 10).map(p => (<div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${T.border}` }}><div><div style={{ fontSize: 12, fontWeight: 600, color: T.ok }}>{fmt(p.amount)}</div><div style={{ fontSize: 10, color: T.text3 }}>{p.date}</div></div><div style={{ fontSize: 11, color: T.text3 }}>Bal: {fmt(p.newBalance)}</div></div>))}
+                        {pays.length > 10 && <div style={{ fontSize: 10, color: T.text3, marginTop: 6, textAlign: "center" }}>...and {pays.length - 10} more</div>}
+                      </div>}
+                    </div>); })}
+                </div>
               </>)}
             </div>
           </div>
@@ -1302,6 +1398,34 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
 
         {cgb && <div style={mOvS}><div style={mInS}><div style={{ textAlign: "center" }}><AlertTriangle size={36} style={{ color: T.err, marginBottom: 14 }} /><div style={{ fontSize: 18, fontWeight: 700, color: T.text1, marginBottom: 6 }}>Clear monthly budget?</div><div style={{ fontSize: 13, color: T.text3, marginBottom: 20 }}>This will remove your general monthly budget limit of {fmt(genBudget)}. The budget progress bar will no longer show on the dashboard.</div><div style={{ display: "flex", gap: 8 }}><button onClick={() => { svGB(0); setGbEdit(""); setCgb(false); tst("Budget cleared"); }} style={{ ...btnP, flex: 1, background: T.err, boxShadow: "none" }}>Clear Budget</button><button onClick={() => setCgb(false)} style={{ ...btnG, flex: 1 }}>Cancel</button></div></div></div></div>}
         {drc && <div style={mOvS}><div style={mInS}><div style={{ textAlign: "center" }}><AlertTriangle size={36} style={{ color: T.err, marginBottom: 14 }} /><div style={{ fontSize: 18, fontWeight: 700, color: T.text1, marginBottom: 6 }}>Delete recurring expense?</div><div style={{ display: "flex", gap: 8, marginTop: 20 }}><button onClick={() => delRec(drc)} style={{ ...btnP, flex: 1, background: T.err, boxShadow: "none" }}>Delete</button><button onClick={() => setDrc(null)} style={{ ...btnG, flex: 1 }}>Cancel</button></div></div></div></div>}
+
+        {sdf && <div style={mOvS}><div style={mInS}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}><div style={{ fontSize: 18, fontWeight: 800, color: T.text1 }}>{edtId ? "Edit" : "Add"} Debt</div><button onClick={rstDf} style={{ background: "none", border: "none", color: T.text3, cursor: "pointer" }}><X size={22} /></button></div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <input placeholder="Name (e.g. BDO Credit Card)" value={ddf.name} onChange={e => setDdf(v => ({ ...v, name: e.target.value }))} style={inpS} />
+            <select value={ddf.type} onChange={e => setDdf(v => ({ ...v, type: e.target.value }))} style={inpS}>{DEBT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input placeholder="Total Amount" type="number" inputMode="decimal" value={ddf.totalAmount} onChange={e => setDdf(v => ({ ...v, totalAmount: e.target.value }))} style={{ ...inpS, flex: 1 }} />
+              <input placeholder="Current Balance" type="number" inputMode="decimal" value={ddf.currentBalance} onChange={e => setDdf(v => ({ ...v, currentBalance: e.target.value }))} style={{ ...inpS, flex: 1 }} />
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input placeholder="Due day (1-31)" type="number" inputMode="numeric" min="1" max="31" value={ddf.dueDate} onChange={e => setDdf(v => ({ ...v, dueDate: e.target.value }))} style={{ ...inpS, flex: 1 }} />
+              <input placeholder="Interest % (APR)" type="number" inputMode="decimal" value={ddf.interestRate} onChange={e => setDdf(v => ({ ...v, interestRate: e.target.value }))} style={{ ...inpS, flex: 1 }} />
+            </div>
+            <input placeholder="Min. Monthly Payment" type="number" inputMode="decimal" value={ddf.minPayment} onChange={e => setDdf(v => ({ ...v, minPayment: e.target.value }))} style={inpS} />
+            <button onClick={doDebt} style={{ ...btnP, width: "100%" }}>{edtId ? "Update" : "Add Debt"}</button>
+          </div>
+        </div></div>}
+
+        {spay && <div style={mOvS}><div style={{ ...mInS, maxWidth: 380 }}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}><div style={{ fontSize: 18, fontWeight: 800, color: T.text1 }}>Record Payment</div><button onClick={() => { setSpay(null); setPayAmt(""); setPayDate(td()); }} style={{ background: "none", border: "none", color: T.text3, cursor: "pointer" }}><X size={22} /></button></div>
+          <div style={{ fontSize: 13, color: T.text2, marginBottom: 14 }}>{debts.find(d => d.id === spay)?.name} -- Balance: {fmt(debts.find(d => d.id === spay)?.currentBalance || 0)}</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <input placeholder="Payment Amount" type="number" inputMode="decimal" value={payAmt} onChange={e => setPayAmt(e.target.value)} style={inpS} autoFocus />
+            <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} style={inpS} />
+            <button onClick={doPayment} style={{ ...btnP, width: "100%" }}>Record Payment</button>
+          </div>
+        </div></div>}
+
+        {ddDc && <div style={mOvS}><div style={mInS}><div style={{ textAlign: "center" }}><AlertTriangle size={36} style={{ color: T.err, marginBottom: 14 }} /><div style={{ fontSize: 18, fontWeight: 700, color: T.text1, marginBottom: 6 }}>Delete debt?</div><div style={{ fontSize: 12, color: T.text3, marginBottom: 20 }}>This will also remove all payment history for this debt.</div><div style={{ display: "flex", gap: 8 }}><button onClick={() => delDebt(ddDc)} style={{ ...btnP, flex: 1, background: T.err, boxShadow: "none" }}>Delete</button><button onClick={() => setDdDc(null)} style={{ ...btnG, flex: 1 }}>Cancel</button></div></div></div></div>}
       </div>
 
       <style>{`
