@@ -1514,11 +1514,14 @@ export default function App() {
         // 2. Check for pending invite token FIRST
         let joined = false;
         const pendingToken = localStorage.getItem("pendingInvite");
+        console.log("[invite] pendingToken from localStorage:", pendingToken);
         if (pendingToken) {
           localStorage.removeItem("pendingInvite");
-          const { data: inv } = await supabase.from("invites").select("*").eq("token", pendingToken).eq("used", false).maybeSingle();
+          const { data: inv, error: invErr } = await supabase.from("invites").select("*").eq("token", pendingToken).eq("used", false).maybeSingle();
+          console.log("[invite] invite lookup:", inv, "error:", invErr);
           if (inv && new Date(inv.expires_at) > new Date()) {
-            const { data: invitedH } = await supabase.from("households").select("*").eq("id", inv.household_id).single();
+            const { data: invitedH, error: hErr } = await supabase.from("households").select("*").eq("id", inv.household_id).single();
+            console.log("[invite] household lookup:", invitedH, "error:", hErr);
             if (invitedH) {
               const { data: existingMs } = await supabase.from("household_members").select("*").eq("user_id", s.user.id).limit(1);
               const existingM = existingMs?.[0] || null;
@@ -1530,11 +1533,14 @@ export default function App() {
                 clearTimeout(timeout); setAuthLoading(false); handling = false; return;
               } else {
                 // No existing household — auto-join, no confirmation needed
-                await supabase.from("household_members").insert({ household_id: inv.household_id, user_id: s.user.id, role: "member" });
-                await supabase.from("invites").update({ used: true, used_by: s.user.id }).eq("id", inv.id);
+                const { error: insertErr } = await supabase.from("household_members").insert({ household_id: inv.household_id, user_id: s.user.id, role: "member" });
+                const { error: updateErr } = await supabase.from("invites").update({ used: true, used_by: s.user.id }).eq("id", inv.id);
+                console.log("[invite] insert member error:", insertErr, "update invite error:", updateErr);
                 setHousehold(invitedH); setHouseholdRole("member"); joined = true;
               }
             }
+          } else {
+            console.log("[invite] invite invalid or expired. inv:", inv, "expires_at:", inv?.expires_at);
           }
         }
 
