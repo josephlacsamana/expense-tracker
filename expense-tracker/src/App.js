@@ -1515,9 +1515,10 @@ export default function App() {
           }
         }
 
-        // 3. Check existing household membership
+        // 3. Check existing household membership (limit 1 to avoid crash if duplicates exist)
         if (!joined) {
-          const { data: membership } = await supabase.from("household_members").select("household_id, role, households(id, name)").eq("user_id", s.user.id).maybeSingle();
+          const { data: memberships } = await supabase.from("household_members").select("household_id, role, households(id, name)").eq("user_id", s.user.id).limit(1);
+          const membership = memberships?.[0] || null;
           if (membership?.households) {
             setHousehold(membership.households);
             setHouseholdRole(membership.role);
