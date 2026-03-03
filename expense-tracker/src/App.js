@@ -554,7 +554,7 @@ function MainApp({ user, householdId, householdRole, onLogout, theme, toggleThem
       try { await localStore.set("expenses", JSON.stringify(SEED_EXP)); await localStore.set("accounts", JSON.stringify(SEED_ACCT)); } catch {}
       setLd(false);
     })();
-  }, []);
+  }, [householdId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { cr.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, pe]);
   useEffect(() => {
     if (sbReady && householdId) {
