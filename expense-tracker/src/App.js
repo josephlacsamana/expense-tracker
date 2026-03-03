@@ -299,6 +299,14 @@ function LoginScreen({ onLogin, theme, toggleTheme, authError, localMode }) {
     } catch { setErr("Failed to start sign in."); setSigningIn(false); }
   };
 
+  const ua = navigator.userAgent || "";
+  const isInAppBrowser = /FBAN|FBAV|FB_IAB|Instagram|Messenger/i.test(ua);
+
+  const openInChrome = () => {
+    const url = window.location.href;
+    window.location.href = `intent://${window.location.hostname}${window.location.pathname}${window.location.search}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(url)};end`;
+  };
+
   const brandText = "Shared Finance";
 
   return (
@@ -388,10 +396,21 @@ function LoginScreen({ onLogin, theme, toggleTheme, authError, localMode }) {
                 <p style={{ color: T.text3, fontSize: 13, margin: "6px 0 0", textAlign: "center" }}>Sign in to continue</p>
               </div>
             )}
-            <button onClick={doGoogleLogin} disabled={signingIn} style={{
+            {isInAppBrowser && (
+              <div style={{ background: theme === "dark" ? "rgba(245,181,38,0.08)" : "rgba(245,181,38,0.12)", border: "1px solid rgba(245,181,38,0.35)", borderRadius: 14, padding: "16px 18px" }}>
+                <p style={{ color: T.text1, fontSize: 13, fontWeight: 700, margin: "0 0 6px" }}>Open in Chrome to sign in</p>
+                <p style={{ color: T.text2, fontSize: 12, margin: "0 0 14px", lineHeight: 1.6 }}>Google sign-in does not work inside Messenger. Tap the button below to open this page in Chrome.</p>
+                <button onClick={openInChrome} style={{ width: "100%", padding: "13px 16px", borderRadius: 12, border: "none", background: "#4285F4", color: "#FFF", fontSize: 13, fontWeight: 700, cursor: "pointer", marginBottom: 10 }}>
+                  Open in Chrome
+                </button>
+                <p style={{ color: T.text3, fontSize: 10, margin: 0, textAlign: "center", lineHeight: 1.5 }}>Or copy and paste this URL into Chrome:</p>
+                <p style={{ color: T.gold, fontSize: 10, margin: "4px 0 0", textAlign: "center", wordBreak: "break-all", fontWeight: 600 }}>{window.location.href}</p>
+              </div>
+            )}
+            <button onClick={doGoogleLogin} disabled={signingIn || isInAppBrowser} style={{
               width: "100%", padding: "16px 20px", borderRadius: 14, border: `1px solid ${T.border}`, background: T.surface,
-              color: T.text1, fontSize: 15, fontWeight: 600, cursor: signingIn ? "default" : "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 12, opacity: signingIn ? 0.5 : 1,
+              color: T.text1, fontSize: 15, fontWeight: 600, cursor: (signingIn || isInAppBrowser) ? "default" : "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 12, opacity: (signingIn || isInAppBrowser) ? 0.3 : 1,
               transition: "all 0.2s", boxShadow: T.cardShadow
             }}>
               <GoogleIcon />
