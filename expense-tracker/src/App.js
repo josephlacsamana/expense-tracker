@@ -104,13 +104,13 @@ const sb = {
     if (!arr.length) return;
     await supabase.from("expenses").upsert(arr.map(e => ({ id: e.id, amount: e.amount, category: e.category, description: e.description || "", date: e.date, added_by: e.addedBy, account_id: e.accountId || null, household_id: hid, created_at: e.createdAt })));
   },
-  deleteExpense: async (id) => { await supabase.from("expenses").delete().eq("id", id); },
+  deleteExpense: async (id, hid) => { await supabase.from("expenses").delete().eq("id", id).eq("household_id", hid); },
   deleteAllExpenses: async (hid) => { await supabase.from("expenses").delete().eq("household_id", hid); },
   // Accounts
   upsertAccount: async (a, hid) => {
     await supabase.from("accounts").upsert({ id: a.id, name: a.name, balance: a.balance, type: a.type, household_id: hid, updated_at: a.updatedAt });
   },
-  deleteAccount: async (id) => { await supabase.from("accounts").delete().eq("id", id); },
+  deleteAccount: async (id, hid) => { await supabase.from("accounts").delete().eq("id", id).eq("household_id", hid); },
   deleteAllAccounts: async (hid) => { await supabase.from("accounts").delete().eq("household_id", hid); },
   // Recurring
   upsertRecurring: async (r, hid) => {
@@ -120,13 +120,13 @@ const sb = {
     if (!arr.length) return;
     await supabase.from("recurring").upsert(arr.map(r => ({ id: r.id, amount: r.amount, category: r.category, description: r.description || "", frequency: r.frequency, next_date: r.nextDate, added_by: r.addedBy, household_id: hid, created_at: r.createdAt })));
   },
-  deleteRecurring: async (id) => { await supabase.from("recurring").delete().eq("id", id); },
+  deleteRecurring: async (id, hid) => { await supabase.from("recurring").delete().eq("id", id).eq("household_id", hid); },
   deleteAllRecurring: async (hid) => { await supabase.from("recurring").delete().eq("household_id", hid); },
   // Debts
   upsertDebt: async (d, hid) => {
     await supabase.from("debts").upsert({ id: d.id, name: d.name, type: d.type, total_amount: d.totalAmount, current_balance: d.currentBalance, due_date: d.dueDate, interest_rate: d.interestRate, min_payment: d.minPayment, added_by: d.addedBy, household_id: hid, created_at: d.createdAt, updated_at: d.updatedAt });
   },
-  deleteDebt: async (id) => { await supabase.from("debt_payments").delete().eq("debt_id", id); await supabase.from("debts").delete().eq("id", id); },
+  deleteDebt: async (id, hid) => { await supabase.from("debt_payments").delete().eq("debt_id", id).eq("household_id", hid); await supabase.from("debts").delete().eq("id", id).eq("household_id", hid); },
   deleteAllDebts: async (hid) => { await supabase.from("debt_payments").delete().eq("household_id", hid); await supabase.from("debts").delete().eq("household_id", hid); },
   upsertDebtPayment: async (p, hid) => {
     await supabase.from("debt_payments").upsert({ id: p.id, debt_id: p.debtId, amount: p.amount, date: p.date, new_balance: p.newBalance, household_id: hid, created_at: p.createdAt });
@@ -568,8 +568,8 @@ function MainApp({ user, householdId, householdRole, onLogout, theme, toggleThem
     }
   }, [householdId]);
 
-  const svE = async (d, opts) => { setExp(d); try { if (sbReady) { if (opts?.deleteId) await sb.deleteExpense(opts.deleteId); else if (opts?.upsert) await sb.upsertExpense(opts.upsert, householdId); else if (opts?.upsertMany) await sb.upsertExpenses(opts.upsertMany, householdId); else await sb.upsertExpenses(d, householdId); } else await localStore.set("expenses", JSON.stringify(d)); } catch {} };
-  const svA = async (d, opts) => { setAccts(d); try { if (sbReady) { if (opts?.deleteId) await sb.deleteAccount(opts.deleteId); else if (opts?.upsert) await sb.upsertAccount(opts.upsert, householdId); else await supabase.from("accounts").upsert(d.map(a => ({ id: a.id, name: a.name, balance: a.balance, type: a.type, household_id: householdId, updated_at: a.updatedAt }))); } else await localStore.set("accounts", JSON.stringify(d)); } catch {} };
+  const svE = async (d, opts) => { setExp(d); try { if (sbReady) { if (opts?.deleteId) await sb.deleteExpense(opts.deleteId, householdId); else if (opts?.upsert) await sb.upsertExpense(opts.upsert, householdId); else if (opts?.upsertMany) await sb.upsertExpenses(opts.upsertMany, householdId); else await sb.upsertExpenses(d, householdId); } else await localStore.set("expenses", JSON.stringify(d)); } catch {} };
+  const svA = async (d, opts) => { setAccts(d); try { if (sbReady) { if (opts?.deleteId) await sb.deleteAccount(opts.deleteId, householdId); else if (opts?.upsert) await sb.upsertAccount(opts.upsert, householdId); else await supabase.from("accounts").upsert(d.map(a => ({ id: a.id, name: a.name, balance: a.balance, type: a.type, household_id: householdId, updated_at: a.updatedAt }))); } else await localStore.set("accounts", JSON.stringify(d)); } catch {} };
   const svB = async (d) => { setBudgets(d); try { if (sbReady) await sb.saveSetting("budgets", d, householdId); else await localStore.set("budgets", JSON.stringify(d)); } catch {} };
   const svCats = async (d) => { setCats(d); try { if (sbReady) await sb.saveCategories(d, householdId); else await localStore.set("categories", JSON.stringify(d)); } catch {} };
   const doSubmit = () => {
@@ -604,8 +604,8 @@ function MainApp({ user, householdId, householdRole, onLogout, theme, toggleThem
   const delA = (id) => { svA(accts.filter(a => a.id !== id), { deleteId: id }); setDac(null); tst("Account removed"); };
   const saveBudgets = () => { svB(bf); setSbf(false); tst("Budgets saved"); };
   const svGB = async (v) => { setGenBudget(v); try { if (sbReady) await sb.saveSetting("genBudget", v, householdId); else await localStore.set("genBudget", JSON.stringify(v)); } catch {} };
-  const svR = async (d, opts) => { setRec(d); try { if (sbReady) { if (opts?.deleteId) await sb.deleteRecurring(opts.deleteId); else if (opts?.upsert) await sb.upsertRecurring(opts.upsert, householdId); else if (opts?.upsertMany) await sb.upsertRecurringBulk(opts.upsertMany, householdId); else await sb.upsertRecurringBulk(d, householdId); } else await localStore.set("recurring", JSON.stringify(d)); } catch {} };
-  const svD = async (d, opts) => { setDebts(d); try { if (sbReady) { if (opts?.deleteId) await sb.deleteDebt(opts.deleteId); else if (opts?.upsert) await sb.upsertDebt(opts.upsert, householdId); } else await localStore.set("debts", JSON.stringify(d)); } catch {} };
+  const svR = async (d, opts) => { setRec(d); try { if (sbReady) { if (opts?.deleteId) await sb.deleteRecurring(opts.deleteId, householdId); else if (opts?.upsert) await sb.upsertRecurring(opts.upsert, householdId); else if (opts?.upsertMany) await sb.upsertRecurringBulk(opts.upsertMany, householdId); else await sb.upsertRecurringBulk(d, householdId); } else await localStore.set("recurring", JSON.stringify(d)); } catch {} };
+  const svD = async (d, opts) => { setDebts(d); try { if (sbReady) { if (opts?.deleteId) await sb.deleteDebt(opts.deleteId, householdId); else if (opts?.upsert) await sb.upsertDebt(opts.upsert, householdId); } else await localStore.set("debts", JSON.stringify(d)); } catch {} };
   const svDP = async (d, opts) => { setDPays(d); try { if (sbReady) { if (opts?.upsert) await sb.upsertDebtPayment(opts.upsert, householdId); } else await localStore.set("debtPayments", JSON.stringify(d)); } catch {} };
   const doRec = () => {
     if (!rf.description.trim() || !rf.amount || isNaN(parseFloat(rf.amount))) return;

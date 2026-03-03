@@ -25,17 +25,17 @@ AI-powered receipt scanning, chat-based expense logging, dashboards, analytics, 
 
 | Table | Columns | Notes |
 |---|---|---|
-| `expenses` | id (TEXT PK), amount, category, description, date, added_by, created_at | Main data |
-| `accounts` | id (TEXT PK), name, balance, type, updated_at | Manual bank balances |
-| `recurring` | id (TEXT PK), amount, category, description, frequency, next_date, added_by, created_at | Templates |
-| `categories` | name (TEXT PK), sort_order (INT) | Dynamic, max 15 |
-| `settings` | key (TEXT PK), value (JSONB) | Stores: `budgets`, `genBudget`, `pins` |
+| `expenses` | id (TEXT PK), amount, category, description, date, added_by, account_id, household_id (FK), created_at | Main data, scoped to household |
+| `accounts` | id (TEXT PK), name, balance, type, household_id (FK), updated_at | Manual bank balances, scoped to household |
+| `recurring` | id (TEXT PK), amount, category, description, frequency, next_date, added_by, household_id (FK), created_at | Templates, scoped to household |
+| `categories` | name + household_id (composite PK), sort_order (INT) | Dynamic, max 15, scoped to household |
+| `settings` | key + household_id (composite PK), value (JSONB) | Stores: `budgets`, `genBudget`, `pins`, scoped to household |
 | `profiles` | id (UUID PK), email, display_name, avatar_url, created_at | Google Auth profiles |
 | `households` | id (UUID PK), name, created_at | Household groups |
 | `household_members` | id (UUID PK), household_id, user_id, role, joined_at | Membership + roles |
 | `invites` | id (UUID PK), household_id, created_by, token, used, used_by, created_at, expires_at | Single-use invite links |
-| `debts` | id (TEXT PK), name, type, total_amount, current_balance, due_date, interest_rate, min_payment, added_by, created_at, updated_at | *Planned — Phase 11* |
-| `debt_payments` | id (TEXT PK), debt_id (FK), amount, date, new_balance, created_at | *Planned — Phase 11* |
+| `debts` | id (TEXT PK), name, type, total_amount, current_balance, due_date, interest_rate, min_payment, added_by, household_id (FK), created_at, updated_at | Debt tracking, scoped to household |
+| `debt_payments` | id (TEXT PK), debt_id (FK), amount, date, new_balance, household_id (FK), created_at | Payment history, scoped to household |
 
 Default categories: `["Food", "Transport", "Bills", "Shopping", "Health", "Entertainment", "Subscriptions", "Other"]`
 
@@ -243,11 +243,14 @@ On first Supabase load with empty tables, existing localStorage data is auto-mig
 - [x] Household info card in Settings (member count + role)
 - [x] Create tables in Supabase SQL Editor
 
-**9b-full — Data Isolation (future)**
-- [ ] Add `household_id` column to all data tables (expenses, accounts, recurring, categories, settings)
-- [ ] Migrate existing data: assign to default household
-- [ ] Enable Row Level Security (RLS) on all tables — users can only see data for their household
-- [ ] Update all Supabase queries to filter by household_id
+**9b-full — Data Isolation** ✅ DONE
+- [x] Add `household_id` column to all data tables (expenses, accounts, recurring, categories, settings, debts, debt_payments)
+- [x] Migrate existing data: assign to default household
+- [x] Enable Row Level Security (RLS) on all tables — users can only see data for their household
+- [x] Update all Supabase queries to filter by household_id
+- [x] Categories and settings use composite PK (name/key + household_id)
+- [x] All sb helper functions accept and include household_id
+- [x] Seeding, migration, and clearAll pass household_id
 
 **9d — Role-Based Permissions**
 - [ ] Owner role: full access to everything (the person who created the household)
@@ -294,26 +297,39 @@ Dashboard | Expenses | AI Chat | Accounts | More
   - [x] Settings stays in More
   - [x] Cleaner More tab with just 2 sub-tabs
 
-**10c — Account-Linked Expenses**
-- [ ] When adding an expense (manual form or AI Chat), user can optionally pick which account the money came from
-- [ ] Account picker dropdown in the expense form (optional field, default "None")
-- [ ] AI Chat: AI can ask or infer which account to use (e.g., "paid with BDO" → links to BDO account)
-- [ ] On save, auto-deduct the expense amount from the selected account's balance
-- [ ] On delete/edit, reverse or adjust the account balance accordingly
-- [ ] Add `account_id` column to expenses table (nullable, references accounts)
-- [ ] Show linked account name on expense list items (small label/tag)
-- [ ] Account balance history — track balance changes over time (not just current snapshot)
+**10d — Category Management in Budgets** ✅ DONE
+- [x] Move full category management (add/remove) from Settings into Budgets per-category section
+- [x] Add category: input + "Add" button above the per-category budget cards
+- [x] Remove category: X button on each category (except "Other") with confirmation modal
+- [x] Remove the old category management section from Settings tab entirely
+- [x] Max 15 categories, "Other" cannot be removed (same rules as before)
+
+**10c — Account-Linked Expenses** ✅ DONE
+- [x] When adding an expense (manual form), user can optionally pick which account the money came from
+- [x] Account picker dropdown in the expense form (optional field, default "No account linked")
+- [x] On save, auto-deduct the expense amount from the selected account's balance
+- [x] On delete, reverse the account balance (restore deducted amount)
+- [x] On edit, reverse old account deduction and apply new one
+- [x] Add `account_id` to Supabase expense upsert/load mappings
+- [x] Show linked account name on expense list items + dashboard top 5
+- [ ] (Future) AI Chat: AI can ask or infer which account to use
+- [ ] (Future) Account balance history — track balance changes over time
 
 ### Phase 11 — Debt & Credit Tracking
 
-**11a — Debt Data Model & UI**
-- [ ] Create `debts` table: id (TEXT PK), name, type (Credit Card / Mortgage / Personal Loan / Car Loan / Other), total_amount, current_balance, due_date (day of month), interest_rate, min_payment, added_by, created_at, updated_at
-- [ ] Debts management screen: list all debts with name, type icon, balance, due date, progress bar (paid vs total)
-- [ ] Add/edit/delete debt entries with form (name, type dropdown, total amount, current balance, due date, interest rate, min payment)
-- [ ] Manual balance update after payments (with date stamp)
-- [ ] Payment history log per debt (date, amount paid, new balance)
-- [ ] Total debt summary card (total owed, total minimum payments, next due date)
-- [ ] Where it lives: under Accounts tab as a third sub-tab (`Accounts | Budgets | Debts`)
+**11a — Debt Data Model & UI** ✅ DONE
+- [x] Create `debts` table: id (TEXT PK), name, type (Credit Card / Mortgage / Personal Loan / Car Loan / Other), total_amount, current_balance, due_date (day of month), interest_rate, min_payment, added_by, created_at, updated_at
+- [x] Create `debt_payments` table: id (TEXT PK), debt_id (FK), amount, date, new_balance, created_at
+- [x] Debts management screen: list all debts with name, type icon, balance, due date, progress bar (paid vs total)
+- [x] Add/edit/delete debt entries with form (name, type dropdown, total amount, current balance, due date, interest rate, min payment)
+- [x] Record payment: deduct from current balance, log payment with date and new balance
+- [x] Payment history log per debt (expandable, date, amount paid, new balance)
+- [x] Total debt summary card (total owed, total minimum payments, next due date)
+- [x] Where it lives: under Accounts tab as a third sub-tab (`Accounts | Budgets | Debts`)
+- [x] Supabase CRUD helpers + localStorage fallback
+- [x] Clear All Data includes debts
+- [x] Payment modal pre-fills min monthly payment amount (editable)
+- [x] Debt form has helper text under each field explaining what it means
 
 **11b — AI Debt Insights**
 - [ ] AI calculates repayment timelines based on current balance, interest rate, and payment amounts
