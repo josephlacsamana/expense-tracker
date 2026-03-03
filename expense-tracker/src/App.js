@@ -1165,7 +1165,7 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
               {sub === "insights" && (<>
                 <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 14 }}>AI Insights</div>
                 <div style={{ display: "flex", gap: 6, marginBottom: 18, flexWrap: "wrap" }}>{["Weekly", "Monthly", "Quarterly", "Yearly"].map(p => <button key={p} onClick={() => setIp(p)} style={pillS(ip === p)}>{p}</button>)}</div>
-                <button onClick={genIns} disabled={il} style={{ ...btnP, width: isDesktop ? "auto" : "100%", marginBottom: 18, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: il ? 0.6 : 1, padding: isDesktop ? "15px 36px" : undefined }}>
+                <button onClick={genIns} disabled={il} style={{ ...btnP, width: isDesktop ? "auto" : "100%", marginBottom: 18, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: il ? 0.6 : 1, padding: isDesktop ? "15px 36px" : "14px 20px" }}>
                   {il ? <><RefreshCw size={16} className="spin" />Generating...</> : <><Lightbulb size={16} />Generate {ip} Review</>}
                 </button>
                 {it && it.error && <div style={{ ...cardS, fontSize: 13, color: T.text3, textAlign: "center", padding: 28 }}>{it.error}</div>}
@@ -1264,16 +1264,16 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
                   <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 8, marginBottom: 16 }}>
                     <button onClick={generateInvite} style={{ ...cardS, width: "100%", padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>
                       <UserPlus size={18} style={{ color: T.gold }} />
-                      <div><div style={{ fontSize: 13, fontWeight: 600 }}>Invite Partner</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>Send a link to join your household</div></div>
+                      <div><div style={{ fontSize: 13, fontWeight: 600, color: T.text1 }}>Invite Partner</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>Send a link to join your household</div></div>
                     </button>
                     <div style={{ ...cardS, padding: "16px 18px", display: "flex", alignItems: "center", gap: 12 }}>
                       <Home size={18} style={{ color: T.gold }} />
-                      <div><div style={{ fontSize: 13, fontWeight: 600 }}>Household</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>{users.length} member{users.length !== 1 ? "s" : ""} -- {householdRole}</div></div>
+                      <div><div style={{ fontSize: 13, fontWeight: 600, color: T.text1 }}>Household</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>{users.length} member{users.length !== 1 ? "s" : ""} -- {householdRole}</div></div>
                     </div>
                   </div>
                 )}
                 <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 8 }}>
-                  <button onClick={exportCSV} style={{ ...cardS, width: "100%", padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}><Download size={18} style={{ color: T.gold }} /><div><div style={{ fontSize: 13, fontWeight: 600 }}>Export CSV</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>Download all expenses</div></div></button>
+                  <button onClick={exportCSV} style={{ ...cardS, width: "100%", padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}><Download size={18} style={{ color: T.gold }} /><div><div style={{ fontSize: 13, fontWeight: 600, color: T.text1 }}>Export CSV</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>Download all expenses</div></div></button>
                   <button onClick={() => setClr(true)} style={{ ...cardS, width: "100%", padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left", borderColor: `${T.err}30` }}><AlertTriangle size={18} style={{ color: T.err }} /><div><div style={{ fontSize: 13, fontWeight: 600, color: T.err }}>Clear All Data</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>Remove everything permanently</div></div></button>
                 </div>
               </>)}
