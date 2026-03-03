@@ -1497,8 +1497,9 @@ export default function App() {
       if (handling) return;
       handling = true;
       try {
-        if (!s) { setSession(null); setProfile(null); setHousehold(null); setHouseholdRole(null); clearTimeout(timeout); setAuthLoading(false); handling = false; return; }
+        if (!s) { setSession(null); setProfile(null); setHousehold(null); setHouseholdRole(null); setPendingInviteData(null); clearTimeout(timeout); setAuthLoading(false); handling = false; return; }
         setSession(s);
+
         // 1. Fetch or create profile
         let prof;
         const { data: existing, error: profileErr } = await supabase.from("profiles").select("*").eq("id", s.user.id).maybeSingle();
@@ -1512,66 +1513,23 @@ export default function App() {
         }
         setProfile(prof);
 
-        // 2. Check for pending invite token FIRST
+        // 2. Find existing household membership
         let joined = false;
-        let inviteAttempted = false;
-        const pendingToken = localStorage.getItem("pendingInvite");
-        console.log("[invite] pendingToken:", pendingToken);
-        if (pendingToken) {
-          localStorage.removeItem("pendingInvite");
-          inviteAttempted = true;
-          const { data: inv, error: invErr } = await supabase.from("invites").select("*").eq("token", pendingToken).eq("used", false).maybeSingle();
-          console.log("[invite] lookup:", inv, "err:", invErr);
-          if (inv && new Date(inv.expires_at) > new Date()) {
-            const { data: invitedH, error: hErr } = await supabase.from("households").select("*").eq("id", inv.household_id).single();
-            console.log("[invite] household:", invitedH, "err:", hErr);
-            if (invitedH) {
-              const { data: existingMs } = await supabase.from("household_members").select("*").eq("user_id", s.user.id).limit(1);
-              const existingM = existingMs?.[0] || null;
-              if (existingM) {
-                // User already has a household — show confirmation screen
-                const { data: currentH } = await supabase.from("households").select("*").eq("id", existingM.household_id).single();
-                if (currentH) { setHousehold(currentH); setHouseholdRole(existingM.role); }
-                setPendingInviteData({ inv, invitedHousehold: invitedH, userId: s.user.id });
-                clearTimeout(timeout); setAuthLoading(false); handling = false; return;
-              } else {
-                // No existing household — auto-join
-                const { error: insertErr } = await supabase.from("household_members").insert({ household_id: inv.household_id, user_id: s.user.id, role: "member" });
-                console.log("[invite] insert member err:", insertErr);
-                if (!insertErr) {
-                  await supabase.from("invites").update({ used: true, used_by: s.user.id }).eq("id", inv.id);
-                  setHousehold(invitedH); setHouseholdRole("member"); joined = true;
-                }
-              }
-            }
-          } else {
-            console.log("[invite] invalid or expired. inv:", inv, "expires:", inv?.expires_at);
-          }
+        const { data: memberships } = await supabase.from("household_members").select("household_id, role, households(id, name)").eq("user_id", s.user.id).limit(1);
+        const membership = memberships?.[0] || null;
+        if (membership?.households) {
+          setHousehold(membership.households);
+          setHouseholdRole(membership.role);
+          joined = true;
         }
 
-        // 3. Check existing household membership
+        // 3. Auto-create household if not in one (always safe — invite handled separately after auth)
         if (!joined) {
-          const { data: memberships } = await supabase.from("household_members").select("household_id, role, households(id, name)").eq("user_id", s.user.id).limit(1);
-          const membership = memberships?.[0] || null;
-          if (membership?.households) {
-            setHousehold(membership.households);
-            setHouseholdRole(membership.role);
-            joined = true;
-          }
-        }
-
-        // 4. Auto-create household ONLY if no invite was attempted
-        if (!joined) {
-          if (inviteAttempted) {
-            // Invite was attempted but failed — show error, do NOT create a new household
-            setInviteError(true);
-          } else {
-            const { data: h } = await supabase.from("households").insert({ name: "My Household" }).select().single();
-            if (h) {
-              await supabase.from("household_members").insert({ household_id: h.id, user_id: s.user.id, role: "owner" });
-              setHousehold(h);
-              setHouseholdRole("owner");
-            }
+          const { data: h } = await supabase.from("households").insert({ name: "My Household" }).select().single();
+          if (h) {
+            await supabase.from("household_members").insert({ household_id: h.id, user_id: s.user.id, role: "owner" });
+            setHousehold(h);
+            setHouseholdRole("owner");
           }
         }
       } catch (e) { console.error("[auth] error:", e); }
@@ -1587,6 +1545,24 @@ export default function App() {
     return () => { subscription.unsubscribe(); clearTimeout(timeout); };
   }, []);
 
+  // Separate effect: check pendingInvite AFTER auth is fully loaded
+  useEffect(() => {
+    if (!sbReady || authLoading || !session) return;
+    const token = localStorage.getItem("pendingInvite");
+    if (!token) return;
+    localStorage.removeItem("pendingInvite");
+    (async () => {
+      try {
+        const { data: inv } = await supabase.from("invites").select("*").eq("token", token).eq("used", false).maybeSingle();
+        if (!inv || new Date(inv.expires_at) <= new Date()) { setInviteError(true); return; }
+        const { data: invitedH } = await supabase.from("households").select("*").eq("id", inv.household_id).single();
+        if (!invitedH) { setInviteError(true); return; }
+        // Show confirmation screen — works for ALL users (new or existing)
+        setPendingInviteData({ inv, invitedHousehold: invitedH, userId: session.user.id });
+      } catch (e) { console.error("[invite] error:", e); setInviteError(true); }
+    })();
+  }, [authLoading, session]);
+
   const handleLogout = async () => {
     setInviteError(false);
     if (sbReady) {
@@ -1601,9 +1577,28 @@ export default function App() {
     if (!pendingInviteData) return;
     const { inv, invitedHousehold, userId } = pendingInviteData;
     try {
+      // Get current household before leaving it
+      const { data: currentMs } = await supabase.from("household_members").select("household_id").eq("user_id", userId).limit(1);
+      const currentHid = currentMs?.[0]?.household_id || null;
+
+      // Remove from current household
       await supabase.from("household_members").delete().eq("user_id", userId);
-      await supabase.from("household_members").insert({ household_id: inv.household_id, user_id: userId, role: "member" });
+
+      // If the old household is now empty and was auto-created (name = "My Household"), clean it up
+      if (currentHid) {
+        const { data: remaining } = await supabase.from("household_members").select("id").eq("household_id", currentHid).limit(1);
+        if (!remaining?.length) {
+          await supabase.from("households").delete().eq("id", currentHid);
+        }
+      }
+
+      // Join the invited household
+      const { error: insertErr } = await supabase.from("household_members").insert({ household_id: inv.household_id, user_id: userId, role: "member" });
+      if (insertErr) { console.error("[invite accept] insert error:", insertErr); return; }
+
+      // Mark invite as used
       await supabase.from("invites").update({ used: true, used_by: userId }).eq("id", inv.id);
+
       setHousehold(invitedHousehold);
       setHouseholdRole("member");
       setPendingInviteData(null);
@@ -1612,7 +1607,7 @@ export default function App() {
 
   const declineInvite = () => {
     setPendingInviteData(null);
-    // User stays in their current household (already set in handleSession)
+    // User stays in their auto-created household
   };
 
   if (authLoading) {
