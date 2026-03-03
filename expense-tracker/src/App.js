@@ -293,7 +293,7 @@ function LoginScreen({ onLogin, theme, toggleTheme, authError, localMode }) {
     setSigningIn(true); setErr("");
     try {
       const pendingToken = localStorage.getItem("pendingInvite");
-      const redirectTo = window.location.origin + (pendingToken ? `?invite=${pendingToken}` : "");
+      const redirectTo = window.location.origin + (pendingToken ? `/invite/${pendingToken}` : "");
       const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo } });
       if (error) { setErr(error.message); setSigningIn(false); }
     } catch { setErr("Failed to start sign in."); setSigningIn(false); }
@@ -676,10 +676,10 @@ function MainApp({ user, householdId, householdRole, onLogout, theme, toggleThem
     // Check for existing unused invite
     const { data: existing } = await supabase.from("invites").select("*").eq("household_id", householdId).eq("used", false).gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false }).limit(1);
     if (existing?.length) {
-      setInviteLink(`${window.location.origin}?invite=${existing[0].token}`);
+      setInviteLink(`${window.location.origin}/invite/${existing[0].token}`);
     } else {
       const { data: inv } = await supabase.from("invites").insert({ household_id: householdId, created_by: supabase.auth.getUser ? (await supabase.auth.getUser()).data.user?.id : null }).select().single();
-      if (inv) setInviteLink(`${window.location.origin}?invite=${inv.token}`);
+      if (inv) setInviteLink(`${window.location.origin}/invite/${inv.token}`);
     }
     setInviteCopied(false);
     setInviteModal(true);
@@ -1459,13 +1459,13 @@ export default function App() {
   const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "light");
   const toggle = () => setTheme(v => { const next = v === "dark" ? "light" : "dark"; localStorage.setItem("theme", next); return next; });
 
-  // Capture invite token from URL on mount
+  // Capture invite token from URL path (/invite/TOKEN) or query (?invite=TOKEN) on mount
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const invite = params.get("invite");
+    const pathMatch = window.location.pathname.match(/^\/invite\/([a-zA-Z0-9]+)$/);
+    const invite = pathMatch ? pathMatch[1] : new URLSearchParams(window.location.search).get("invite");
     if (invite) {
       localStorage.setItem("pendingInvite", invite);
-      window.history.replaceState({}, "", window.location.pathname);
+      window.history.replaceState({}, "", "/");
     }
   }, []);
 
