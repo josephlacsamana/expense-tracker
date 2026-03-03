@@ -1486,33 +1486,39 @@ export default function App() {
         }
         setProfile(prof);
 
-        // 2. Check household membership
-        const { data: membership } = await supabase.from("household_members").select("household_id, role, households(id, name)").eq("user_id", s.user.id).maybeSingle();
-        if (membership?.households) {
-          setHousehold(membership.households);
-          setHouseholdRole(membership.role);
-        } else {
-          // 3. Check for pending invite token
-          let joined = false;
-          const pendingToken = localStorage.getItem("pendingInvite");
-          if (pendingToken) {
-            const { data: inv } = await supabase.from("invites").select("*").eq("token", pendingToken).eq("used", false).maybeSingle();
-            if (inv && new Date(inv.expires_at) > new Date()) {
-              await supabase.from("household_members").insert({ household_id: inv.household_id, user_id: s.user.id, role: "member" });
-              await supabase.from("invites").update({ used: true, used_by: s.user.id }).eq("id", inv.id);
-              const { data: h } = await supabase.from("households").select("*").eq("id", inv.household_id).single();
-              if (h) { setHousehold(h); setHouseholdRole("member"); joined = true; }
-            }
-            localStorage.removeItem("pendingInvite");
+        // 2. Check for pending invite token FIRST (takes priority over existing household)
+        let joined = false;
+        const pendingToken = localStorage.getItem("pendingInvite");
+        if (pendingToken) {
+          localStorage.removeItem("pendingInvite");
+          const { data: inv } = await supabase.from("invites").select("*").eq("token", pendingToken).eq("used", false).maybeSingle();
+          if (inv && new Date(inv.expires_at) > new Date()) {
+            // Remove any existing household membership so the user switches to the invited household
+            await supabase.from("household_members").delete().eq("user_id", s.user.id);
+            await supabase.from("household_members").insert({ household_id: inv.household_id, user_id: s.user.id, role: "member" });
+            await supabase.from("invites").update({ used: true, used_by: s.user.id }).eq("id", inv.id);
+            const { data: h } = await supabase.from("households").select("*").eq("id", inv.household_id).single();
+            if (h) { setHousehold(h); setHouseholdRole("member"); joined = true; }
           }
-          // 4. Auto-create household if no invite was accepted (Phase 10a)
-          if (!joined) {
-            const { data: h } = await supabase.from("households").insert({ name: "My Household" }).select().single();
-            if (h) {
-              await supabase.from("household_members").insert({ household_id: h.id, user_id: s.user.id, role: "owner" });
-              setHousehold(h);
-              setHouseholdRole("owner");
-            }
+        }
+
+        // 3. Check existing household membership
+        if (!joined) {
+          const { data: membership } = await supabase.from("household_members").select("household_id, role, households(id, name)").eq("user_id", s.user.id).maybeSingle();
+          if (membership?.households) {
+            setHousehold(membership.households);
+            setHouseholdRole(membership.role);
+            joined = true;
+          }
+        }
+
+        // 4. Auto-create household if still not in one
+        if (!joined) {
+          const { data: h } = await supabase.from("households").insert({ name: "My Household" }).select().single();
+          if (h) {
+            await supabase.from("household_members").insert({ household_id: h.id, user_id: s.user.id, role: "owner" });
+            setHousehold(h);
+            setHouseholdRole("owner");
           }
         }
       } catch (e) { console.error("[auth] error:", e); }
