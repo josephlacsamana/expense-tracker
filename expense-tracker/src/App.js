@@ -1197,7 +1197,7 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
                         <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}><span style={{ fontSize: 10, color: T.text3 }}>{pdP.toFixed(0)}% paid ({fmt(pd)})</span>{d.interestRate > 0 && <span style={{ fontSize: 10, color: T.text3 }}>{d.interestRate}% APR</span>}</div>
                         {d.minPayment > 0 && <div style={{ fontSize: 10, color: T.text3, marginTop: 3 }}>Min payment: {fmt(d.minPayment)}/mo</div>}
                         <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
-                          {d.currentBalance > 0 && <button onClick={() => setSpay(d.id)} style={{ ...btnP, padding: "7px 14px", fontSize: 11, flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}><Coins size={12} />Pay</button>}
+                          {d.currentBalance > 0 && <button onClick={() => { setSpay(d.id); setPayAmt(d.minPayment > 0 ? String(d.minPayment) : ""); }} style={{ ...btnP, padding: "7px 14px", fontSize: 11, flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}><Coins size={12} />Pay</button>}
                           <button onClick={() => setViewDt(isEx ? null : d.id)} style={{ ...btnG, padding: "7px 14px", fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}><ChevronDown size={12} style={{ transform: isEx ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />{pays.length}</button>
                           <button onClick={() => edDebt(d)} style={{ background: "none", border: "none", color: T.gold, cursor: "pointer", padding: 4 }}><Edit3 size={14} /></button>
                           <button onClick={() => setDdDc(d.id)} style={{ background: "none", border: "none", color: T.err, cursor: "pointer", padding: 4 }}><Trash2 size={14} /></button>
@@ -1400,18 +1400,18 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
         {drc && <div style={mOvS}><div style={mInS}><div style={{ textAlign: "center" }}><AlertTriangle size={36} style={{ color: T.err, marginBottom: 14 }} /><div style={{ fontSize: 18, fontWeight: 700, color: T.text1, marginBottom: 6 }}>Delete recurring expense?</div><div style={{ display: "flex", gap: 8, marginTop: 20 }}><button onClick={() => delRec(drc)} style={{ ...btnP, flex: 1, background: T.err, boxShadow: "none" }}>Delete</button><button onClick={() => setDrc(null)} style={{ ...btnG, flex: 1 }}>Cancel</button></div></div></div></div>}
 
         {sdf && <div style={mOvS}><div style={mInS}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}><div style={{ fontSize: 18, fontWeight: 800, color: T.text1 }}>{edtId ? "Edit" : "Add"} Debt</div><button onClick={rstDf} style={{ background: "none", border: "none", color: T.text3, cursor: "pointer" }}><X size={22} /></button></div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <input placeholder="Name (e.g. BDO Credit Card)" value={ddf.name} onChange={e => setDdf(v => ({ ...v, name: e.target.value }))} style={inpS} />
-            <select value={ddf.type} onChange={e => setDdf(v => ({ ...v, type: e.target.value }))} style={inpS}>{DEBT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div><input placeholder="Name (e.g. BDO Credit Card)" value={ddf.name} onChange={e => setDdf(v => ({ ...v, name: e.target.value }))} style={inpS} /><div style={{ fontSize: 10, color: T.text3, marginTop: 4, paddingLeft: 2 }}>What you call this debt</div></div>
+            <div><select value={ddf.type} onChange={e => setDdf(v => ({ ...v, type: e.target.value }))} style={inpS}>{DEBT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select><div style={{ fontSize: 10, color: T.text3, marginTop: 4, paddingLeft: 2 }}>Type of debt or loan</div></div>
             <div style={{ display: "flex", gap: 8 }}>
-              <input placeholder="Total Amount" type="number" inputMode="decimal" value={ddf.totalAmount} onChange={e => setDdf(v => ({ ...v, totalAmount: e.target.value }))} style={{ ...inpS, flex: 1 }} />
-              <input placeholder="Current Balance" type="number" inputMode="decimal" value={ddf.currentBalance} onChange={e => setDdf(v => ({ ...v, currentBalance: e.target.value }))} style={{ ...inpS, flex: 1 }} />
+              <div style={{ flex: 1 }}><input placeholder="Total Amount" type="number" inputMode="decimal" value={ddf.totalAmount} onChange={e => setDdf(v => ({ ...v, totalAmount: e.target.value }))} style={inpS} /><div style={{ fontSize: 10, color: T.text3, marginTop: 4, paddingLeft: 2 }}>Original loan or credit limit</div></div>
+              <div style={{ flex: 1 }}><input placeholder="Current Balance" type="number" inputMode="decimal" value={ddf.currentBalance} onChange={e => setDdf(v => ({ ...v, currentBalance: e.target.value }))} style={inpS} /><div style={{ fontSize: 10, color: T.text3, marginTop: 4, paddingLeft: 2 }}>How much you still owe</div></div>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
-              <input placeholder="Due day (1-31)" type="number" inputMode="numeric" min="1" max="31" value={ddf.dueDate} onChange={e => setDdf(v => ({ ...v, dueDate: e.target.value }))} style={{ ...inpS, flex: 1 }} />
-              <input placeholder="Interest % (APR)" type="number" inputMode="decimal" value={ddf.interestRate} onChange={e => setDdf(v => ({ ...v, interestRate: e.target.value }))} style={{ ...inpS, flex: 1 }} />
+              <div style={{ flex: 1 }}><input placeholder="Due day (1-31)" type="number" inputMode="numeric" min="1" max="31" value={ddf.dueDate} onChange={e => setDdf(v => ({ ...v, dueDate: e.target.value }))} style={inpS} /><div style={{ fontSize: 10, color: T.text3, marginTop: 4, paddingLeft: 2 }}>Day of month payment is due</div></div>
+              <div style={{ flex: 1 }}><input placeholder="Interest % (APR)" type="number" inputMode="decimal" value={ddf.interestRate} onChange={e => setDdf(v => ({ ...v, interestRate: e.target.value }))} style={inpS} /><div style={{ fontSize: 10, color: T.text3, marginTop: 4, paddingLeft: 2 }}>Annual interest rate</div></div>
             </div>
-            <input placeholder="Min. Monthly Payment" type="number" inputMode="decimal" value={ddf.minPayment} onChange={e => setDdf(v => ({ ...v, minPayment: e.target.value }))} style={inpS} />
+            <div><input placeholder="Min. Monthly Payment" type="number" inputMode="decimal" value={ddf.minPayment} onChange={e => setDdf(v => ({ ...v, minPayment: e.target.value }))} style={inpS} /><div style={{ fontSize: 10, color: T.text3, marginTop: 4, paddingLeft: 2 }}>Minimum amount due each month</div></div>
             <button onClick={doDebt} style={{ ...btnP, width: "100%" }}>{edtId ? "Update" : "Add Debt"}</button>
           </div>
         </div></div>}
