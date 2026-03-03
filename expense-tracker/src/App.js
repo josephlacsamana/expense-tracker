@@ -190,83 +190,6 @@ function useMediaQuery(query) {
   return matches;
 }
 
-const SEED_EXP = [
-  // March 2026
-  { amount: 628, category: "Food", description: "Grab Food delivery", date: "2026-03-02", addedBy: "Joseph" },
-  { amount: 194, category: "Food", description: "Merienda at Jollibee", date: "2026-03-02", addedBy: "Rowena" },
-  { amount: 85, category: "Food", description: "Kape at Tim Hortons", date: "2026-03-01", addedBy: "Rowena" },
-  { amount: 1500, category: "Transport", description: "Gas full tank Shell SLEX", date: "2026-03-01", addedBy: "Joseph" },
-  { amount: 245, category: "Food", description: "Lunch at Chowking", date: "2026-03-01", addedBy: "Joseph" },
-  // Feb 28
-  { amount: 89, category: "Food", description: "Coffee at Starbucks BGC", date: "2026-02-28", addedBy: "Rowena" },
-  { amount: 1850, category: "Shopping", description: "Lazada home decor", date: "2026-02-28", addedBy: "Rowena" },
-  { amount: 320, category: "Food", description: "Samgyupsal dinner", date: "2026-02-28", addedBy: "Joseph" },
-  // Feb 27
-  { amount: 2500, category: "Bills", description: "Meralco electricity", date: "2026-02-27", addedBy: "Joseph" },
-  { amount: 1299, category: "Bills", description: "PLDT Fibr internet", date: "2026-02-27", addedBy: "Joseph" },
-  { amount: 150, category: "Transport", description: "Angkas to office", date: "2026-02-27", addedBy: "Rowena" },
-  // Feb 26
-  { amount: 549, category: "Subscriptions", description: "Netflix Premium", date: "2026-02-26", addedBy: "Joseph" },
-  { amount: 159, category: "Subscriptions", description: "Spotify Premium", date: "2026-02-26", addedBy: "Rowena" },
-  { amount: 399, category: "Food", description: "Puregold grocery run", date: "2026-02-26", addedBy: "Rowena" },
-  // Feb 25
-  { amount: 3200, category: "Shopping", description: "Shopee haul - kitchen stuff", date: "2026-02-25", addedBy: "Rowena" },
-  { amount: 450, category: "Food", description: "Grocery at SM Hypermarket", date: "2026-02-25", addedBy: "Joseph" },
-  { amount: 200, category: "Entertainment", description: "Mobile Legends diamonds", date: "2026-02-25", addedBy: "Joseph" },
-  // Feb 24
-  { amount: 180, category: "Transport", description: "Grab ride to BGC", date: "2026-02-24", addedBy: "Rowena" },
-  { amount: 350, category: "Food", description: "Dinner at Mang Inasal", date: "2026-02-24", addedBy: "Joseph" },
-  { amount: 120, category: "Food", description: "Potato Corner + milk tea", date: "2026-02-24", addedBy: "Rowena" },
-  // Feb 23
-  { amount: 1200, category: "Health", description: "Dental cleaning Molar City", date: "2026-02-23", addedBy: "Rowena" },
-  { amount: 750, category: "Entertainment", description: "Movie at SM Cinema", date: "2026-02-23", addedBy: "Joseph" },
-  { amount: 275, category: "Food", description: "Pancit Canton + ulam sa palengke", date: "2026-02-23", addedBy: "Rowena" },
-  // Feb 22
-  { amount: 2800, category: "Shopping", description: "Nike running shoes Trinoma", date: "2026-02-22", addedBy: "Joseph" },
-  { amount: 520, category: "Food", description: "Yellow Cab pizza lunch", date: "2026-02-22", addedBy: "Rowena" },
-  { amount: 99, category: "Subscriptions", description: "iCloud storage", date: "2026-02-22", addedBy: "Rowena" },
-  // Feb 21
-  { amount: 65, category: "Transport", description: "Angkas ride Ortigas", date: "2026-02-21", addedBy: "Rowena" },
-  { amount: 4500, category: "Bills", description: "Water bill + condo dues", date: "2026-02-21", addedBy: "Joseph" },
-  { amount: 389, category: "Food", description: "Foodpanda - Max's Chicken", date: "2026-02-21", addedBy: "Joseph" },
-  // Feb 20
-  { amount: 890, category: "Food", description: "Weekend groceries Robinsons", date: "2026-02-20", addedBy: "Rowena" },
-  { amount: 1350, category: "Entertainment", description: "KTV with barkada", date: "2026-02-20", addedBy: "Joseph" },
-  { amount: 250, category: "Transport", description: "Grab to Alabang", date: "2026-02-20", addedBy: "Joseph" },
-  // Feb 19
-  { amount: 299, category: "Health", description: "Mercury Drug vitamins", date: "2026-02-19", addedBy: "Rowena" },
-  { amount: 175, category: "Transport", description: "Grab to Makati CBD", date: "2026-02-19", addedBy: "Joseph" },
-  { amount: 185, category: "Food", description: "Ministop chicken + rice", date: "2026-02-19", addedBy: "Rowena" },
-  // Feb 18
-  { amount: 1800, category: "Bills", description: "Globe postpaid plan", date: "2026-02-18", addedBy: "Joseph" },
-  { amount: 650, category: "Health", description: "Watsons skincare haul", date: "2026-02-18", addedBy: "Rowena" },
-  { amount: 430, category: "Food", description: "Date night at Bonchon", date: "2026-02-18", addedBy: "Joseph" },
-  // Feb 17
-  { amount: 2100, category: "Shopping", description: "Uniqlo clothes Ayala", date: "2026-02-17", addedBy: "Joseph" },
-  { amount: 380, category: "Food", description: "Turks shawarma + drinks", date: "2026-02-17", addedBy: "Rowena" },
-  { amount: 100, category: "Transport", description: "Jeepney + MRT fare", date: "2026-02-17", addedBy: "Rowena" },
-  // Feb 16
-  { amount: 1500, category: "Entertainment", description: "Concert tickets MOA Arena", date: "2026-02-16", addedBy: "Joseph" },
-  { amount: 750, category: "Food", description: "Sinigang + pulutan sa dampa", date: "2026-02-16", addedBy: "Joseph" },
-  { amount: 280, category: "Transport", description: "Grab to MOA", date: "2026-02-16", addedBy: "Rowena" },
-  // Feb 15
-  { amount: 3500, category: "Bills", description: "Condo association dues", date: "2026-02-15", addedBy: "Joseph" },
-  { amount: 199, category: "Subscriptions", description: "YouTube Premium", date: "2026-02-15", addedBy: "Joseph" },
-  { amount: 1200, category: "Food", description: "Valentine's dinner at Ramen Nagi", date: "2026-02-15", addedBy: "Joseph" },
-  // Feb 14
-  { amount: 2500, category: "Shopping", description: "Valentine's gift - perfume", date: "2026-02-14", addedBy: "Joseph" },
-  { amount: 450, category: "Shopping", description: "Valentine's gift - wallet", date: "2026-02-14", addedBy: "Rowena" },
-  { amount: 350, category: "Food", description: "Krispy Kreme donuts", date: "2026-02-14", addedBy: "Rowena" },
-  // Feb 13
-  { amount: 500, category: "Health", description: "Gym membership Anytime Fitness", date: "2026-02-13", addedBy: "Joseph" },
-  { amount: 220, category: "Food", description: "Jolly Spaghetti meal", date: "2026-02-13", addedBy: "Rowena" },
-  { amount: 95, category: "Transport", description: "Beep card load LRT", date: "2026-02-13", addedBy: "Rowena" },
-].map(e => ({ ...e, id: uid(), createdAt: Date.now() }));
-const SEED_ACCT = [
-  { id: uid(), name: "BDO Savings", balance: 45000, type: "savings", updatedAt: Date.now() },
-  { id: uid(), name: "BPI Checking", balance: 12500, type: "checking", updatedAt: Date.now() },
-  { id: uid(), name: "GCash", balance: 3200, type: "other", updatedAt: Date.now() },
-];
 const DEFAULT_BUDGETS = { Food: 0, Transport: 0, Bills: 0, Shopping: 0, Health: 0, Entertainment: 0, Subscriptions: 0, Other: 0 };
 const DEFAULT_PINS = { Joseph: "1234", Rowena: "5678" };
 
@@ -553,10 +476,6 @@ function MainApp({ user, householdId, householdRole, onLogout, theme, toggleThem
               }
             }
           } catch {}
-          // Nothing in localStorage either — seed
-          setExp(SEED_EXP); setAccts(SEED_ACCT);
-          await sb.upsertExpenses(SEED_EXP, householdId);
-          await supabase.from("accounts").upsert(SEED_ACCT.map(a => ({ id: a.id, name: a.name, balance: a.balance, type: a.type, household_id: householdId, updated_at: a.updatedAt })));
           setLd(false); return;
         }
         // ─── FALLBACK: LOAD FROM LOCALSTORAGE ───
@@ -571,8 +490,6 @@ function MainApp({ user, householdId, householdRole, onLogout, theme, toggleThem
           try { const dtp = await localStore.get("debtPayments"); if (dtp?.value) setDPays(JSON.parse(dtp.value)); } catch {}
           setLd(false); return; } }
       } catch (e) { console.error(e); }
-      setExp(SEED_EXP); setAccts(SEED_ACCT);
-      try { await localStore.set("expenses", JSON.stringify(SEED_EXP)); await localStore.set("accounts", JSON.stringify(SEED_ACCT)); } catch {}
       setLd(false);
     })();
   }, [householdId]); // eslint-disable-line react-hooks/exhaustive-deps
