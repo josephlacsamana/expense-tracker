@@ -1525,9 +1525,11 @@ export default function App() {
 
         // 3. Auto-create household if not in one (always safe — invite handled separately after auth)
         if (!joined) {
-          const { data: h } = await supabase.from("households").insert({ name: "My Household" }).select().single();
+          const { data: h, error: hErr } = await supabase.from("households").insert({ name: "My Household" }).select().single();
+          console.log("[auth] household create:", h, "err:", hErr);
           if (h) {
-            await supabase.from("household_members").insert({ household_id: h.id, user_id: s.user.id, role: "owner" });
+            const { error: hmErr } = await supabase.from("household_members").insert({ household_id: h.id, user_id: s.user.id, role: "owner" });
+            console.log("[auth] household_members insert err:", hmErr);
             setHousehold(h);
             setHouseholdRole("owner");
           }
