@@ -292,8 +292,8 @@ function LoginScreen({ onLogin, theme, toggleTheme, authError, localMode }) {
   const doGoogleLogin = async () => {
     setSigningIn(true); setErr("");
     try {
-      const pendingToken = localStorage.getItem("pendingInvite");
-      const redirectTo = window.location.origin + (pendingToken ? `/invite/${pendingToken}` : "");
+      // Always redirect to base URL — invite token is in localStorage and handled separately after auth
+      const redirectTo = window.location.origin;
       const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo } });
       if (error) { setErr(error.message); setSigningIn(false); }
     } catch { setErr("Failed to start sign in."); setSigningIn(false); }
