@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Plus, Trash2, Edit3, X, Check, Search, MessageSquare, LayoutDashboard, PieChart, Settings, ChevronDown, Lock, LogOut, ImagePlus, Send, RefreshCw, Download, AlertTriangle, TrendingUp, TrendingDown, PiggyBank, CreditCard, Building2, Wallet, Lightbulb, Coins, Sun, Moon, Repeat } from "lucide-react";
+import { Plus, Trash2, Edit3, X, Check, Search, MessageSquare, LayoutDashboard, PieChart, Settings, ChevronDown, Lock, LogOut, ImagePlus, Send, RefreshCw, Download, AlertTriangle, TrendingUp, TrendingDown, PiggyBank, CreditCard, Building2, Wallet, Lightbulb, Coins, Sun, Moon, Repeat, Copy, UserPlus, Home } from "lucide-react";
 import { PieChart as RPie, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, LineChart, Line, CartesianGrid, Legend } from "recharts";
 import { supabase, sbReady } from "./supabase";
 
@@ -390,8 +390,45 @@ function LoginScreen({ onLogin, theme, toggleTheme, authError, localMode }) {
   );
 }
 
+// ─── NO HOUSEHOLD SCREEN ───
+function NoHouseholdScreen({ name, onCreate, onLogout, theme, toggleTheme }) {
+  const T = themes[theme];
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const [creating, setCreating] = useState(false);
+  const doCreate = async () => { setCreating(true); await onCreate(); setCreating(false); };
+  return (
+    <div style={{ minHeight: "100vh", background: T.gradBg, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: 24, position: "relative" }}>
+      <button onClick={toggleTheme} style={{ position: "absolute", top: 20, right: 20, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 10, cursor: "pointer", color: T.text2, display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 600 }}>
+        {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+        {theme === "dark" ? "Light" : "Dark"}
+      </button>
+      <div style={{ width: 72, height: 72, borderRadius: 20, background: T.grad, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 12px 40px rgba(245,181,38,0.25)", marginBottom: 24 }}>
+        <Home size={36} style={{ color: theme === "dark" ? "#0C0C12" : "#FFF" }} />
+      </div>
+      <h1 style={{ fontSize: isDesktop ? 32 : 26, fontWeight: 800, margin: 0, color: T.text1, textAlign: "center" }}>Welcome, {name}</h1>
+      <p style={{ color: T.text3, fontSize: 14, margin: "10px 0 28px", textAlign: "center", maxWidth: 360, lineHeight: 1.5 }}>
+        You're not part of a household yet. Create one to start tracking expenses, or ask someone to send you an invite link.
+      </p>
+      <button onClick={doCreate} disabled={creating} style={{
+        padding: "16px 32px", borderRadius: 14, border: "none", cursor: creating ? "default" : "pointer",
+        background: T.grad, color: theme === "dark" ? "#0C0C12" : "#FFF", fontSize: 15, fontWeight: 700,
+        opacity: creating ? 0.5 : 1, boxShadow: "0 4px 16px rgba(245,181,38,0.2)", display: "flex", alignItems: "center", gap: 10, marginBottom: 12
+      }}>
+        <Home size={18} />
+        {creating ? "Creating..." : "Create Your Household"}
+      </button>
+      <p style={{ color: T.text3, fontSize: 11, textAlign: "center", maxWidth: 300, lineHeight: 1.5, marginBottom: 24 }}>
+        Have an invite link? Open it in your browser first, then sign in.
+      </p>
+      <button onClick={onLogout} style={{ background: "none", border: `1px solid ${T.border}`, borderRadius: 12, padding: "10px 20px", color: T.text2, fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
+        <LogOut size={14} />Logout
+      </button>
+    </div>
+  );
+}
+
 // ─── MAIN APP ───
-function MainApp({ user, onLogout, theme, toggleTheme }) {
+function MainApp({ user, householdId, householdRole, onLogout, theme, toggleTheme }) {
   const T = themes[theme];
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const [tab, setTab] = useState("dashboard");
@@ -437,6 +474,9 @@ function MainApp({ user, onLogout, theme, toggleTheme }) {
   const [erId, setErId] = useState(null);
   const [rf, setRf] = useState({ amount: "", category: "Food", description: "", frequency: "monthly", nextDate: td() });
   const [drc, setDrc] = useState(null);
+  const [inviteModal, setInviteModal] = useState(false);
+  const [inviteLink, setInviteLink] = useState("");
+  const [inviteCopied, setInviteCopied] = useState(false);
   const [users, setUsers] = useState([user]);
   const tst = (m) => { setToast(m); setTimeout(() => setToast(null), 2500); };
   const catColors = (() => { let ei = 0; return cats.reduce((o, c) => { if (DEF_CCO[c]) { o[c] = DEF_CCO[c]; } else { o[c] = EXTRA_COLORS[ei % EXTRA_COLORS.length]; ei++; } return o; }, {}); })();
@@ -518,7 +558,12 @@ function MainApp({ user, onLogout, theme, toggleTheme }) {
     })();
   }, []);
   useEffect(() => { cr.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, pe]);
-  useEffect(() => { if (sbReady) { supabase.from("profiles").select("display_name").then(({ data }) => { if (data?.length) setUsers(data.map(p => p.display_name)); }); } }, []);
+  useEffect(() => {
+    if (sbReady && householdId) {
+      supabase.from("household_members").select("profiles(display_name)").eq("household_id", householdId)
+        .then(({ data }) => { if (data?.length) setUsers(data.map(m => m.profiles?.display_name).filter(Boolean)); });
+    }
+  }, [householdId]);
 
   const svE = async (d, opts) => { setExp(d); try { if (sbReady) { if (opts?.deleteId) await sb.deleteExpense(opts.deleteId); else if (opts?.upsert) await sb.upsertExpense(opts.upsert); else if (opts?.upsertMany) await sb.upsertExpenses(opts.upsertMany); else await sb.upsertExpenses(d); } else await localStore.set("expenses", JSON.stringify(d)); } catch {} };
   const svA = async (d, opts) => { setAccts(d); try { if (sbReady) { if (opts?.deleteId) await sb.deleteAccount(opts.deleteId); else if (opts?.upsert) await sb.upsertAccount(opts.upsert); else await supabase.from("accounts").upsert(d.map(a => ({ id: a.id, name: a.name, balance: a.balance, type: a.type, updated_at: a.updatedAt }))); } else await localStore.set("accounts", JSON.stringify(d)); } catch {} };
@@ -579,6 +624,22 @@ function MainApp({ user, onLogout, theme, toggleTheme }) {
     const b = new Blob([h + r], { type: "text/csv" }); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = "expenses.csv"; a.click(); URL.revokeObjectURL(u);
   };
   const clearAll = async () => { setExp([]); setAccts([]); setRec([]); setGenBudget(0); setCats(DEF_CATS); setBudgets(DEFAULT_BUDGETS); try { if (sbReady) { await Promise.all([sb.deleteAllExpenses(), sb.deleteAllAccounts(), sb.deleteAllRecurring(), sb.saveCategories(DEF_CATS), sb.saveSetting("budgets", DEFAULT_BUDGETS), sb.saveSetting("genBudget", 0)]); } else { await localStore.set("expenses", JSON.stringify([])); await localStore.set("accounts", JSON.stringify([])); await localStore.set("recurring", JSON.stringify([])); await localStore.set("genBudget", JSON.stringify(0)); await localStore.set("categories", JSON.stringify(DEF_CATS)); await localStore.set("budgets", JSON.stringify(DEFAULT_BUDGETS)); } } catch {} setClr(false); tst("All data cleared"); };
+
+  const generateInvite = async () => {
+    if (!sbReady || !householdId) return;
+    // Check for existing unused invite
+    const { data: existing } = await supabase.from("invites").select("*").eq("household_id", householdId).eq("used", false).gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false }).limit(1);
+    if (existing?.length) {
+      setInviteLink(`${window.location.origin}?invite=${existing[0].token}`);
+    } else {
+      const { data: inv } = await supabase.from("invites").insert({ household_id: householdId, created_by: supabase.auth.getUser ? (await supabase.auth.getUser()).data.user?.id : null }).select().single();
+      if (inv) setInviteLink(`${window.location.origin}?invite=${inv.token}`);
+    }
+    setInviteCopied(false);
+    setInviteModal(true);
+  };
+
+  const copyInvite = () => { navigator.clipboard.writeText(inviteLink).then(() => { setInviteCopied(true); setTimeout(() => setInviteCopied(false), 2000); }); };
 
   const SYS = `You are an expense tracker assistant for a couple (${users.join(" and ")}). Currency: PHP (Philippine Peso).
 RESPOND ONLY WITH VALID JSON. No markdown, no backticks. Today: ${td()}. Current user: ${user}.
@@ -1187,6 +1248,18 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
                   </div>
                   {cats.length >= 15 && <div style={{ fontSize: 10, color: T.text3, marginTop: 6 }}>Maximum 15 categories reached</div>}
                 </div>
+                {sbReady && householdId && (
+                  <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 8, marginBottom: 16 }}>
+                    <button onClick={generateInvite} style={{ ...cardS, width: "100%", padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>
+                      <UserPlus size={18} style={{ color: T.gold }} />
+                      <div><div style={{ fontSize: 13, fontWeight: 600 }}>Invite Partner</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>Send a link to join your household</div></div>
+                    </button>
+                    <div style={{ ...cardS, padding: "16px 18px", display: "flex", alignItems: "center", gap: 12 }}>
+                      <Home size={18} style={{ color: T.gold }} />
+                      <div><div style={{ fontSize: 13, fontWeight: 600 }}>Household</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>{users.length} member{users.length !== 1 ? "s" : ""} -- {householdRole}</div></div>
+                    </div>
+                  </div>
+                )}
                 <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 8 }}>
                   <button onClick={exportCSV} style={{ ...cardS, width: "100%", padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}><Download size={18} style={{ color: T.gold }} /><div><div style={{ fontSize: 13, fontWeight: 600 }}>Export CSV</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>Download all expenses</div></div></button>
                   <button onClick={() => setClr(true)} style={{ ...cardS, width: "100%", padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left", borderColor: `${T.err}30` }}><AlertTriangle size={18} style={{ color: T.err }} /><div><div style={{ fontSize: 13, fontWeight: 600, color: T.err }}>Clear All Data</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>Remove everything permanently</div></div></button>
@@ -1197,6 +1270,21 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
         )}
 
         {/* MODALS */}
+        {inviteModal && <div style={mOvS}><div style={{ ...mInS, maxWidth: 420 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: T.text1 }}>Invite Partner</div>
+            <button onClick={() => setInviteModal(false)} style={{ background: "none", border: "none", color: T.text3, cursor: "pointer" }}><X size={22} /></button>
+          </div>
+          <p style={{ fontSize: 13, color: T.text2, marginBottom: 16, lineHeight: 1.5 }}>Share this link with your partner. They'll sign in with Google and automatically join your household.</p>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16 }}>
+            <input readOnly value={inviteLink} style={{ ...inpS, flex: 1, fontSize: 11, fontFamily: "monospace" }} />
+            <button onClick={copyInvite} style={{ ...btnP, padding: "12px 16px", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6 }}>
+              {inviteCopied ? <><Check size={14} />Copied</> : <><Copy size={14} />Copy</>}
+            </button>
+          </div>
+          <p style={{ fontSize: 11, color: T.text3, margin: 0 }}>Link expires in 7 days. Only one use per link.</p>
+        </div></div>}
+
         {sf && <div style={mOvS}><div style={mInS}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}><div style={{ fontSize: 18, fontWeight: 800, color: T.text1 }}>{eId ? "Edit" : "Add"} Expense</div><button onClick={rstF} style={{ background: "none", border: "none", color: T.text3, cursor: "pointer" }}><X size={22} /></button></div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <input placeholder="Amount" type="number" inputMode="decimal" value={form.amount} onChange={e => setForm(v => ({ ...v, amount: e.target.value }))} style={inpS} />
@@ -1257,46 +1345,87 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
 export default function App() {
   const [, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [household, setHousehold] = useState(null);
+  const [householdRole, setHouseholdRole] = useState(null);
   const [localUser, setLocalUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState(null); // eslint-disable-line no-unused-vars
   const [theme, setTheme] = useState("light");
   const toggle = () => setTheme(v => v === "dark" ? "light" : "dark");
 
+  // Capture invite token from URL on mount
   useEffect(() => {
-    if (!sbReady) { console.log("[auth] no supabase, local mode"); setAuthLoading(false); return; }
-    // Safety: never stay on loading forever
-    const timeout = setTimeout(() => { console.log("[auth] timeout, forcing load"); setAuthLoading(false); }, 5000);
+    const params = new URLSearchParams(window.location.search);
+    const invite = params.get("invite");
+    if (invite) {
+      localStorage.setItem("pendingInvite", invite);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!sbReady) { setAuthLoading(false); return; }
+    const timeout = setTimeout(() => { setAuthLoading(false); }, 5000);
     const handleSession = async (s) => {
-      console.log("[auth] handleSession, has session:", !!s);
       try {
-        if (!s) { setSession(null); setProfile(null); clearTimeout(timeout); setAuthLoading(false); return; }
+        if (!s) { setSession(null); setProfile(null); setHousehold(null); setHouseholdRole(null); clearTimeout(timeout); setAuthLoading(false); return; }
         setSession(s);
-        console.log("[auth] fetching profile for:", s.user.id);
+        // 1. Fetch or create profile
+        let prof;
         const { data: existing, error: profileErr } = await supabase.from("profiles").select("*").eq("id", s.user.id).single();
-        console.log("[auth] profile result:", existing, "error:", profileErr);
-        if (existing && !profileErr) { setProfile(existing); }
+        if (existing && !profileErr) { prof = existing; }
         else {
           const fullName = s.user.user_metadata?.full_name || s.user.user_metadata?.name || "";
           const displayName = fullName.split(" ")[0] || s.user.email.split("@")[0];
-          const np = { id: s.user.id, email: s.user.email, display_name: displayName, avatar_url: s.user.user_metadata?.avatar_url || "" };
-          console.log("[auth] creating profile:", np);
-          const { error: insertErr } = await supabase.from("profiles").insert(np);
-          if (!insertErr) setProfile(np);
-          else { console.log("[auth] insert error:", insertErr); setProfile({ display_name: displayName }); }
+          prof = { id: s.user.id, email: s.user.email, display_name: displayName, avatar_url: s.user.user_metadata?.avatar_url || "" };
+          const { error: insertErr } = await supabase.from("profiles").insert(prof);
+          if (insertErr) prof = { id: s.user.id, display_name: displayName };
+        }
+        setProfile(prof);
+
+        // 2. Check household membership
+        const { data: membership } = await supabase.from("household_members").select("household_id, role, households(id, name)").eq("user_id", s.user.id).single();
+        if (membership?.households) {
+          setHousehold(membership.households);
+          setHouseholdRole(membership.role);
+        } else {
+          // 3. Check for pending invite token
+          const pendingToken = localStorage.getItem("pendingInvite");
+          if (pendingToken) {
+            const { data: inv } = await supabase.from("invites").select("*").eq("token", pendingToken).eq("used", false).single();
+            if (inv && new Date(inv.expires_at) > new Date()) {
+              // Accept invite: join household
+              await supabase.from("household_members").insert({ household_id: inv.household_id, user_id: s.user.id, role: "member" });
+              await supabase.from("invites").update({ used: true, used_by: s.user.id }).eq("id", inv.id);
+              const { data: h } = await supabase.from("households").select("*").eq("id", inv.household_id).single();
+              if (h) { setHousehold(h); setHouseholdRole("member"); }
+            }
+            localStorage.removeItem("pendingInvite");
+          }
+          // If still no household, profile is set but household is null → NoHouseholdScreen
         }
       } catch (e) { console.error("[auth] error:", e); }
       clearTimeout(timeout);
       setAuthLoading(false);
     };
-    supabase.auth.getSession().then(({ data: { session: s } }) => { console.log("[auth] getSession done"); handleSession(s); }).catch((e) => { console.error("[auth] getSession failed:", e); clearTimeout(timeout); setAuthLoading(false); });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_ev, s) => { console.log("[auth] stateChange:", _ev); handleSession(s); });
+    supabase.auth.getSession().then(({ data: { session: s } }) => handleSession(s)).catch(() => { clearTimeout(timeout); setAuthLoading(false); });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_ev, s) => handleSession(s));
     return () => { subscription.unsubscribe(); clearTimeout(timeout); };
   }, []);
 
   const handleLogout = async () => {
     if (sbReady) { try { await supabase.auth.signOut({ scope: "local" }); } catch {} }
-    setSession(null); setProfile(null); setAuthLoading(false);
+    setSession(null); setProfile(null); setHousehold(null); setHouseholdRole(null); setAuthLoading(false);
+  };
+
+  const handleCreateHousehold = async () => {
+    if (!profile?.id) return;
+    const { data: h } = await supabase.from("households").insert({ name: "My Household" }).select().single();
+    if (h) {
+      await supabase.from("household_members").insert({ household_id: h.id, user_id: profile.id, role: "owner" });
+      setHousehold(h);
+      setHouseholdRole("owner");
+    }
   };
 
   if (authLoading) {
@@ -1308,9 +1437,13 @@ export default function App() {
 
   if (sbReady) {
     const user = profile?.display_name || null;
-    return user
-      ? <MainApp user={user} onLogout={handleLogout} theme={theme} toggleTheme={toggle} />
-      : <LoginScreen theme={theme} toggleTheme={toggle} authError={authError} />;
+    if (user && household) {
+      return <MainApp user={user} householdId={household.id} householdRole={householdRole} onLogout={handleLogout} theme={theme} toggleTheme={toggle} />;
+    }
+    if (user && !household) {
+      return <NoHouseholdScreen name={user} onCreate={handleCreateHousehold} onLogout={handleLogout} theme={theme} toggleTheme={toggle} />;
+    }
+    return <LoginScreen theme={theme} toggleTheme={toggle} authError={authError} />;
   }
 
   return localUser
