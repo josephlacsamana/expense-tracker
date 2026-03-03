@@ -1564,7 +1564,10 @@ export default function App() {
       handling = false;
     };
     supabase.auth.getSession().then(({ data: { session: s } }) => handleSession(s)).catch(() => { clearTimeout(timeout); setAuthLoading(false); });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_ev, s) => handleSession(s));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((ev, s) => {
+      if (ev === "INITIAL_SESSION") return;
+      handleSession(s);
+    });
     return () => { subscription.unsubscribe(); clearTimeout(timeout); };
   }, []);
 
