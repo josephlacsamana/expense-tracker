@@ -1547,7 +1547,7 @@ export default function App() {
 
   // Separate effect: check pendingInvite AFTER auth is fully loaded
   useEffect(() => {
-    if (!sbReady || authLoading || !session) return;
+    if (!sbReady || authLoading || !profile) return;
     const token = localStorage.getItem("pendingInvite");
     if (!token) return;
     localStorage.removeItem("pendingInvite");
@@ -1558,10 +1558,10 @@ export default function App() {
         const { data: invitedH } = await supabase.from("households").select("*").eq("id", inv.household_id).single();
         if (!invitedH) { setInviteError(true); return; }
         // Show confirmation screen — works for ALL users (new or existing)
-        setPendingInviteData({ inv, invitedHousehold: invitedH, userId: session.user.id });
+        setPendingInviteData({ inv, invitedHousehold: invitedH, userId: profile.id });
       } catch (e) { console.error("[invite] error:", e); setInviteError(true); }
     })();
-  }, [authLoading, session]);
+  }, [authLoading, profile]);
 
   const handleLogout = async () => {
     setInviteError(false);
