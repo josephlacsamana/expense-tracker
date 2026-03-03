@@ -52,12 +52,12 @@ On first Supabase load with empty tables, existing localStorage data is auto-mig
 
 ## Screens
 
-1. **Login** — PIN entry with role selection
+1. **Login** — Google OAuth (PIN fallback for local dev)
 2. **Dashboard** — Summary cards, charts, period selector
-3. **Expenses** — Full list with search, filters (date/category/person)
+3. **Expenses** — sub-tabs: List (full list with search/filters) | Recurring (templates)
 4. **AI Chat** — Chat interface for adding expenses and asking questions
-5. **Insights** — AI-generated spending reviews with period selector
-6. **More** — Accounts (manual bank balances), Budgets, Settings, Export
+5. **Accounts** — sub-tabs: Accounts (manual bank balances) | Budgets (general + per-category)
+6. **More** — sub-tabs: Insights (AI spending reviews) | Settings (categories, invite, export)
 
 ---
 
@@ -271,7 +271,7 @@ On first Supabase load with empty tables, existing localStorage data is auto-mig
 - [x] Keep "Invite Partner" and household info in Settings (optional, not required)
 - [x] Persist theme (dark/light) to localStorage — retain choice across login, logout, and page refreshes
 
-**10b — Tab Restructure**
+**10b — Tab Restructure** ✅ DONE
 
 New 5-tab layout (mobile bottom nav / desktop sidebar):
 ```
@@ -279,20 +279,20 @@ Dashboard | Expenses | AI Chat | Accounts | More
 ```
 
 - **Expenses tab** — sub-tabs: `List` | `Recurring`
-  - [ ] Move Recurring from More into Expenses as a sub-tab
-  - [ ] Expense list stays as-is (first sub-tab, default)
-  - [ ] Recurring templates as second sub-tab
+  - [x] Move Recurring from More into Expenses as a sub-tab
+  - [x] Expense list stays as-is (first sub-tab, default)
+  - [x] Recurring templates as second sub-tab
 
 - **Accounts tab** (new main tab, merged) — sub-tabs: `Accounts` | `Budgets`
-  - [ ] Move Accounts out of More into its own main tab
-  - [ ] Move Budgets out of More into Accounts as second sub-tab
-  - [ ] Bank balances + net worth in first sub-tab
-  - [ ] General budget + per-category budgets in second sub-tab
+  - [x] Move Accounts out of More into its own main tab
+  - [x] Move Budgets out of More into Accounts as second sub-tab
+  - [x] Bank balances + net worth in first sub-tab
+  - [x] General budget + per-category budgets in second sub-tab
 
 - **More tab** — sub-tabs: `Insights` | `Settings`
-  - [ ] Move Insights from main nav into More
-  - [ ] Settings stays in More
-  - [ ] Cleaner More tab with just 2 sub-tabs
+  - [x] Move Insights from main nav into More
+  - [x] Settings stays in More
+  - [x] Cleaner More tab with just 2 sub-tabs
 
 **10c — Account-Linked Expenses**
 - [ ] When adding an expense (manual form or AI Chat), user can optionally pick which account the money came from
