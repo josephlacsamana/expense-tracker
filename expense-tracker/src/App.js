@@ -1527,8 +1527,10 @@ export default function App() {
   const handleLogout = async () => {
     if (sbReady) {
       try { await supabase.auth.signOut(); } catch (e) { console.error("[logout] error:", e); }
+      window.location.href = "/";
+    } else {
+      setSession(null); setProfile(null); setHousehold(null); setHouseholdRole(null); setAuthLoading(false);
     }
-    setSession(null); setProfile(null); setHousehold(null); setHouseholdRole(null); setAuthLoading(false);
   };
 
   if (authLoading) {
