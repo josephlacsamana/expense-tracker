@@ -1472,9 +1472,12 @@ export default function App() {
   useEffect(() => {
     if (!sbReady) { setAuthLoading(false); return; }
     const timeout = setTimeout(() => { setAuthLoading(false); }, 5000);
+    let handling = false;
     const handleSession = async (s) => {
+      if (handling) return;
+      handling = true;
       try {
-        if (!s) { setSession(null); setProfile(null); setHousehold(null); setHouseholdRole(null); clearTimeout(timeout); setAuthLoading(false); return; }
+        if (!s) { setSession(null); setProfile(null); setHousehold(null); setHouseholdRole(null); clearTimeout(timeout); setAuthLoading(false); handling = false; return; }
         setSession(s);
         // 1. Fetch or create profile
         let prof;
@@ -1498,13 +1501,14 @@ export default function App() {
           if (inv && new Date(inv.expires_at) > new Date()) {
             const { data: invitedH } = await supabase.from("households").select("*").eq("id", inv.household_id).single();
             if (invitedH) {
-              const { data: existingM } = await supabase.from("household_members").select("*").eq("user_id", s.user.id).maybeSingle();
+              const { data: existingMs } = await supabase.from("household_members").select("*").eq("user_id", s.user.id).limit(1);
+              const existingM = existingMs?.[0] || null;
               if (existingM) {
                 // User already has a household — show confirmation screen, let them decide
                 const { data: currentH } = await supabase.from("households").select("*").eq("id", existingM.household_id).single();
                 if (currentH) { setHousehold(currentH); setHouseholdRole(existingM.role); }
                 setPendingInviteData({ inv, invitedHousehold: invitedH, userId: s.user.id });
-                clearTimeout(timeout); setAuthLoading(false); return;
+                clearTimeout(timeout); setAuthLoading(false); handling = false; return;
               } else {
                 // No existing household — auto-join, no confirmation needed
                 await supabase.from("household_members").insert({ household_id: inv.household_id, user_id: s.user.id, role: "member" });
@@ -1538,6 +1542,7 @@ export default function App() {
       } catch (e) { console.error("[auth] error:", e); }
       clearTimeout(timeout);
       setAuthLoading(false);
+      handling = false;
     };
     supabase.auth.getSession().then(({ data: { session: s } }) => handleSession(s)).catch(() => { clearTimeout(timeout); setAuthLoading(false); });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_ev, s) => handleSession(s));
