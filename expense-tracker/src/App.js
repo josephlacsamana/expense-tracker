@@ -391,42 +391,6 @@ function LoginScreen({ onLogin, theme, toggleTheme, authError, localMode }) {
 }
 
 // ─── NO HOUSEHOLD SCREEN ───
-function NoHouseholdScreen({ name, onCreate, onLogout, theme, toggleTheme }) {
-  const T = themes[theme];
-  const isDesktop = useMediaQuery("(min-width: 1024px)");
-  const [creating, setCreating] = useState(false);
-  const doCreate = async () => { setCreating(true); await onCreate(); setCreating(false); };
-  return (
-    <div style={{ minHeight: "100vh", background: T.gradBg, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: 24, position: "relative" }}>
-      <button onClick={toggleTheme} style={{ position: "absolute", top: 20, right: 20, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 10, cursor: "pointer", color: T.text2, display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 600 }}>
-        {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-        {theme === "dark" ? "Light" : "Dark"}
-      </button>
-      <div style={{ width: 72, height: 72, borderRadius: 20, background: T.grad, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 12px 40px rgba(245,181,38,0.25)", marginBottom: 24 }}>
-        <Home size={36} style={{ color: theme === "dark" ? "#0C0C12" : "#FFF" }} />
-      </div>
-      <h1 style={{ fontSize: isDesktop ? 32 : 26, fontWeight: 800, margin: 0, color: T.text1, textAlign: "center" }}>Welcome, {name}</h1>
-      <p style={{ color: T.text3, fontSize: 14, margin: "10px 0 28px", textAlign: "center", maxWidth: 360, lineHeight: 1.5 }}>
-        You're not part of a household yet. Create one to start tracking expenses, or ask someone to send you an invite link.
-      </p>
-      <button onClick={doCreate} disabled={creating} style={{
-        padding: "16px 32px", borderRadius: 14, border: "none", cursor: creating ? "default" : "pointer",
-        background: T.grad, color: theme === "dark" ? "#0C0C12" : "#FFF", fontSize: 15, fontWeight: 700,
-        opacity: creating ? 0.5 : 1, boxShadow: "0 4px 16px rgba(245,181,38,0.2)", display: "flex", alignItems: "center", gap: 10, marginBottom: 12
-      }}>
-        <Home size={18} />
-        {creating ? "Creating..." : "Create Your Household"}
-      </button>
-      <p style={{ color: T.text3, fontSize: 11, textAlign: "center", maxWidth: 300, lineHeight: 1.5, marginBottom: 24 }}>
-        Have an invite link? Open it in your browser first, then sign in.
-      </p>
-      <button onClick={onLogout} style={{ background: "none", border: `1px solid ${T.border}`, borderRadius: 12, padding: "10px 20px", color: T.text2, fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
-        <LogOut size={14} />Logout
-      </button>
-    </div>
-  );
-}
-
 // ─── MAIN APP ───
 function MainApp({ user, householdId, householdRole, onLogout, theme, toggleTheme }) {
   const T = themes[theme];
@@ -1350,8 +1314,8 @@ export default function App() {
   const [localUser, setLocalUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState(null); // eslint-disable-line no-unused-vars
-  const [theme, setTheme] = useState("light");
-  const toggle = () => setTheme(v => v === "dark" ? "light" : "dark");
+  const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "light");
+  const toggle = () => setTheme(v => { const next = v === "dark" ? "light" : "dark"; localStorage.setItem("theme", next); return next; });
 
   // Capture invite token from URL on mount
   useEffect(() => {
@@ -1390,19 +1354,27 @@ export default function App() {
           setHouseholdRole(membership.role);
         } else {
           // 3. Check for pending invite token
+          let joined = false;
           const pendingToken = localStorage.getItem("pendingInvite");
           if (pendingToken) {
             const { data: inv } = await supabase.from("invites").select("*").eq("token", pendingToken).eq("used", false).single();
             if (inv && new Date(inv.expires_at) > new Date()) {
-              // Accept invite: join household
               await supabase.from("household_members").insert({ household_id: inv.household_id, user_id: s.user.id, role: "member" });
               await supabase.from("invites").update({ used: true, used_by: s.user.id }).eq("id", inv.id);
               const { data: h } = await supabase.from("households").select("*").eq("id", inv.household_id).single();
-              if (h) { setHousehold(h); setHouseholdRole("member"); }
+              if (h) { setHousehold(h); setHouseholdRole("member"); joined = true; }
             }
             localStorage.removeItem("pendingInvite");
           }
-          // If still no household, profile is set but household is null → NoHouseholdScreen
+          // 4. Auto-create household if no invite was accepted (Phase 10a)
+          if (!joined) {
+            const { data: h } = await supabase.from("households").insert({ name: "My Household" }).select().single();
+            if (h) {
+              await supabase.from("household_members").insert({ household_id: h.id, user_id: s.user.id, role: "owner" });
+              setHousehold(h);
+              setHouseholdRole("owner");
+            }
+          }
         }
       } catch (e) { console.error("[auth] error:", e); }
       clearTimeout(timeout);
@@ -1418,16 +1390,6 @@ export default function App() {
     setSession(null); setProfile(null); setHousehold(null); setHouseholdRole(null); setAuthLoading(false);
   };
 
-  const handleCreateHousehold = async () => {
-    if (!profile?.id) return;
-    const { data: h } = await supabase.from("households").insert({ name: "My Household" }).select().single();
-    if (h) {
-      await supabase.from("household_members").insert({ household_id: h.id, user_id: profile.id, role: "owner" });
-      setHousehold(h);
-      setHouseholdRole("owner");
-    }
-  };
-
   if (authLoading) {
     const T = themes[theme];
     return (<div style={{ minHeight: "100vh", background: T.gradBg, display: "flex", justifyContent: "center", alignItems: "center" }}>
@@ -1439,9 +1401,6 @@ export default function App() {
     const user = profile?.display_name || null;
     if (user && household) {
       return <MainApp user={user} householdId={household.id} householdRole={householdRole} onLogout={handleLogout} theme={theme} toggleTheme={toggle} />;
-    }
-    if (user && !household) {
-      return <NoHouseholdScreen name={user} onCreate={handleCreateHousehold} onLogout={handleLogout} theme={theme} toggleTheme={toggle} />;
     }
     return <LoginScreen theme={theme} toggleTheme={toggle} authError={authError} />;
   }

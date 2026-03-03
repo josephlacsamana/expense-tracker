@@ -30,6 +30,12 @@ AI-powered receipt scanning, chat-based expense logging, dashboards, analytics, 
 | `recurring` | id (TEXT PK), amount, category, description, frequency, next_date, added_by, created_at | Templates |
 | `categories` | name (TEXT PK), sort_order (INT) | Dynamic, max 15 |
 | `settings` | key (TEXT PK), value (JSONB) | Stores: `budgets`, `genBudget`, `pins` |
+| `profiles` | id (UUID PK), email, display_name, avatar_url, created_at | Google Auth profiles |
+| `households` | id (UUID PK), name, created_at | Household groups |
+| `household_members` | id (UUID PK), household_id, user_id, role, joined_at | Membership + roles |
+| `invites` | id (UUID PK), household_id, created_by, token, used, used_by, created_at, expires_at | Single-use invite links |
+| `debts` | id (TEXT PK), name, type, total_amount, current_balance, due_date, interest_rate, min_payment, added_by, created_at, updated_at | *Planned — Phase 11* |
+| `debt_payments` | id (TEXT PK), debt_id (FK), amount, date, new_balance, created_at | *Planned — Phase 11* |
 
 Default categories: `["Food", "Transport", "Bills", "Shopping", "Health", "Entertainment", "Subscriptions", "Other"]`
 
@@ -209,34 +215,39 @@ On first Supabase load with empty tables, existing localStorage data is auto-mig
 
 ### Phase 9 — Google Auth & Multi-Household System
 
-**9a — Google Authentication** (code done, manual Supabase/Google setup needed)
+**9a — Google Authentication** ✅ DONE
 - [x] Replace PIN-based login with "Sign in with Google" button
 - [x] Store user profile (name, email, avatar) in a `profiles` table
 - [x] Session management via Supabase Auth (auto-refresh, persist across tabs)
 - [x] Show user name in sidebar from Google profile (dynamic, not hardcoded)
-- [x] Logout button uses Supabase signOut
+- [x] Logout button uses Supabase signOut (local scope, with error handling)
 - [x] Dynamic user names in AI prompts and expense form dropdown
 - [x] PIN login preserved as localStorage fallback (local dev)
-- [ ] Enable Google Auth provider in Supabase dashboard (manual step)
-- [ ] Create `profiles` table in Supabase SQL Editor (manual step)
-- [ ] Configure Google OAuth in Google Cloud Console (manual step)
+- [x] Enable Google Auth provider in Supabase dashboard
+- [x] Create `profiles` table in Supabase SQL Editor
+- [x] Configure Google OAuth in Google Cloud Console
+- [x] Custom favicon (gold peso coin SVG) and browser tab title ("Shared Finance")
 
-**9b — Multi-Household Database**
-- [ ] Create `households` table (id, name, owner_id, created_at)
-- [ ] Create `household_members` table (household_id, user_id, role: "owner"/"member", joined_at)
+**9b-lite + 9c — Households & Invite Link System** ✅ DONE
+- [x] Create `households` table (id UUID, name, created_at)
+- [x] Create `household_members` table (household_id, user_id, role: "owner"/"member", joined_at)
+- [x] Create `invites` table (id, household_id, created_by, token, used, used_by, created_at, expires_at)
+- [x] Auto-create household when user clicks "Create Your Household" (first-time flow)
+- [x] NoHouseholdScreen for users not yet in a household
+- [x] Invite token capture from URL query param (`?invite=TOKEN`)
+- [x] Token persisted through OAuth redirect via localStorage
+- [x] Auto-accept invite on sign-in (validate, join household, mark used)
+- [x] "Invite Partner" button in Settings with copy-link modal
+- [x] Reuse existing unused invite instead of creating duplicates
+- [x] Users list fetched from household_members (not all profiles)
+- [x] Household info card in Settings (member count + role)
+- [x] Create tables in Supabase SQL Editor
+
+**9b-full — Data Isolation (future)**
 - [ ] Add `household_id` column to all data tables (expenses, accounts, recurring, categories, settings)
-- [ ] Migrate existing data: create a default household, assign current data to it
+- [ ] Migrate existing data: assign to default household
 - [ ] Enable Row Level Security (RLS) on all tables — users can only see data for their household
 - [ ] Update all Supabase queries to filter by household_id
-- [ ] Auto-create a new household when a user signs up directly (not via invite)
-
-**9c — Invite Link System**
-- [ ] Create `invites` table (id, household_id, created_by, token, used, used_by, created_at, expires_at)
-- [ ] "Invite Partner" button in Settings — generates a single-use invite link
-- [ ] Invite link format: `https://your-app.vercel.app/invite/{token}`
-- [ ] When someone opens an invite link: sign in with Google → auto-join that household as "member"
-- [ ] Token validation: reject expired, already-used, or invalid tokens
-- [ ] Show invite status in Settings (pending/accepted)
 
 **9d — Role-Based Permissions**
 - [ ] Owner role: full access to everything (the person who created the household)
@@ -251,6 +262,74 @@ On first Supabase load with empty tables, existing localStorage data is auto-mig
 - [ ] "addedBy" field uses actual user names from profiles (not hardcoded)
 - [ ] Person filter on Dashboard/Expenses uses real household member names
 - [ ] Summary cards show per-person breakdown using real names
+
+### Phase 10 — Navigation & Tab Restructure
+
+**10a — Household Auto-Create + Theme Persistence** ✅ DONE
+- [x] Remove `NoHouseholdScreen` gate — don't block users on login
+- [x] Auto-create household on first Google sign-in (no manual "Create" step)
+- [x] Keep "Invite Partner" and household info in Settings (optional, not required)
+- [x] Persist theme (dark/light) to localStorage — retain choice across login, logout, and page refreshes
+
+**10b — Tab Restructure**
+
+New 5-tab layout (mobile bottom nav / desktop sidebar):
+```
+Dashboard | Expenses | AI Chat | Accounts | More
+```
+
+- **Expenses tab** — sub-tabs: `List` | `Recurring`
+  - [ ] Move Recurring from More into Expenses as a sub-tab
+  - [ ] Expense list stays as-is (first sub-tab, default)
+  - [ ] Recurring templates as second sub-tab
+
+- **Accounts tab** (new main tab, merged) — sub-tabs: `Accounts` | `Budgets`
+  - [ ] Move Accounts out of More into its own main tab
+  - [ ] Move Budgets out of More into Accounts as second sub-tab
+  - [ ] Bank balances + net worth in first sub-tab
+  - [ ] General budget + per-category budgets in second sub-tab
+
+- **More tab** — sub-tabs: `Insights` | `Settings`
+  - [ ] Move Insights from main nav into More
+  - [ ] Settings stays in More
+  - [ ] Cleaner More tab with just 2 sub-tabs
+
+**10c — Account-Linked Expenses**
+- [ ] When adding an expense (manual form or AI Chat), user can optionally pick which account the money came from
+- [ ] Account picker dropdown in the expense form (optional field, default "None")
+- [ ] AI Chat: AI can ask or infer which account to use (e.g., "paid with BDO" → links to BDO account)
+- [ ] On save, auto-deduct the expense amount from the selected account's balance
+- [ ] On delete/edit, reverse or adjust the account balance accordingly
+- [ ] Add `account_id` column to expenses table (nullable, references accounts)
+- [ ] Show linked account name on expense list items (small label/tag)
+- [ ] Account balance history — track balance changes over time (not just current snapshot)
+
+### Phase 11 — Debt & Credit Tracking
+
+**11a — Debt Data Model & UI**
+- [ ] Create `debts` table: id (TEXT PK), name, type (Credit Card / Mortgage / Personal Loan / Car Loan / Other), total_amount, current_balance, due_date (day of month), interest_rate, min_payment, added_by, created_at, updated_at
+- [ ] Debts management screen: list all debts with name, type icon, balance, due date, progress bar (paid vs total)
+- [ ] Add/edit/delete debt entries with form (name, type dropdown, total amount, current balance, due date, interest rate, min payment)
+- [ ] Manual balance update after payments (with date stamp)
+- [ ] Payment history log per debt (date, amount paid, new balance)
+- [ ] Total debt summary card (total owed, total minimum payments, next due date)
+- [ ] Where it lives: under Accounts tab as a third sub-tab (`Accounts | Budgets | Debts`)
+
+**11b — AI Debt Insights**
+- [ ] AI calculates repayment timelines based on current balance, interest rate, and payment amounts
+- [ ] "What if" scenarios: "If I pay P5,000/month on my credit card, when will it be paid off?"
+- [ ] Interest savings calculator: "How much do I save by paying P2,000 extra per month?"
+- [ ] AI can answer debt questions in the existing AI Chat (e.g., "How much do I owe total?", "When is my next credit card due?")
+- [ ] Debt summary included in AI Insights reviews (alongside spending analysis)
+
+**11c — Payment Alerts & Notifications**
+- [ ] PWA push notifications for approaching due dates (3 days before, 1 day before, day of)
+- [ ] Service Worker registration for push notifications
+- [ ] Notification permission request flow (Settings toggle)
+- [ ] Missed payment detection: if due date passes without a balance update, show alert
+- [ ] In-app notification banner/badge on the Accounts tab when payments are due
+- [ ] Daily/weekly debt summary notification (optional, configurable in Settings)
+- [ ] Email notifications (future/lower priority): Supabase Edge Function to send reminder emails
 
 ---
 
@@ -267,5 +346,5 @@ On first Supabase load with empty tables, existing localStorage data is auto-mig
 - No real bank integration — balances are manual entry only
 - Image processing — receipt images sent to Claude API as base64
 - Session-based auth — PIN checked on load, stored in React state
-- No push notifications — browser-only app
+- No push notifications yet — planned in Phase 11c (PWA push + optional email)
 - Supabase free tier: 500MB database, 1GB file storage, 50K monthly active users
