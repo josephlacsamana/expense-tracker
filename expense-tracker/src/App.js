@@ -81,7 +81,7 @@ const sb = {
       supabase.from("settings").select("*").eq("key", "pins").maybeSingle(),
     ]);
     return {
-      expenses: eR.data?.map(r => ({ id: r.id, amount: Number(r.amount), category: r.category, description: r.description || "", date: r.date, addedBy: r.added_by, createdAt: r.created_at })) || [],
+      expenses: eR.data?.map(r => ({ id: r.id, amount: Number(r.amount), category: r.category, description: r.description || "", date: r.date, addedBy: r.added_by, accountId: r.account_id || null, createdAt: r.created_at })) || [],
       accounts: aR.data?.map(r => ({ id: r.id, name: r.name, balance: Number(r.balance), type: r.type, updatedAt: r.updated_at })) || [],
       recurring: rR.data?.map(r => ({ id: r.id, amount: Number(r.amount), category: r.category, description: r.description || "", frequency: r.frequency, nextDate: r.next_date, addedBy: r.added_by, createdAt: r.created_at })) || [],
       categories: cR.data?.length > 0 ? cR.data.map(r => r.name) : null,
@@ -92,11 +92,11 @@ const sb = {
   },
   // Expenses
   upsertExpense: async (e) => {
-    await supabase.from("expenses").upsert({ id: e.id, amount: e.amount, category: e.category, description: e.description || "", date: e.date, added_by: e.addedBy, created_at: e.createdAt });
+    await supabase.from("expenses").upsert({ id: e.id, amount: e.amount, category: e.category, description: e.description || "", date: e.date, added_by: e.addedBy, account_id: e.accountId || null, created_at: e.createdAt });
   },
   upsertExpenses: async (arr) => {
     if (!arr.length) return;
-    await supabase.from("expenses").upsert(arr.map(e => ({ id: e.id, amount: e.amount, category: e.category, description: e.description || "", date: e.date, added_by: e.addedBy, created_at: e.createdAt })));
+    await supabase.from("expenses").upsert(arr.map(e => ({ id: e.id, amount: e.amount, category: e.category, description: e.description || "", date: e.date, added_by: e.addedBy, account_id: e.accountId || null, created_at: e.createdAt })));
   },
   deleteExpense: async (id) => { await supabase.from("expenses").delete().eq("id", id); },
   deleteAllExpenses: async () => { await supabase.from("expenses").delete().neq("id", ""); },
@@ -414,7 +414,7 @@ function MainApp({ user, householdId, householdRole, onLogout, theme, toggleThem
   const [dc, setDc] = useState(null);
   const [dac, setDac] = useState(null);
   const [toast, setToast] = useState(null);
-  const [form, setForm] = useState({ amount: "", category: "Food", description: "", date: td(), addedBy: user });
+  const [form, setForm] = useState({ amount: "", category: "Food", description: "", date: td(), addedBy: user, accountId: "" });
   const [af, setAf] = useState({ name: "", balance: "", type: "savings" });
   const [msgs, setMsgs] = useState([{ role: "assistant", content: `Hey ${user}! Tell me what you spent and I'll log it. Upload a receipt or just type it out.` }]);
   const [ci, setCi] = useState("");
@@ -543,13 +543,25 @@ function MainApp({ user, householdId, householdRole, onLogout, theme, toggleThem
   const svCats = async (d) => { setCats(d); try { if (sbReady) await sb.saveCategories(d); else await localStore.set("categories", JSON.stringify(d)); } catch {} };
   const doSubmit = () => {
     if (!form.amount || isNaN(parseFloat(form.amount))) return;
-    const en = { id: eId || uid(), amount: parseFloat(parseFloat(form.amount).toFixed(2)), category: form.category, description: form.description.trim(), date: form.date || td(), addedBy: form.addedBy || user, createdAt: Date.now() };
+    const en = { id: eId || uid(), amount: parseFloat(parseFloat(form.amount).toFixed(2)), category: form.category, description: form.description.trim(), date: form.date || td(), addedBy: form.addedBy || user, accountId: form.accountId || null, createdAt: Date.now() };
+    // Account balance adjustments
+    let updAccts = [...accts];
+    if (eId) {
+      const old = exp.find(e => e.id === eId);
+      if (old?.accountId) { const i = updAccts.findIndex(a => a.id === old.accountId); if (i >= 0) updAccts[i] = { ...updAccts[i], balance: updAccts[i].balance + old.amount, updatedAt: Date.now() }; }
+    }
+    if (en.accountId) { const i = updAccts.findIndex(a => a.id === en.accountId); if (i >= 0) updAccts[i] = { ...updAccts[i], balance: updAccts[i].balance - en.amount, updatedAt: Date.now() }; }
+    if (JSON.stringify(updAccts) !== JSON.stringify(accts)) { const changed = updAccts.filter((a, i) => a !== accts[i]); changed.forEach(a => svA(updAccts, { upsert: a })); }
     if (eId) { svE(exp.map(e => e.id === eId ? en : e), { upsert: en }); tst("Updated"); } else { svE([en, ...exp], { upsert: en }); tst("Added"); }
     rstF();
   };
-  const rstF = () => { setForm({ amount: "", category: "Food", description: "", date: td(), addedBy: user }); setEId(null); setSf(false); };
-  const edF = (e) => { setForm({ amount: String(e.amount), category: e.category, description: e.description, date: e.date, addedBy: e.addedBy }); setEId(e.id); setSf(true); };
-  const delE = (id) => { svE(exp.filter(e => e.id !== id), { deleteId: id }); setDc(null); tst("Deleted"); };
+  const rstF = () => { setForm({ amount: "", category: "Food", description: "", date: td(), addedBy: user, accountId: "" }); setEId(null); setSf(false); };
+  const edF = (e) => { setForm({ amount: String(e.amount), category: e.category, description: e.description, date: e.date, addedBy: e.addedBy, accountId: e.accountId || "" }); setEId(e.id); setSf(true); };
+  const delE = (id) => {
+    const del = exp.find(e => e.id === id);
+    if (del?.accountId) { const acc = accts.find(a => a.id === del.accountId); if (acc) { const restored = { ...acc, balance: acc.balance + del.amount, updatedAt: Date.now() }; svA(accts.map(a => a.id === acc.id ? restored : a), { upsert: restored }); } }
+    svE(exp.filter(e => e.id !== id), { deleteId: id }); setDc(null); tst("Deleted");
+  };
   const doAcct = () => {
     if (!af.name.trim() || !af.balance || isNaN(parseFloat(af.balance))) return;
     const en = { id: eaId || uid(), name: af.name.trim(), balance: parseFloat(parseFloat(af.balance).toFixed(2)), type: af.type, updatedAt: Date.now() };
@@ -875,7 +887,7 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
             </div>
 
             {t5.length > 0 && (<div style={{ ...cardS, marginTop: 18 }}><div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Top 5 Expenses</div>
-              {t5.map((e, i) => (<div key={e.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: i < t5.length - 1 ? `1px solid ${T.border}` : "none" }}><div><div style={{ fontSize: 13, fontWeight: 600 }}>{e.description || e.category}</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>{e.date} -- {e.addedBy}</div></div><div style={{ fontSize: 15, fontWeight: 800, color: catColors[e.category] || T.gold }}>{fmt(e.amount)}</div></div>))}
+              {t5.map((e, i) => (<div key={e.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: i < t5.length - 1 ? `1px solid ${T.border}` : "none" }}><div><div style={{ fontSize: 13, fontWeight: 600 }}>{e.description || e.category}</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>{e.date} -- {e.addedBy}{e.accountId ? ` -- ${accts.find(a => a.id === e.accountId)?.name || ""}` : ""}</div></div><div style={{ fontSize: 15, fontWeight: 800, color: catColors[e.category] || T.gold }}>{fmt(e.amount)}</div></div>))}
             </div>)}
           </div>
         )}
@@ -902,7 +914,7 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
               </div>
               {sorted.map(e => (
                 <div key={e.id} style={{ ...cardS, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px" }}>
-                  <div style={{ flex: 1 }}><div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 8, height: 8, borderRadius: 3, background: catColors[e.category] || T.text3 }} /><div style={{ fontSize: 13, fontWeight: 600 }}>{e.description || e.category}</div></div><div style={{ fontSize: 10, color: T.text3, marginTop: 4, marginLeft: 16 }}>{e.date} -- {e.addedBy} -- {e.category}</div></div>
+                  <div style={{ flex: 1 }}><div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 8, height: 8, borderRadius: 3, background: catColors[e.category] || T.text3 }} /><div style={{ fontSize: 13, fontWeight: 600 }}>{e.description || e.category}</div></div><div style={{ fontSize: 10, color: T.text3, marginTop: 4, marginLeft: 16 }}>{e.date} -- {e.addedBy} -- {e.category}{e.accountId ? ` -- ${accts.find(a => a.id === e.accountId)?.name || ""}` : ""}</div></div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ fontSize: 15, fontWeight: 800 }}>{fmt(e.amount)}</div><button onClick={() => edF(e)} style={{ background: "none", border: "none", color: T.gold, cursor: "pointer", padding: 4 }}><Edit3 size={14} /></button><button onClick={() => setDc(e.id)} style={{ background: "none", border: "none", color: T.err, cursor: "pointer", padding: 4 }}><Trash2 size={14} /></button></div>
                 </div>
               ))}
@@ -1259,6 +1271,7 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
             <input placeholder="Description" value={form.description} onChange={e => setForm(v => ({ ...v, description: e.target.value }))} style={inpS} />
             <input type="date" value={form.date} onChange={e => setForm(v => ({ ...v, date: e.target.value }))} style={inpS} />
             <select value={form.addedBy} onChange={e => setForm(v => ({ ...v, addedBy: e.target.value }))} style={inpS}>{users.map(u => <option key={u} value={u}>{u}</option>)}</select>
+            {accts.length > 0 && <select value={form.accountId} onChange={e => setForm(v => ({ ...v, accountId: e.target.value }))} style={inpS}><option value="">No account linked</option>{accts.map(a => <option key={a.id} value={a.id}>{a.name} ({fmt(a.balance)})</option>)}</select>}
             <button onClick={doSubmit} style={{ ...btnP, width: "100%" }}>{eId ? "Update" : "Add Expense"}</button>
           </div>
         </div></div>}
