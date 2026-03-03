@@ -76,9 +76,9 @@ const sb = {
       supabase.from("accounts").select("*"),
       supabase.from("recurring").select("*"),
       supabase.from("categories").select("*").order("sort_order"),
-      supabase.from("settings").select("*").eq("key", "budgets").single(),
-      supabase.from("settings").select("*").eq("key", "genBudget").single(),
-      supabase.from("settings").select("*").eq("key", "pins").single(),
+      supabase.from("settings").select("*").eq("key", "budgets").maybeSingle(),
+      supabase.from("settings").select("*").eq("key", "genBudget").maybeSingle(),
+      supabase.from("settings").select("*").eq("key", "pins").maybeSingle(),
     ]);
     return {
       expenses: eR.data?.map(r => ({ id: r.id, amount: Number(r.amount), category: r.category, description: r.description || "", date: r.date, addedBy: r.added_by, createdAt: r.created_at })) || [],
@@ -524,8 +524,13 @@ function MainApp({ user, householdId, householdRole, onLogout, theme, toggleThem
   useEffect(() => { cr.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, pe]);
   useEffect(() => {
     if (sbReady && householdId) {
-      supabase.from("household_members").select("profiles(display_name)").eq("household_id", householdId)
-        .then(({ data }) => { if (data?.length) setUsers(data.map(m => m.profiles?.display_name).filter(Boolean)); });
+      supabase.from("household_members").select("user_id").eq("household_id", householdId)
+        .then(async ({ data: members }) => {
+          if (!members?.length) return;
+          const ids = members.map(m => m.user_id);
+          const { data: profiles } = await supabase.from("profiles").select("display_name").in("id", ids);
+          if (profiles?.length) setUsers(profiles.map(p => p.display_name).filter(Boolean));
+        });
     }
   }, [householdId]);
 
@@ -1336,7 +1341,7 @@ export default function App() {
         setSession(s);
         // 1. Fetch or create profile
         let prof;
-        const { data: existing, error: profileErr } = await supabase.from("profiles").select("*").eq("id", s.user.id).single();
+        const { data: existing, error: profileErr } = await supabase.from("profiles").select("*").eq("id", s.user.id).maybeSingle();
         if (existing && !profileErr) { prof = existing; }
         else {
           const fullName = s.user.user_metadata?.full_name || s.user.user_metadata?.name || "";
@@ -1348,7 +1353,7 @@ export default function App() {
         setProfile(prof);
 
         // 2. Check household membership
-        const { data: membership } = await supabase.from("household_members").select("household_id, role, households(id, name)").eq("user_id", s.user.id).single();
+        const { data: membership } = await supabase.from("household_members").select("household_id, role, households(id, name)").eq("user_id", s.user.id).maybeSingle();
         if (membership?.households) {
           setHousehold(membership.households);
           setHouseholdRole(membership.role);
@@ -1357,7 +1362,7 @@ export default function App() {
           let joined = false;
           const pendingToken = localStorage.getItem("pendingInvite");
           if (pendingToken) {
-            const { data: inv } = await supabase.from("invites").select("*").eq("token", pendingToken).eq("used", false).single();
+            const { data: inv } = await supabase.from("invites").select("*").eq("token", pendingToken).eq("used", false).maybeSingle();
             if (inv && new Date(inv.expires_at) > new Date()) {
               await supabase.from("household_members").insert({ household_id: inv.household_id, user_id: s.user.id, role: "member" });
               await supabase.from("invites").update({ used: true, used_by: s.user.id }).eq("id", inv.id);
@@ -1386,7 +1391,9 @@ export default function App() {
   }, []);
 
   const handleLogout = async () => {
-    if (sbReady) { try { await supabase.auth.signOut({ scope: "local" }); } catch {} }
+    if (sbReady) {
+      try { await supabase.auth.signOut(); } catch (e) { console.error("[logout] error:", e); }
+    }
     setSession(null); setProfile(null); setHousehold(null); setHouseholdRole(null); setAuthLoading(false);
   };
 
