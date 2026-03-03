@@ -1494,10 +1494,11 @@ export default function App() {
     const timeout = setTimeout(() => { setAuthLoading(false); }, 5000);
     let handling = false;
     const handleSession = async (s) => {
+      console.log("[auth] handleSession called, user:", s?.user?.email, "handling:", handling);
       if (handling) return;
       handling = true;
       try {
-        if (!s) { setSession(null); setProfile(null); setHousehold(null); setHouseholdRole(null); setPendingInviteData(null); clearTimeout(timeout); setAuthLoading(false); handling = false; return; }
+        if (!s) { console.log("[auth] no session"); setSession(null); setProfile(null); setHousehold(null); setHouseholdRole(null); setPendingInviteData(null); clearTimeout(timeout); setAuthLoading(false); handling = false; return; }
         setSession(s);
 
         // 1. Fetch or create profile
