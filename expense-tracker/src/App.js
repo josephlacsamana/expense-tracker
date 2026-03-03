@@ -292,7 +292,9 @@ function LoginScreen({ onLogin, theme, toggleTheme, authError, localMode }) {
   const doGoogleLogin = async () => {
     setSigningIn(true); setErr("");
     try {
-      const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.origin } });
+      const pendingToken = localStorage.getItem("pendingInvite");
+      const redirectTo = window.location.origin + (pendingToken ? `?invite=${pendingToken}` : "");
+      const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo } });
       if (error) { setErr(error.message); setSigningIn(false); }
     } catch { setErr("Failed to start sign in."); setSigningIn(false); }
   };
@@ -1453,6 +1455,7 @@ export default function App() {
   const [localUser, setLocalUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState(null); // eslint-disable-line no-unused-vars
+  const [pendingInviteData, setPendingInviteData] = useState(null);
   const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "light");
   const toggle = () => setTheme(v => { const next = v === "dark" ? "light" : "dark"; localStorage.setItem("theme", next); return next; });
 
@@ -1486,19 +1489,29 @@ export default function App() {
         }
         setProfile(prof);
 
-        // 2. Check for pending invite token FIRST (takes priority over existing household)
+        // 2. Check for pending invite token FIRST
         let joined = false;
         const pendingToken = localStorage.getItem("pendingInvite");
         if (pendingToken) {
           localStorage.removeItem("pendingInvite");
           const { data: inv } = await supabase.from("invites").select("*").eq("token", pendingToken).eq("used", false).maybeSingle();
           if (inv && new Date(inv.expires_at) > new Date()) {
-            // Remove any existing household membership so the user switches to the invited household
-            await supabase.from("household_members").delete().eq("user_id", s.user.id);
-            await supabase.from("household_members").insert({ household_id: inv.household_id, user_id: s.user.id, role: "member" });
-            await supabase.from("invites").update({ used: true, used_by: s.user.id }).eq("id", inv.id);
-            const { data: h } = await supabase.from("households").select("*").eq("id", inv.household_id).single();
-            if (h) { setHousehold(h); setHouseholdRole("member"); joined = true; }
+            const { data: invitedH } = await supabase.from("households").select("*").eq("id", inv.household_id).single();
+            if (invitedH) {
+              const { data: existingM } = await supabase.from("household_members").select("*").eq("user_id", s.user.id).maybeSingle();
+              if (existingM) {
+                // User already has a household — show confirmation screen, let them decide
+                const { data: currentH } = await supabase.from("households").select("*").eq("id", existingM.household_id).single();
+                if (currentH) { setHousehold(currentH); setHouseholdRole(existingM.role); }
+                setPendingInviteData({ inv, invitedHousehold: invitedH, userId: s.user.id });
+                clearTimeout(timeout); setAuthLoading(false); return;
+              } else {
+                // No existing household — auto-join, no confirmation needed
+                await supabase.from("household_members").insert({ household_id: inv.household_id, user_id: s.user.id, role: "member" });
+                await supabase.from("invites").update({ used: true, used_by: s.user.id }).eq("id", inv.id);
+                setHousehold(invitedH); setHouseholdRole("member"); joined = true;
+              }
+            }
           }
         }
 
@@ -1539,6 +1552,24 @@ export default function App() {
     }
   };
 
+  const acceptInvite = async () => {
+    if (!pendingInviteData) return;
+    const { inv, invitedHousehold, userId } = pendingInviteData;
+    try {
+      await supabase.from("household_members").delete().eq("user_id", userId);
+      await supabase.from("household_members").insert({ household_id: inv.household_id, user_id: userId, role: "member" });
+      await supabase.from("invites").update({ used: true, used_by: userId }).eq("id", inv.id);
+      setHousehold(invitedHousehold);
+      setHouseholdRole("member");
+      setPendingInviteData(null);
+    } catch (e) { console.error("[invite accept] error:", e); }
+  };
+
+  const declineInvite = () => {
+    setPendingInviteData(null);
+    // User stays in their current household (already set in handleSession)
+  };
+
   if (authLoading) {
     const T = themes[theme];
     return (<div style={{ minHeight: "100vh", background: T.gradBg, display: "flex", justifyContent: "center", alignItems: "center" }}>
@@ -1548,6 +1579,31 @@ export default function App() {
 
   if (sbReady) {
     const user = profile?.display_name || null;
+
+    if (pendingInviteData) {
+      const T = themes[theme];
+      return (
+        <div style={{ minHeight: "100vh", background: T.gradBg, display: "flex", justifyContent: "center", alignItems: "center", padding: 24 }}>
+          <div style={{ background: T.modalSurface, border: `1px solid ${T.borderStrong}`, borderRadius: 24, padding: 36, width: "100%", maxWidth: 420, boxShadow: "0 24px 64px rgba(0,0,0,0.3)", textAlign: "center" }}>
+            <div style={{ width: 56, height: 56, borderRadius: 16, background: T.goldMuted, border: `1px solid ${T.borderStrong}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
+              <Home size={26} style={{ color: T.gold }} />
+            </div>
+            <h2 style={{ fontSize: 20, fontWeight: 800, color: T.text1, margin: "0 0 10px" }}>Household Invite</h2>
+            <p style={{ color: T.text2, fontSize: 14, margin: "0 0 16px" }}>
+              You have been invited to join <strong style={{ color: T.gold }}>{pendingInviteData.invitedHousehold.name}</strong>.
+            </p>
+            <p style={{ color: T.err, fontSize: 13, margin: "0 0 28px", background: theme === "dark" ? "rgba(239,68,68,0.08)" : "rgba(239,68,68,0.06)", border: `1px solid rgba(239,68,68,0.2)`, borderRadius: 10, padding: "10px 14px", lineHeight: 1.5 }}>
+              Your current household will be removed from your account. You will only have access to the new household's data.
+            </p>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={declineInvite} style={{ flex: 1, padding: "13px 0", borderRadius: 12, border: `1px solid ${T.inputBorder}`, background: "transparent", color: T.text2, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Decline</button>
+              <button onClick={acceptInvite} style={{ flex: 1, padding: "13px 0", borderRadius: 12, border: "none", background: T.grad, color: theme === "dark" ? "#0C0C12" : "#FFF", fontSize: 14, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 16px rgba(245,181,38,0.2)" }}>Accept & Join</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     if (user && household) {
       return <MainApp user={user} householdId={household.id} householdRole={householdRole} onLogout={handleLogout} theme={theme} toggleTheme={toggle} />;
     }
