@@ -72,17 +72,17 @@ const localStore = {
 // ─── SUPABASE HELPERS ───
 const sb = {
   // Load all data from Supabase
-  loadAll: async () => {
+  loadAll: async (hid) => {
     const [eR, aR, rR, cR, bR, gR, pR, dR, dpR] = await Promise.all([
-      supabase.from("expenses").select("*").order("created_at", { ascending: false }),
-      supabase.from("accounts").select("*"),
-      supabase.from("recurring").select("*"),
-      supabase.from("categories").select("*").order("sort_order"),
-      supabase.from("settings").select("*").eq("key", "budgets").maybeSingle(),
-      supabase.from("settings").select("*").eq("key", "genBudget").maybeSingle(),
-      supabase.from("settings").select("*").eq("key", "pins").maybeSingle(),
-      supabase.from("debts").select("*").order("created_at", { ascending: false }),
-      supabase.from("debt_payments").select("*").order("created_at", { ascending: false }),
+      supabase.from("expenses").select("*").eq("household_id", hid).order("created_at", { ascending: false }),
+      supabase.from("accounts").select("*").eq("household_id", hid),
+      supabase.from("recurring").select("*").eq("household_id", hid),
+      supabase.from("categories").select("*").eq("household_id", hid).order("sort_order"),
+      supabase.from("settings").select("*").eq("key", "budgets").eq("household_id", hid).maybeSingle(),
+      supabase.from("settings").select("*").eq("key", "genBudget").eq("household_id", hid).maybeSingle(),
+      supabase.from("settings").select("*").eq("key", "pins").eq("household_id", hid).maybeSingle(),
+      supabase.from("debts").select("*").eq("household_id", hid).order("created_at", { ascending: false }),
+      supabase.from("debt_payments").select("*").eq("household_id", hid).order("created_at", { ascending: false }),
     ]);
     return {
       expenses: eR.data?.map(r => ({ id: r.id, amount: Number(r.amount), category: r.category, description: r.description || "", date: r.date, addedBy: r.added_by, accountId: r.account_id || null, createdAt: r.created_at })) || [],
@@ -97,60 +97,60 @@ const sb = {
     };
   },
   // Expenses
-  upsertExpense: async (e) => {
-    await supabase.from("expenses").upsert({ id: e.id, amount: e.amount, category: e.category, description: e.description || "", date: e.date, added_by: e.addedBy, account_id: e.accountId || null, created_at: e.createdAt });
+  upsertExpense: async (e, hid) => {
+    await supabase.from("expenses").upsert({ id: e.id, amount: e.amount, category: e.category, description: e.description || "", date: e.date, added_by: e.addedBy, account_id: e.accountId || null, household_id: hid, created_at: e.createdAt });
   },
-  upsertExpenses: async (arr) => {
+  upsertExpenses: async (arr, hid) => {
     if (!arr.length) return;
-    await supabase.from("expenses").upsert(arr.map(e => ({ id: e.id, amount: e.amount, category: e.category, description: e.description || "", date: e.date, added_by: e.addedBy, account_id: e.accountId || null, created_at: e.createdAt })));
+    await supabase.from("expenses").upsert(arr.map(e => ({ id: e.id, amount: e.amount, category: e.category, description: e.description || "", date: e.date, added_by: e.addedBy, account_id: e.accountId || null, household_id: hid, created_at: e.createdAt })));
   },
   deleteExpense: async (id) => { await supabase.from("expenses").delete().eq("id", id); },
-  deleteAllExpenses: async () => { await supabase.from("expenses").delete().neq("id", ""); },
+  deleteAllExpenses: async (hid) => { await supabase.from("expenses").delete().eq("household_id", hid); },
   // Accounts
-  upsertAccount: async (a) => {
-    await supabase.from("accounts").upsert({ id: a.id, name: a.name, balance: a.balance, type: a.type, updated_at: a.updatedAt });
+  upsertAccount: async (a, hid) => {
+    await supabase.from("accounts").upsert({ id: a.id, name: a.name, balance: a.balance, type: a.type, household_id: hid, updated_at: a.updatedAt });
   },
   deleteAccount: async (id) => { await supabase.from("accounts").delete().eq("id", id); },
-  deleteAllAccounts: async () => { await supabase.from("accounts").delete().neq("id", ""); },
+  deleteAllAccounts: async (hid) => { await supabase.from("accounts").delete().eq("household_id", hid); },
   // Recurring
-  upsertRecurring: async (r) => {
-    await supabase.from("recurring").upsert({ id: r.id, amount: r.amount, category: r.category, description: r.description || "", frequency: r.frequency, next_date: r.nextDate, added_by: r.addedBy, created_at: r.createdAt });
+  upsertRecurring: async (r, hid) => {
+    await supabase.from("recurring").upsert({ id: r.id, amount: r.amount, category: r.category, description: r.description || "", frequency: r.frequency, next_date: r.nextDate, added_by: r.addedBy, household_id: hid, created_at: r.createdAt });
   },
-  upsertRecurringBulk: async (arr) => {
+  upsertRecurringBulk: async (arr, hid) => {
     if (!arr.length) return;
-    await supabase.from("recurring").upsert(arr.map(r => ({ id: r.id, amount: r.amount, category: r.category, description: r.description || "", frequency: r.frequency, next_date: r.nextDate, added_by: r.addedBy, created_at: r.createdAt })));
+    await supabase.from("recurring").upsert(arr.map(r => ({ id: r.id, amount: r.amount, category: r.category, description: r.description || "", frequency: r.frequency, next_date: r.nextDate, added_by: r.addedBy, household_id: hid, created_at: r.createdAt })));
   },
   deleteRecurring: async (id) => { await supabase.from("recurring").delete().eq("id", id); },
-  deleteAllRecurring: async () => { await supabase.from("recurring").delete().neq("id", ""); },
+  deleteAllRecurring: async (hid) => { await supabase.from("recurring").delete().eq("household_id", hid); },
   // Debts
-  upsertDebt: async (d) => {
-    await supabase.from("debts").upsert({ id: d.id, name: d.name, type: d.type, total_amount: d.totalAmount, current_balance: d.currentBalance, due_date: d.dueDate, interest_rate: d.interestRate, min_payment: d.minPayment, added_by: d.addedBy, created_at: d.createdAt, updated_at: d.updatedAt });
+  upsertDebt: async (d, hid) => {
+    await supabase.from("debts").upsert({ id: d.id, name: d.name, type: d.type, total_amount: d.totalAmount, current_balance: d.currentBalance, due_date: d.dueDate, interest_rate: d.interestRate, min_payment: d.minPayment, added_by: d.addedBy, household_id: hid, created_at: d.createdAt, updated_at: d.updatedAt });
   },
   deleteDebt: async (id) => { await supabase.from("debt_payments").delete().eq("debt_id", id); await supabase.from("debts").delete().eq("id", id); },
-  deleteAllDebts: async () => { await supabase.from("debt_payments").delete().neq("id", ""); await supabase.from("debts").delete().neq("id", ""); },
-  upsertDebtPayment: async (p) => {
-    await supabase.from("debt_payments").upsert({ id: p.id, debt_id: p.debtId, amount: p.amount, date: p.date, new_balance: p.newBalance, created_at: p.createdAt });
+  deleteAllDebts: async (hid) => { await supabase.from("debt_payments").delete().eq("household_id", hid); await supabase.from("debts").delete().eq("household_id", hid); },
+  upsertDebtPayment: async (p, hid) => {
+    await supabase.from("debt_payments").upsert({ id: p.id, debt_id: p.debtId, amount: p.amount, date: p.date, new_balance: p.newBalance, household_id: hid, created_at: p.createdAt });
   },
   // Categories
-  saveCategories: async (cats) => {
-    await supabase.from("categories").delete().neq("name", "");
-    if (cats.length > 0) await supabase.from("categories").insert(cats.map((c, i) => ({ name: c, sort_order: i })));
+  saveCategories: async (cats, hid) => {
+    await supabase.from("categories").delete().eq("household_id", hid);
+    if (cats.length > 0) await supabase.from("categories").insert(cats.map((c, i) => ({ name: c, sort_order: i, household_id: hid })));
   },
   // Settings (key-value)
-  saveSetting: async (key, value) => {
-    await supabase.from("settings").upsert({ key, value });
+  saveSetting: async (key, value, hid) => {
+    await supabase.from("settings").upsert({ key, value, household_id: hid });
   },
-  clearAllSettings: async () => { await supabase.from("settings").delete().neq("key", ""); },
+  clearAllSettings: async (hid) => { await supabase.from("settings").delete().eq("household_id", hid); },
   // Migrate localStorage → Supabase (one-time)
-  migrate: async (expenses, accounts, recurring, categories, budgets, genBudget, pins) => {
+  migrate: async (expenses, accounts, recurring, categories, budgets, genBudget, pins, hid) => {
     const ops = [];
-    if (expenses.length) ops.push(sb.upsertExpenses(expenses));
-    if (accounts.length) ops.push(supabase.from("accounts").upsert(accounts.map(a => ({ id: a.id, name: a.name, balance: a.balance, type: a.type, updated_at: a.updatedAt }))));
-    if (recurring.length) ops.push(sb.upsertRecurringBulk(recurring));
-    if (categories.length) ops.push(sb.saveCategories(categories));
-    if (budgets) ops.push(sb.saveSetting("budgets", budgets));
-    if (genBudget) ops.push(sb.saveSetting("genBudget", genBudget));
-    if (pins) ops.push(sb.saveSetting("pins", pins));
+    if (expenses.length) ops.push(sb.upsertExpenses(expenses, hid));
+    if (accounts.length) ops.push(supabase.from("accounts").upsert(accounts.map(a => ({ id: a.id, name: a.name, balance: a.balance, type: a.type, household_id: hid, updated_at: a.updatedAt }))));
+    if (recurring.length) ops.push(sb.upsertRecurringBulk(recurring, hid));
+    if (categories.length) ops.push(sb.saveCategories(categories, hid));
+    if (budgets) ops.push(sb.saveSetting("budgets", budgets, hid));
+    if (genBudget) ops.push(sb.saveSetting("genBudget", genBudget, hid));
+    if (pins) ops.push(sb.saveSetting("pins", pins, hid));
     await Promise.all(ops);
   },
 };
@@ -495,7 +495,7 @@ function MainApp({ user, householdId, householdRole, onLogout, theme, toggleThem
       try {
         if (sbReady) {
           // ─── LOAD FROM SUPABASE ───
-          const d = await sb.loadAll();
+          const d = await sb.loadAll(householdId);
           if (d.expenses.length > 0) {
             setExp(d.expenses);
             if (d.accounts.length) setAccts(d.accounts);
@@ -519,7 +519,7 @@ function MainApp({ user, householdId, householdRole, onLogout, theme, toggleThem
                 const lBudgets = JSON.parse(localStorage.getItem("budgets") || "null");
                 const lGenB = JSON.parse(localStorage.getItem("genBudget") || "null");
                 const lPins = JSON.parse(localStorage.getItem("pins") || "null");
-                await sb.migrate(lExp, lAccts, lRec, lCats || [], lBudgets, lGenB, lPins);
+                await sb.migrate(lExp, lAccts, lRec, lCats || [], lBudgets, lGenB, lPins, householdId);
                 setExp(lExp);
                 if (lAccts.length) setAccts(lAccts);
                 if (lBudgets) setBudgets(lBudgets);
@@ -534,8 +534,8 @@ function MainApp({ user, householdId, householdRole, onLogout, theme, toggleThem
           } catch {}
           // Nothing in localStorage either — seed
           setExp(SEED_EXP); setAccts(SEED_ACCT);
-          await sb.upsertExpenses(SEED_EXP);
-          await supabase.from("accounts").upsert(SEED_ACCT.map(a => ({ id: a.id, name: a.name, balance: a.balance, type: a.type, updated_at: a.updatedAt })));
+          await sb.upsertExpenses(SEED_EXP, householdId);
+          await supabase.from("accounts").upsert(SEED_ACCT.map(a => ({ id: a.id, name: a.name, balance: a.balance, type: a.type, household_id: householdId, updated_at: a.updatedAt })));
           setLd(false); return;
         }
         // ─── FALLBACK: LOAD FROM LOCALSTORAGE ───
@@ -568,10 +568,10 @@ function MainApp({ user, householdId, householdRole, onLogout, theme, toggleThem
     }
   }, [householdId]);
 
-  const svE = async (d, opts) => { setExp(d); try { if (sbReady) { if (opts?.deleteId) await sb.deleteExpense(opts.deleteId); else if (opts?.upsert) await sb.upsertExpense(opts.upsert); else if (opts?.upsertMany) await sb.upsertExpenses(opts.upsertMany); else await sb.upsertExpenses(d); } else await localStore.set("expenses", JSON.stringify(d)); } catch {} };
-  const svA = async (d, opts) => { setAccts(d); try { if (sbReady) { if (opts?.deleteId) await sb.deleteAccount(opts.deleteId); else if (opts?.upsert) await sb.upsertAccount(opts.upsert); else await supabase.from("accounts").upsert(d.map(a => ({ id: a.id, name: a.name, balance: a.balance, type: a.type, updated_at: a.updatedAt }))); } else await localStore.set("accounts", JSON.stringify(d)); } catch {} };
-  const svB = async (d) => { setBudgets(d); try { if (sbReady) await sb.saveSetting("budgets", d); else await localStore.set("budgets", JSON.stringify(d)); } catch {} };
-  const svCats = async (d) => { setCats(d); try { if (sbReady) await sb.saveCategories(d); else await localStore.set("categories", JSON.stringify(d)); } catch {} };
+  const svE = async (d, opts) => { setExp(d); try { if (sbReady) { if (opts?.deleteId) await sb.deleteExpense(opts.deleteId); else if (opts?.upsert) await sb.upsertExpense(opts.upsert, householdId); else if (opts?.upsertMany) await sb.upsertExpenses(opts.upsertMany, householdId); else await sb.upsertExpenses(d, householdId); } else await localStore.set("expenses", JSON.stringify(d)); } catch {} };
+  const svA = async (d, opts) => { setAccts(d); try { if (sbReady) { if (opts?.deleteId) await sb.deleteAccount(opts.deleteId); else if (opts?.upsert) await sb.upsertAccount(opts.upsert, householdId); else await supabase.from("accounts").upsert(d.map(a => ({ id: a.id, name: a.name, balance: a.balance, type: a.type, household_id: householdId, updated_at: a.updatedAt }))); } else await localStore.set("accounts", JSON.stringify(d)); } catch {} };
+  const svB = async (d) => { setBudgets(d); try { if (sbReady) await sb.saveSetting("budgets", d, householdId); else await localStore.set("budgets", JSON.stringify(d)); } catch {} };
+  const svCats = async (d) => { setCats(d); try { if (sbReady) await sb.saveCategories(d, householdId); else await localStore.set("categories", JSON.stringify(d)); } catch {} };
   const doSubmit = () => {
     if (!form.amount || isNaN(parseFloat(form.amount))) return;
     const en = { id: eId || uid(), amount: parseFloat(parseFloat(form.amount).toFixed(2)), category: form.category, description: form.description.trim(), date: form.date || td(), addedBy: form.addedBy || user, accountId: form.accountId || null, createdAt: Date.now() };
@@ -603,10 +603,10 @@ function MainApp({ user, householdId, householdRole, onLogout, theme, toggleThem
   const edA = (a) => { setAf({ name: a.name, balance: String(a.balance), type: a.type }); setEaId(a.id); setSaf(true); };
   const delA = (id) => { svA(accts.filter(a => a.id !== id), { deleteId: id }); setDac(null); tst("Account removed"); };
   const saveBudgets = () => { svB(bf); setSbf(false); tst("Budgets saved"); };
-  const svGB = async (v) => { setGenBudget(v); try { if (sbReady) await sb.saveSetting("genBudget", v); else await localStore.set("genBudget", JSON.stringify(v)); } catch {} };
-  const svR = async (d, opts) => { setRec(d); try { if (sbReady) { if (opts?.deleteId) await sb.deleteRecurring(opts.deleteId); else if (opts?.upsert) await sb.upsertRecurring(opts.upsert); else if (opts?.upsertMany) await sb.upsertRecurringBulk(opts.upsertMany); else await sb.upsertRecurringBulk(d); } else await localStore.set("recurring", JSON.stringify(d)); } catch {} };
-  const svD = async (d, opts) => { setDebts(d); try { if (sbReady) { if (opts?.deleteId) await sb.deleteDebt(opts.deleteId); else if (opts?.upsert) await sb.upsertDebt(opts.upsert); } else await localStore.set("debts", JSON.stringify(d)); } catch {} };
-  const svDP = async (d, opts) => { setDPays(d); try { if (sbReady) { if (opts?.upsert) await sb.upsertDebtPayment(opts.upsert); } else await localStore.set("debtPayments", JSON.stringify(d)); } catch {} };
+  const svGB = async (v) => { setGenBudget(v); try { if (sbReady) await sb.saveSetting("genBudget", v, householdId); else await localStore.set("genBudget", JSON.stringify(v)); } catch {} };
+  const svR = async (d, opts) => { setRec(d); try { if (sbReady) { if (opts?.deleteId) await sb.deleteRecurring(opts.deleteId); else if (opts?.upsert) await sb.upsertRecurring(opts.upsert, householdId); else if (opts?.upsertMany) await sb.upsertRecurringBulk(opts.upsertMany, householdId); else await sb.upsertRecurringBulk(d, householdId); } else await localStore.set("recurring", JSON.stringify(d)); } catch {} };
+  const svD = async (d, opts) => { setDebts(d); try { if (sbReady) { if (opts?.deleteId) await sb.deleteDebt(opts.deleteId); else if (opts?.upsert) await sb.upsertDebt(opts.upsert, householdId); } else await localStore.set("debts", JSON.stringify(d)); } catch {} };
+  const svDP = async (d, opts) => { setDPays(d); try { if (sbReady) { if (opts?.upsert) await sb.upsertDebtPayment(opts.upsert, householdId); } else await localStore.set("debtPayments", JSON.stringify(d)); } catch {} };
   const doRec = () => {
     if (!rf.description.trim() || !rf.amount || isNaN(parseFloat(rf.amount))) return;
     const en = { id: erId || uid(), amount: parseFloat(parseFloat(rf.amount).toFixed(2)), category: rf.category, description: rf.description.trim(), frequency: rf.frequency, nextDate: rf.nextDate || td(), addedBy: user, createdAt: Date.now() };
@@ -667,7 +667,7 @@ function MainApp({ user, householdId, householdRole, onLogout, theme, toggleThem
     const r = [...exp].sort((a, b) => a.date.localeCompare(b.date)).map(e => `${e.date},"${(e.description || "").replace(/"/g, '""')}",${e.category},${e.amount},${e.addedBy}`).join("\n");
     const b = new Blob([h + r], { type: "text/csv" }); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = "expenses.csv"; a.click(); URL.revokeObjectURL(u);
   };
-  const clearAll = async () => { setExp([]); setAccts([]); setRec([]); setDebts([]); setDPays([]); setGenBudget(0); setCats(DEF_CATS); setBudgets(DEFAULT_BUDGETS); try { if (sbReady) { await Promise.all([sb.deleteAllExpenses(), sb.deleteAllAccounts(), sb.deleteAllRecurring(), sb.deleteAllDebts(), sb.saveCategories(DEF_CATS), sb.saveSetting("budgets", DEFAULT_BUDGETS), sb.saveSetting("genBudget", 0)]); } else { await localStore.set("expenses", JSON.stringify([])); await localStore.set("accounts", JSON.stringify([])); await localStore.set("recurring", JSON.stringify([])); await localStore.set("debts", JSON.stringify([])); await localStore.set("debtPayments", JSON.stringify([])); await localStore.set("genBudget", JSON.stringify(0)); await localStore.set("categories", JSON.stringify(DEF_CATS)); await localStore.set("budgets", JSON.stringify(DEFAULT_BUDGETS)); } } catch {} setClr(false); tst("All data cleared"); };
+  const clearAll = async () => { setExp([]); setAccts([]); setRec([]); setDebts([]); setDPays([]); setGenBudget(0); setCats(DEF_CATS); setBudgets(DEFAULT_BUDGETS); try { if (sbReady) { await Promise.all([sb.deleteAllExpenses(householdId), sb.deleteAllAccounts(householdId), sb.deleteAllRecurring(householdId), sb.deleteAllDebts(householdId), sb.saveCategories(DEF_CATS, householdId), sb.saveSetting("budgets", DEFAULT_BUDGETS, householdId), sb.saveSetting("genBudget", 0, householdId)]); } else { await localStore.set("expenses", JSON.stringify([])); await localStore.set("accounts", JSON.stringify([])); await localStore.set("recurring", JSON.stringify([])); await localStore.set("debts", JSON.stringify([])); await localStore.set("debtPayments", JSON.stringify([])); await localStore.set("genBudget", JSON.stringify(0)); await localStore.set("categories", JSON.stringify(DEF_CATS)); await localStore.set("budgets", JSON.stringify(DEFAULT_BUDGETS)); } } catch {} setClr(false); tst("All data cleared"); };
 
   const generateInvite = async () => {
     if (!sbReady || !householdId) return;
