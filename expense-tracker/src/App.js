@@ -1066,6 +1066,22 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
                   {genBudget > 0 && <div style={{ fontSize: 11, color: T.text3, marginTop: 8 }}>Current: {fmt(genBudget)} / Spent this month: {fmt(mTot)} ({gbPct.toFixed(0)}%)</div>}
                 </div>
                 <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10, color: T.text2 }}>Per-Category Limits (optional)</div>
+                <div style={{ ...cardS, padding: "14px 16px", marginBottom: 12 }}>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+                    {cats.map(c => (
+                      <div key={c} style={{ display: "flex", alignItems: "center", gap: 6, background: theme === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)", borderRadius: 10, padding: "6px 10px" }}>
+                        <div style={{ width: 8, height: 8, borderRadius: 3, background: catColors[c], flexShrink: 0 }} />
+                        <span style={{ fontSize: 12, fontWeight: 600 }}>{c}</span>
+                        {c !== "Other" && <button onClick={() => setDelCat(c)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", color: T.text3 }}><X size={14} /></button>}
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <input type="text" placeholder="New category name" value={newCat} onChange={e => setNewCat(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { const n = newCat.trim(); if (!n || cats.includes(n) || cats.length >= 15) return; svCats([...cats.slice(0, -1), n, "Other"]); setBudgets(v => ({ ...v, [n]: 0 })); svB({ ...budgets, [n]: 0 }); setNewCat(""); tst(`Category "${n}" added`); } }} style={{ ...inpS, flex: 1 }} />
+                    <button onClick={() => { const n = newCat.trim(); if (!n || cats.includes(n) || cats.length >= 15) return; svCats([...cats.slice(0, -1), n, "Other"]); setBudgets(v => ({ ...v, [n]: 0 })); svB({ ...budgets, [n]: 0 }); setNewCat(""); tst(`Category "${n}" added`); }} style={{ ...btnP, padding: "12px 20px", whiteSpace: "nowrap" }}>Add</button>
+                  </div>
+                  {cats.length >= 15 && <div style={{ fontSize: 10, color: T.text3, marginTop: 6 }}>Maximum 15 categories reached</div>}
+                </div>
                 {!sbf ? (<>
                   <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 8 }}>
                     {cats.map(c => (<div key={c} style={{ ...cardS, padding: "14px 16px" }}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 8, height: 8, borderRadius: 3, background: catColors[c] }} /><span style={{ fontSize: 13, fontWeight: 600 }}>{c}</span></div><span style={{ fontSize: 14, fontWeight: 800 }}>{fmt(budgets[c] || 0)}</span></div>
@@ -1210,23 +1226,6 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
 
               {sub === "settings" && (<>
                 <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 14 }}>Settings</div>
-                <div style={{ ...cardS, padding: "16px 18px", marginBottom: 16 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Categories</div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
-                    {cats.map(c => (
-                      <div key={c} style={{ display: "flex", alignItems: "center", gap: 6, background: theme === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)", borderRadius: 10, padding: "6px 10px" }}>
-                        <div style={{ width: 8, height: 8, borderRadius: 3, background: catColors[c], flexShrink: 0 }} />
-                        <span style={{ fontSize: 12, fontWeight: 600 }}>{c}</span>
-                        {c !== "Other" && <button onClick={() => setDelCat(c)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", color: T.text3 }}><X size={14} /></button>}
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <input type="text" placeholder="New category name" value={newCat} onChange={e => setNewCat(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { const n = newCat.trim(); if (!n || cats.includes(n) || cats.length >= 15) return; svCats([...cats.slice(0, -1), n, "Other"]); setBudgets(v => ({ ...v, [n]: 0 })); svB({ ...budgets, [n]: 0 }); setNewCat(""); tst(`Category "${n}" added`); } }} style={{ ...inpS, flex: 1 }} />
-                    <button onClick={() => { const n = newCat.trim(); if (!n || cats.includes(n) || cats.length >= 15) return; svCats([...cats.slice(0, -1), n, "Other"]); setBudgets(v => ({ ...v, [n]: 0 })); svB({ ...budgets, [n]: 0 }); setNewCat(""); tst(`Category "${n}" added`); }} style={{ ...btnP, padding: "12px 20px", whiteSpace: "nowrap" }}>Add</button>
-                  </div>
-                  {cats.length >= 15 && <div style={{ fontSize: 10, color: T.text3, marginTop: 6 }}>Maximum 15 categories reached</div>}
-                </div>
                 {sbReady && householdId && (
                   <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 8, marginBottom: 16 }}>
                     <button onClick={generateInvite} style={{ ...cardS, width: "100%", padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>
