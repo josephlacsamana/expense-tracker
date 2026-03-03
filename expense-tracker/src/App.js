@@ -1475,6 +1475,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState(null); // eslint-disable-line no-unused-vars
   const [pendingInviteData, setPendingInviteData] = useState(null);
+  const [inviteError, setInviteError] = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "light");
   const toggle = () => setTheme(v => { const next = v === "dark" ? "light" : "dark"; localStorage.setItem("theme", next); return next; });
 
@@ -1513,38 +1514,42 @@ export default function App() {
 
         // 2. Check for pending invite token FIRST
         let joined = false;
+        let inviteAttempted = false;
         const pendingToken = localStorage.getItem("pendingInvite");
-        console.log("[invite] pendingToken from localStorage:", pendingToken);
+        console.log("[invite] pendingToken:", pendingToken);
         if (pendingToken) {
           localStorage.removeItem("pendingInvite");
+          inviteAttempted = true;
           const { data: inv, error: invErr } = await supabase.from("invites").select("*").eq("token", pendingToken).eq("used", false).maybeSingle();
-          console.log("[invite] invite lookup:", inv, "error:", invErr);
+          console.log("[invite] lookup:", inv, "err:", invErr);
           if (inv && new Date(inv.expires_at) > new Date()) {
             const { data: invitedH, error: hErr } = await supabase.from("households").select("*").eq("id", inv.household_id).single();
-            console.log("[invite] household lookup:", invitedH, "error:", hErr);
+            console.log("[invite] household:", invitedH, "err:", hErr);
             if (invitedH) {
               const { data: existingMs } = await supabase.from("household_members").select("*").eq("user_id", s.user.id).limit(1);
               const existingM = existingMs?.[0] || null;
               if (existingM) {
-                // User already has a household — show confirmation screen, let them decide
+                // User already has a household — show confirmation screen
                 const { data: currentH } = await supabase.from("households").select("*").eq("id", existingM.household_id).single();
                 if (currentH) { setHousehold(currentH); setHouseholdRole(existingM.role); }
                 setPendingInviteData({ inv, invitedHousehold: invitedH, userId: s.user.id });
                 clearTimeout(timeout); setAuthLoading(false); handling = false; return;
               } else {
-                // No existing household — auto-join, no confirmation needed
+                // No existing household — auto-join
                 const { error: insertErr } = await supabase.from("household_members").insert({ household_id: inv.household_id, user_id: s.user.id, role: "member" });
-                const { error: updateErr } = await supabase.from("invites").update({ used: true, used_by: s.user.id }).eq("id", inv.id);
-                console.log("[invite] insert member error:", insertErr, "update invite error:", updateErr);
-                setHousehold(invitedH); setHouseholdRole("member"); joined = true;
+                console.log("[invite] insert member err:", insertErr);
+                if (!insertErr) {
+                  await supabase.from("invites").update({ used: true, used_by: s.user.id }).eq("id", inv.id);
+                  setHousehold(invitedH); setHouseholdRole("member"); joined = true;
+                }
               }
             }
           } else {
-            console.log("[invite] invite invalid or expired. inv:", inv, "expires_at:", inv?.expires_at);
+            console.log("[invite] invalid or expired. inv:", inv, "expires:", inv?.expires_at);
           }
         }
 
-        // 3. Check existing household membership (limit 1 to avoid crash if duplicates exist)
+        // 3. Check existing household membership
         if (!joined) {
           const { data: memberships } = await supabase.from("household_members").select("household_id, role, households(id, name)").eq("user_id", s.user.id).limit(1);
           const membership = memberships?.[0] || null;
@@ -1555,13 +1560,18 @@ export default function App() {
           }
         }
 
-        // 4. Auto-create household if still not in one
+        // 4. Auto-create household ONLY if no invite was attempted
         if (!joined) {
-          const { data: h } = await supabase.from("households").insert({ name: "My Household" }).select().single();
-          if (h) {
-            await supabase.from("household_members").insert({ household_id: h.id, user_id: s.user.id, role: "owner" });
-            setHousehold(h);
-            setHouseholdRole("owner");
+          if (inviteAttempted) {
+            // Invite was attempted but failed — show error, do NOT create a new household
+            setInviteError(true);
+          } else {
+            const { data: h } = await supabase.from("households").insert({ name: "My Household" }).select().single();
+            if (h) {
+              await supabase.from("household_members").insert({ household_id: h.id, user_id: s.user.id, role: "owner" });
+              setHousehold(h);
+              setHouseholdRole("owner");
+            }
           }
         }
       } catch (e) { console.error("[auth] error:", e); }
@@ -1578,6 +1588,7 @@ export default function App() {
   }, []);
 
   const handleLogout = async () => {
+    setInviteError(false);
     if (sbReady) {
       try { await supabase.auth.signOut(); } catch (e) { console.error("[logout] error:", e); }
       window.location.href = "/";
@@ -1613,6 +1624,22 @@ export default function App() {
 
   if (sbReady) {
     const user = profile?.display_name || null;
+
+    if (inviteError) {
+      const T = themes[theme];
+      return (
+        <div style={{ minHeight: "100vh", background: T.gradBg, display: "flex", justifyContent: "center", alignItems: "center", padding: 24 }}>
+          <div style={{ background: T.modalSurface, border: `1px solid ${T.borderStrong}`, borderRadius: 24, padding: 36, width: "100%", maxWidth: 420, boxShadow: "0 24px 64px rgba(0,0,0,0.3)", textAlign: "center" }}>
+            <div style={{ width: 56, height: 56, borderRadius: 16, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
+              <AlertTriangle size={26} style={{ color: T.err }} />
+            </div>
+            <h2 style={{ fontSize: 20, fontWeight: 800, color: T.text1, margin: "0 0 10px" }}>Invite Failed</h2>
+            <p style={{ color: T.text2, fontSize: 14, margin: "0 0 24px", lineHeight: 1.6 }}>The invite link could not be processed. It may have expired or already been used. Ask your partner to generate a new invite link from Settings.</p>
+            <button onClick={handleLogout} style={{ padding: "13px 32px", borderRadius: 12, border: "none", background: T.grad, color: theme === "dark" ? "#0C0C12" : "#FFF", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>Sign Out and Try Again</button>
+          </div>
+        </div>
+      );
+    }
 
     if (pendingInviteData) {
       const T = themes[theme];
