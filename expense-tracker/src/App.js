@@ -1140,7 +1140,8 @@ export default function App() {
           joined = true;
         }
 
-        // 3. Auto-create household if not in one (always safe — invite handled separately after auth)
+        // 3. Auto-create household if not in one
+        let currentHhId = membership?.households?.id || null;
         if (!joined) {
           const { data: h, error: hErr } = await supabase.from("households").insert({ name: "My Household" }).select().single();
           console.log("[auth] household create:", h, "err:", hErr);
@@ -1149,6 +1150,17 @@ export default function App() {
             console.log("[auth] household_members insert err:", hmErr);
             setHousehold(h);
             setHouseholdRole("owner");
+            currentHhId = h.id;
+          }
+        }
+
+        // 4. Check for email-based pending invite
+        const userEmail = prof.email || s.user.email;
+        if (userEmail) {
+          const { data: inv } = await supabase.from("invites").select("*").eq("invited_email", userEmail).eq("used", false).gt("expires_at", new Date().toISOString()).maybeSingle();
+          if (inv && inv.household_id !== currentHhId) {
+            const { data: invitedH } = await supabase.from("households").select("*").eq("id", inv.household_id).single();
+            if (invitedH) setPendingInviteData({ inv, invitedHousehold: invitedH, userId: prof.id });
           }
         }
       } catch (e) { console.error("[auth] error:", e); }
@@ -1164,19 +1176,6 @@ export default function App() {
     return () => { subscription.unsubscribe(); clearTimeout(timeout); };
   }, []);
 
-  // Separate effect: check for email-based pending invite AFTER auth is fully loaded
-  useEffect(() => {
-    if (!sbReady || authLoading || !profile || !household) return;
-    (async () => {
-      try {
-        const { data: inv } = await supabase.from("invites").select("*").eq("invited_email", profile.email).eq("used", false).gt("expires_at", new Date().toISOString()).maybeSingle();
-        if (!inv) return;
-        const { data: invitedH } = await supabase.from("households").select("*").eq("id", inv.household_id).single();
-        if (!invitedH || invitedH.id === household?.id) return;
-        setPendingInviteData({ inv, invitedHousehold: invitedH, userId: profile.id });
-      } catch (e) { console.error("[invite] error:", e); }
-    })();
-  }, [authLoading, profile, household]);
 
   const handleLogout = async () => {
     if (sbReady) {
