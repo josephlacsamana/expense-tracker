@@ -2,9 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import { Plus, Trash2, Edit3, X, Check, Search, MessageSquare, LayoutDashboard, PieChart, Settings, ChevronDown, Lock, LogOut, ImagePlus, Send, RefreshCw, Download, AlertTriangle, TrendingUp, TrendingDown, Wallet, Lightbulb, Coins, Sun, Moon, Repeat, Copy, UserPlus, Home } from "lucide-react";
 import { PieChart as RPie, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, LineChart, Line, CartesianGrid, Legend } from "recharts";
 import { supabase, sbReady } from "./supabase";
-import { themes, DEF_CCO, DEF_CATS, EXTRA_COLORS, PERIODS, LOCAL_USERS, DEBT_TYPES, DEFAULT_BUDGETS, DEFAULT_PINS, aIcons, dIcons, uid, fmt, fmtS, td, pld, stripE, startOf, prevRange, localStore } from "./constants";
+import { themes, DEF_CATS, PERIODS, LOCAL_USERS, DEBT_TYPES, DEFAULT_BUDGETS, DEFAULT_PINS, aIcons, dIcons, uid, fmt, fmtS, td, pld, stripE, startOf, prevRange, localStore } from "./constants";
 import { useMediaQuery } from "./hooks";
 import { sb } from "./db";
+import { AppProvider, useApp } from "./AppContext";
 
 // ─── LOGIN ───
 const GoogleIcon = () => (<svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>);
@@ -167,14 +168,11 @@ function LoginScreen({ onLogin, theme, toggleTheme, authError, localMode }) {
 function MainApp({ user, householdId, householdRole, onLogout, theme, toggleTheme }) {
   const T = themes[theme];
   const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const { exp, setExp, accts, setAccts, budgets, setBudgets, genBudget, setGenBudget, cats, setCats, rec, setRec, debts, setDebts, dPays, setDPays, users, ld, toast, tst, catColors, svE, svA, svB, svCats, svGB, svR, svD, svDP, callAI } = useApp();
   const [tab, setTab] = useState("dashboard");
   const [expSub, setExpSub] = useState("list");
   const [accSub, setAccSub] = useState("accounts");
   const [sub, setSub] = useState("insights");
-  const [exp, setExp] = useState([]);
-  const [accts, setAccts] = useState([]);
-  const [budgets, setBudgets] = useState(DEFAULT_BUDGETS);
-  const [ld, setLd] = useState(true);
   const [sf, setSf] = useState(false);
   const [saf, setSaf] = useState(false);
   const [eId, setEId] = useState(null);
@@ -185,7 +183,6 @@ function MainApp({ user, householdId, householdRole, onLogout, theme, toggleThem
   const [sd, setSd] = useState("desc");
   const [dc, setDc] = useState(null);
   const [dac, setDac] = useState(null);
-  const [toast, setToast] = useState(null);
   const [form, setForm] = useState({ amount: "", category: "Food", description: "", date: td(), addedBy: user, accountId: "" });
   const [af, setAf] = useState({ name: "", balance: "", type: "savings" });
   const [msgs, setMsgs] = useState([{ role: "assistant", content: `Hey ${user}! Tell me what you spent and I'll log it. Upload a receipt or just type it out.` }]);
@@ -201,19 +198,14 @@ function MainApp({ user, householdId, householdRole, onLogout, theme, toggleThem
   const [clr, setClr] = useState(false);
   const [sbf, setSbf] = useState(false);
   const [bf, setBf] = useState({});
-  const [genBudget, setGenBudget] = useState(0);
   const [gbEdit, setGbEdit] = useState("");
   const [cgb, setCgb] = useState(false);
-  const [cats, setCats] = useState(DEF_CATS);
   const [newCat, setNewCat] = useState("");
   const [delCat, setDelCat] = useState(null);
-  const [rec, setRec] = useState([]);
   const [srf, setSrf] = useState(false);
   const [erId, setErId] = useState(null);
   const [rf, setRf] = useState({ amount: "", category: "Food", description: "", frequency: "monthly", nextDate: td() });
   const [drc, setDrc] = useState(null);
-  const [debts, setDebts] = useState([]);
-  const [dPays, setDPays] = useState([]);
   const [sdf, setSdf] = useState(false);
   const [edtId, setEdtId] = useState(null);
   const [ddf, setDdf] = useState({ name: "", type: "Credit Card", totalAmount: "", currentBalance: "", dueDate: "", interestRate: "", minPayment: "" });
@@ -225,9 +217,6 @@ function MainApp({ user, householdId, householdRole, onLogout, theme, toggleThem
   const [inviteModal, setInviteModal] = useState(false);
   const [inviteLink, setInviteLink] = useState("");
   const [inviteCopied, setInviteCopied] = useState(false);
-  const [users, setUsers] = useState([user]);
-  const tst = (m) => { setToast(m); setTimeout(() => setToast(null), 2500); };
-  const catColors = (() => { let ei = 0; return cats.reduce((o, c) => { if (DEF_CCO[c]) { o[c] = DEF_CCO[c]; } else { o[c] = EXTRA_COLORS[ei % EXTRA_COLORS.length]; ei++; } return o; }, {}); })();
 
   const pillS = (a) => ({
     padding: isDesktop ? "8px 18px" : "7px 14px", borderRadius: 20, fontSize: isDesktop ? 12 : 11, fontWeight: 600, cursor: "pointer", transition: "all 0.2s",
@@ -247,82 +236,8 @@ function MainApp({ user, householdId, householdRole, onLogout, theme, toggleThem
   const mwMore = isDesktop ? 1100 : 600;
   const switchTab = (id) => { setTab(id); if (id === "expenses") setExpSub("list"); if (id === "accounts") setAccSub("accounts"); if (id === "more") setSub("insights"); };
 
-  useEffect(() => {
-    (async () => {
-      try {
-        if (sbReady) {
-          // ─── LOAD FROM SUPABASE ───
-          const d = await sb.loadAll(householdId);
-          if (d.expenses.length > 0) {
-            setExp(d.expenses);
-            if (d.accounts.length) setAccts(d.accounts);
-            if (d.budgets) setBudgets(d.budgets);
-            if (d.genBudget !== null) setGenBudget(d.genBudget);
-            if (d.recurring.length) setRec(d.recurring);
-            if (d.debts.length) setDebts(d.debts);
-            if (d.debtPayments.length) setDPays(d.debtPayments);
-            if (d.categories) setCats(d.categories);
-            setLd(false); return;
-          }
-          // Supabase empty — try migrating localStorage data up
-          try {
-            const lsE = localStorage.getItem("expenses");
-            if (lsE) {
-              const lExp = JSON.parse(lsE);
-              if (lExp.length > 0) {
-                const lAccts = JSON.parse(localStorage.getItem("accounts") || "[]");
-                const lRec = JSON.parse(localStorage.getItem("recurring") || "[]");
-                const lCats = JSON.parse(localStorage.getItem("categories") || "null");
-                const lBudgets = JSON.parse(localStorage.getItem("budgets") || "null");
-                const lGenB = JSON.parse(localStorage.getItem("genBudget") || "null");
-                const lPins = JSON.parse(localStorage.getItem("pins") || "null");
-                await sb.migrate(lExp, lAccts, lRec, lCats || [], lBudgets, lGenB, lPins, householdId);
-                setExp(lExp);
-                if (lAccts.length) setAccts(lAccts);
-                if (lBudgets) setBudgets(lBudgets);
-                if (lGenB !== null) setGenBudget(lGenB);
-                if (lRec.length) setRec(lRec);
-                try { const lD = JSON.parse(localStorage.getItem("debts") || "[]"); if (lD.length) setDebts(lD); } catch {}
-                try { const lDP = JSON.parse(localStorage.getItem("debtPayments") || "[]"); if (lDP.length) setDPays(lDP); } catch {}
-                if (lCats && lCats.length) setCats(lCats);
-                setLd(false); return;
-              }
-            }
-          } catch {}
-          setLd(false); return;
-        }
-        // ─── FALLBACK: LOAD FROM LOCALSTORAGE ───
-        const r = await localStore.get("expenses");
-        if (r?.value) { const p = JSON.parse(r.value); if (p.length > 0) { setExp(p);
-          try { const a = await localStore.get("accounts"); if (a?.value) setAccts(JSON.parse(a.value)); } catch {}
-          try { const b = await localStore.get("budgets"); if (b?.value) setBudgets(JSON.parse(b.value)); } catch {}
-          try { const g = await localStore.get("genBudget"); if (g?.value) setGenBudget(JSON.parse(g.value)); } catch {}
-          try { const rc = await localStore.get("recurring"); if (rc?.value) setRec(JSON.parse(rc.value)); } catch {}
-          try { const ct = await localStore.get("categories"); if (ct?.value) { const pc = JSON.parse(ct.value); if (Array.isArray(pc) && pc.length > 0) setCats(pc); } } catch {}
-          try { const dt = await localStore.get("debts"); if (dt?.value) setDebts(JSON.parse(dt.value)); } catch {}
-          try { const dtp = await localStore.get("debtPayments"); if (dtp?.value) setDPays(JSON.parse(dtp.value)); } catch {}
-          setLd(false); return; } }
-      } catch (e) { console.error(e); }
-      setLd(false);
-    })();
-  }, [householdId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { cr.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, pe]);
-  useEffect(() => {
-    if (sbReady && householdId) {
-      supabase.from("household_members").select("user_id").eq("household_id", householdId)
-        .then(async ({ data: members }) => {
-          if (!members?.length) return;
-          const ids = members.map(m => m.user_id);
-          const { data: profiles } = await supabase.from("profiles").select("display_name").in("id", ids);
-          if (profiles?.length) setUsers(profiles.map(p => p.display_name).filter(Boolean));
-        });
-    }
-  }, [householdId]);
 
-  const svE = async (d, opts) => { setExp(d); try { if (sbReady) { if (opts?.deleteId) await sb.deleteExpense(opts.deleteId, householdId); else if (opts?.upsert) await sb.upsertExpense(opts.upsert, householdId); else if (opts?.upsertMany) await sb.upsertExpenses(opts.upsertMany, householdId); else await sb.upsertExpenses(d, householdId); } else await localStore.set("expenses", JSON.stringify(d)); } catch {} };
-  const svA = async (d, opts) => { setAccts(d); try { if (sbReady) { if (opts?.deleteId) await sb.deleteAccount(opts.deleteId, householdId); else if (opts?.upsert) await sb.upsertAccount(opts.upsert, householdId); else await supabase.from("accounts").upsert(d.map(a => ({ id: a.id, name: a.name, balance: a.balance, type: a.type, household_id: householdId, updated_at: a.updatedAt }))); } else await localStore.set("accounts", JSON.stringify(d)); } catch {} };
-  const svB = async (d) => { setBudgets(d); try { if (sbReady) await sb.saveSetting("budgets", d, householdId); else await localStore.set("budgets", JSON.stringify(d)); } catch {} };
-  const svCats = async (d) => { setCats(d); try { if (sbReady) await sb.saveCategories(d, householdId); else await localStore.set("categories", JSON.stringify(d)); } catch {} };
   const doSubmit = () => {
     if (!form.amount || isNaN(parseFloat(form.amount))) return;
     const en = { id: eId || uid(), amount: parseFloat(parseFloat(form.amount).toFixed(2)), category: form.category, description: form.description.trim(), date: form.date || td(), addedBy: form.addedBy || user, accountId: form.accountId || null, createdAt: Date.now() };
@@ -354,10 +269,6 @@ function MainApp({ user, householdId, householdRole, onLogout, theme, toggleThem
   const edA = (a) => { setAf({ name: a.name, balance: String(a.balance), type: a.type }); setEaId(a.id); setSaf(true); };
   const delA = (id) => { svA(accts.filter(a => a.id !== id), { deleteId: id }); setDac(null); tst("Account removed"); };
   const saveBudgets = () => { svB(bf); setSbf(false); tst("Budgets saved"); };
-  const svGB = async (v) => { setGenBudget(v); try { if (sbReady) await sb.saveSetting("genBudget", v, householdId); else await localStore.set("genBudget", JSON.stringify(v)); } catch {} };
-  const svR = async (d, opts) => { setRec(d); try { if (sbReady) { if (opts?.deleteId) await sb.deleteRecurring(opts.deleteId, householdId); else if (opts?.upsert) await sb.upsertRecurring(opts.upsert, householdId); else if (opts?.upsertMany) await sb.upsertRecurringBulk(opts.upsertMany, householdId); else await sb.upsertRecurringBulk(d, householdId); } else await localStore.set("recurring", JSON.stringify(d)); } catch {} };
-  const svD = async (d, opts) => { setDebts(d); try { if (sbReady) { if (opts?.deleteId) await sb.deleteDebt(opts.deleteId, householdId); else if (opts?.upsert) await sb.upsertDebt(opts.upsert, householdId); } else await localStore.set("debts", JSON.stringify(d)); } catch {} };
-  const svDP = async (d, opts) => { setDPays(d); try { if (sbReady) { if (opts?.upsert) await sb.upsertDebtPayment(opts.upsert, householdId); } else await localStore.set("debtPayments", JSON.stringify(d)); } catch {} };
   const doRec = () => {
     if (!rf.description.trim() || !rf.amount || isNaN(parseFloat(rf.amount))) return;
     const en = { id: erId || uid(), amount: parseFloat(parseFloat(rf.amount).toFixed(2)), category: rf.category, description: rf.description.trim(), frequency: rf.frequency, nextDate: rf.nextDate || td(), addedBy: user, createdAt: Date.now() };
@@ -441,16 +352,6 @@ RESPOND ONLY WITH VALID JSON. No markdown, no backticks. Today: ${td()}. Current
 Format: {"expenses":[{"amount":number,"category":"${cats.join("|")}","description":"text","date":"YYYY-MM-DD"}],"message":"confirmation text, NO emojis"}
 Not expenses: {"expenses":[],"message":"response, NO emojis"}
 Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multiple. Categories: ${cats.join(", ")}. If unsure pick "Other". gas/grab/angkas=Transport. food/jollibee/grocery/coffee=Food. netflix/spotify=Subscriptions. meralco/pldt/water=Bills.`;
-  const callAI = async (m, s, ret = 2) => {
-    for (let i = 0; i <= ret; i++) {
-      try {
-        const r = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, system: s, messages: m }) });
-        if (r.status === 429 || r.status >= 500) { if (i < ret) { await new Promise(rs => setTimeout(rs, 1500 * (i + 1))); continue; } }
-        if (!r.ok) return `{"expenses":[],"message":"API error ${r.status}."}`;
-        const d = await r.json(); return d.content?.map(b => b.text || "").filter(Boolean).join("") || '{"expenses":[],"message":"No response."}';
-      } catch { if (i < ret) { await new Promise(rs => setTimeout(rs, 1500 * (i + 1))); continue; } return '{"expenses":[],"message":"Connection error."}'; }
-    }
-  };
   const parseR = (t) => {
     try { let c = t.replace(/```json|```/g, "").trim(); const m = c.match(/\{[\s\S]*\}/); if (m) { const p = JSON.parse(m[0]); return { expenses: (p.expenses || []).map(e => ({ ...e, category: cats.includes(e.category) ? e.category : "Other", date: e.date || td() })), message: p.message || "" }; } return { expenses: [], message: t.slice(0, 300) }; }
     catch { if (t && !t.startsWith("{")) return { expenses: [], message: t.slice(0, 300) }; return { expenses: [], message: "Could not parse." }; }
@@ -1394,12 +1295,20 @@ export default function App() {
     }
 
     if (user && household) {
-      return <MainApp user={user} householdId={household.id} householdRole={householdRole} onLogout={handleLogout} theme={theme} toggleTheme={toggle} />;
+      return (
+        <AppProvider user={user} householdId={household.id} theme={theme}>
+          <MainApp user={user} householdId={household.id} householdRole={householdRole} onLogout={handleLogout} theme={theme} toggleTheme={toggle} />
+        </AppProvider>
+      );
     }
     return <LoginScreen theme={theme} toggleTheme={toggle} authError={authError} />;
   }
 
   return localUser
-    ? <MainApp user={localUser} onLogout={() => setLocalUser(null)} theme={theme} toggleTheme={toggle} />
+    ? (
+      <AppProvider user={localUser} householdId={null} theme={theme}>
+        <MainApp user={localUser} onLogout={() => setLocalUser(null)} theme={theme} toggleTheme={toggle} />
+      </AppProvider>
+    )
     : <LoginScreen onLogin={setLocalUser} theme={theme} toggleTheme={toggle} localMode={true} />;
 }

@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd /c/Users/Joseph/\"Expense Tracker\"/expense-tracker)",
+      "Bash(npx react-scripts build)"
+    ]
+  }
+}

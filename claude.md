@@ -228,20 +228,33 @@ On first Supabase load with empty tables, existing localStorage data is auto-mig
 - [x] Configure Google OAuth in Google Cloud Console
 - [x] Custom favicon (gold peso coin SVG) and browser tab title ("Shared Finance")
 
-**9b-lite + 9c — Households & Invite Link System** ✅ DONE
+**9b-lite + 9c — Households & Invite Link System** 🔄 REDESIGNED
 - [x] Create `households` table (id UUID, name, created_at)
 - [x] Create `household_members` table (household_id, user_id, role: "owner"/"member", joined_at)
 - [x] Create `invites` table (id, household_id, created_by, token, used, used_by, created_at, expires_at)
-- [x] Auto-create household when user clicks "Create Your Household" (first-time flow)
-- [x] NoHouseholdScreen for users not yet in a household
-- [x] Invite token capture from URL query param (`?invite=TOKEN`)
+- [x] Auto-create household on first Google sign-in (always, no gate)
+- [x] Invite token captured from URL path `/invite/TOKEN` → stored in localStorage
 - [x] Token persisted through OAuth redirect via localStorage
-- [x] Auto-accept invite on sign-in (validate, join household, mark used)
 - [x] "Invite Partner" button in Settings with copy-link modal
 - [x] Reuse existing unused invite instead of creating duplicates
 - [x] Users list fetched from household_members (not all profiles)
 - [x] Household info card in Settings (member count + role)
-- [x] Create tables in Supabase SQL Editor
+- [x] Supabase RLS policies: invites SELECT, households SELECT, invites UPDATE, household_members INSERT
+
+**Invite Flow (Redesigned — decoupled from auth):**
+- [x] `handleSession` only handles profile + household assignment (no invite logic inside auth)
+- [x] New user always gets a household auto-created first (clean, no RLS timing issues)
+- [x] Separate `useEffect` after auth checks `pendingInvite` from localStorage
+- [x] If valid token found → fetch invite + household → show "Accept & Join" confirmation screen
+- [x] User clicks Accept → delete from current household → insert into invited household → mark invite used
+- [x] User clicks Decline → stays in their auto-created household
+- [x] If token invalid/expired → show clear error message
+- [x] `acceptInvite` updated to work for all users (new or existing)
+
+**Known invite flow limitation:**
+- Invite link MUST be opened directly in the phone's main browser (Chrome/Safari)
+- Opening the link inside a chat app (WhatsApp, Viber, Messenger) uses an in-app browser that does NOT share localStorage — the invite token gets lost and a new household is created instead
+- Workaround: always copy-paste the link and open in Chrome
 
 **9b-full — Data Isolation** ✅ DONE
 - [x] Add `household_id` column to all data tables (expenses, accounts, recurring, categories, settings, debts, debt_payments)
@@ -347,6 +360,26 @@ Dashboard | Expenses | AI Chat | Accounts | More
 - [ ] Daily/weekly debt summary notification (optional, configurable in Settings)
 - [ ] Email notifications (future/lower priority): Supabase Edge Function to send reminder emails
 
+### Phase 12 — Code Refactoring
+
+**Why:** `App.js` is a single file with ~1600+ lines covering all components, styles, state, and logic. As the app grows this becomes harder to maintain and debug.
+
+**Plan:**
+- [ ] Split into feature-based component files under `src/components/`
+  - `Dashboard.js` — dashboard tab + charts
+  - `Expenses.js` — expense list + recurring sub-tabs
+  - `AIChat.js` — chat interface + receipt upload
+  - `Accounts.js` — accounts + budgets + debts sub-tabs
+  - `More.js` — insights + settings sub-tabs
+  - `Login.js` — login screen
+- [ ] Move shared styles/theme into `src/theme.js`
+- [ ] Move Supabase helpers into `src/db.js` (already partially in `supabase.js`)
+- [ ] Move utility functions (uid, fmt, stripEmoji, etc.) into `src/utils.js`
+- [ ] Keep `App.js` as the root shell — auth, routing, global state only
+- [ ] No behavior changes — pure structural refactor, all features stay identical
+
+**When to do it:** After Phase 11 is fully complete and the app is stable.
+
 ---
 
 ## Cost
@@ -354,6 +387,42 @@ Dashboard | Expenses | AI Chat | Accounts | More
 | Tier | Details | Price |
 |---|---|---|
 | **Current** | Vercel free tier + Supabase free tier + Claude API | ~$3-10/month (API usage only) |
+
+---
+
+## Session Notes (2026-03-04)
+
+### What was done this session:
+1. **Removed all hardcoded seed data** — deleted `SEED_EXP` (50 fake expenses) and `SEED_ACCT` (BDO/BPI/GCash) from App.js. App now starts with empty state instead of seeding fake data on first load.
+2. **Fixed AI Insights button on mobile** — `padding: undefined` was wiping out button padding on mobile, making it look thin. Fixed to `14px 20px`.
+3. **Fixed Settings card text in dark mode** — "Invite Partner", "Export CSV", "Household" cards had no explicit text color, making them unreadable in dark mode. Added `color: T.text1`.
+4. **Invite flow confirmed working** — invite link works when opened directly in Chrome. In-app browsers (WhatsApp/Viber) lose the localStorage token. Rowena must always open the link in Chrome directly.
+5. **DB cleanup** — deleted all rogue households (Rowena's, Seph's, Tres's). Manually moved Rowena into Joseph's household via SQL.
+
+### Current DB state (as of end of session):
+- Joseph's household ID: `6ee010f1-7050-4096-b198-d3bc4fae250c`
+- Members: Joseph (owner) + Rowena (member)
+- All other profiles/households cleaned up
+
+### Recurring issue — Seph & Tres keep reappearing:
+- `trespares2020@gmail.com` (Tres) and `jlacsamana122@gmail.com` (Seph) are Joseph's alt accounts
+- Every time they sign in, a new household is auto-created
+- Need to either: (a) add an allowlist of allowed emails, or (b) just delete them via SQL when they appear
+- SQL to nuke them: `DELETE FROM profiles WHERE email IN ('trespares2020@gmail.com', 'jlacsamana122@gmail.com');` (run household cleanup first)
+
+### Rowena's household is manually set (not via invite):
+- Rowena (`marbidarowena27@gmail.com`) was manually inserted into Joseph's household via SQL
+- Next time she logs out and back in, she should stay in the correct household (membership persists)
+- If it breaks again, use: `INSERT INTO household_members (household_id, user_id, role) VALUES ('6ee010f1-7050-4096-b198-d3bc4fae250c', (SELECT id FROM profiles WHERE email = 'marbidarowena27@gmail.com'), 'member');`
+
+---
+
+## Active Bugs / To Do Next Session
+
+- [ ] **Allowlist** — only allow josephlacsamana7@gmail.com and marbidarowena27@gmail.com to sign in (block all others to prevent rogue households)
+- [ ] **Verify Rowena's household persists** after she logs out and back in
+- [ ] Phase 9d — Role-based permissions (owner vs member)
+- [ ] Phase 11b — AI Debt Insights
 
 ---
 
