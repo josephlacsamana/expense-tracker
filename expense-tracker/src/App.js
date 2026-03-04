@@ -210,8 +210,8 @@ function MainApp({ user, householdId, householdRole, onLogout, theme, toggleThem
   const [payDate, setPayDate] = useState(td());
   const [viewDt, setViewDt] = useState(null);
   const [inviteModal, setInviteModal] = useState(false);
-  const [inviteLink, setInviteLink] = useState("");
-  const [inviteCopied, setInviteCopied] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteEmailSent, setInviteEmailSent] = useState(false);
 
   const pillS = (a) => ({
     padding: isDesktop ? "8px 18px" : "7px 14px", borderRadius: 20, fontSize: isDesktop ? 12 : 11, fontWeight: 600, cursor: "pointer", transition: "all 0.2s",
@@ -326,21 +326,14 @@ function MainApp({ user, householdId, householdRole, onLogout, theme, toggleThem
   };
   const clearAll = async () => { setExp([]); setAccts([]); setRec([]); setDebts([]); setDPays([]); setGenBudget(0); setCats(DEF_CATS); setBudgets(DEFAULT_BUDGETS); try { if (sbReady) { await Promise.all([sb.deleteAllExpenses(householdId), sb.deleteAllAccounts(householdId), sb.deleteAllRecurring(householdId), sb.deleteAllDebts(householdId), sb.saveCategories(DEF_CATS, householdId), sb.saveSetting("budgets", DEFAULT_BUDGETS, householdId), sb.saveSetting("genBudget", 0, householdId)]); } else { await localStore.set("expenses", JSON.stringify([])); await localStore.set("accounts", JSON.stringify([])); await localStore.set("recurring", JSON.stringify([])); await localStore.set("debts", JSON.stringify([])); await localStore.set("debtPayments", JSON.stringify([])); await localStore.set("genBudget", JSON.stringify(0)); await localStore.set("categories", JSON.stringify(DEF_CATS)); await localStore.set("budgets", JSON.stringify(DEFAULT_BUDGETS)); } } catch {} setClr(false); tst("All data cleared"); };
 
-  const generateInvite = async () => {
-    if (!sbReady || !householdId) return;
-    // Check for existing unused invite
-    const { data: existing } = await supabase.from("invites").select("*").eq("household_id", householdId).eq("used", false).gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false }).limit(1);
-    if (existing?.length) {
-      setInviteLink(`${window.location.origin}/invite/${existing[0].token}`);
-    } else {
-      const { data: inv } = await supabase.from("invites").insert({ household_id: householdId, created_by: supabase.auth.getUser ? (await supabase.auth.getUser()).data.user?.id : null }).select().single();
-      if (inv) setInviteLink(`${window.location.origin}/invite/${inv.token}`);
-    }
-    setInviteCopied(false);
-    setInviteModal(true);
+  const sendEmailInvite = async () => {
+    if (!sbReady || !householdId || !inviteEmail.trim()) return;
+    const email = inviteEmail.trim().toLowerCase();
+    const { data: existing } = await supabase.from("invites").select("*").eq("household_id", householdId).eq("invited_email", email).eq("used", false).gt("expires_at", new Date().toISOString()).limit(1);
+    if (existing?.length) { setInviteEmailSent(true); return; }
+    const { error } = await supabase.from("invites").insert({ household_id: householdId, created_by: profile?.id, invited_email: email, token: uid() });
+    if (!error) setInviteEmailSent(true);
   };
-
-  const copyInvite = () => { navigator.clipboard.writeText(inviteLink).then(() => { setInviteCopied(true); setTimeout(() => setInviteCopied(false), 2000); }); };
 
   const SYS = `You are an expense tracker assistant for a couple (${users.join(" and ")}). Currency: PHP (Philippine Peso).
 RESPOND ONLY WITH VALID JSON. No markdown, no backticks. Today: ${td()}. Current user: ${user}.
@@ -971,9 +964,9 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
                 <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 14 }}>Settings</div>
                 {sbReady && householdId && (
                   <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 8, marginBottom: 16 }}>
-                    <button onClick={generateInvite} style={{ ...cardS, width: "100%", padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>
+                    <button onClick={() => { setInviteEmail(""); setInviteEmailSent(false); setInviteModal(true); }} style={{ ...cardS, width: "100%", padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>
                       <UserPlus size={18} style={{ color: T.gold }} />
-                      <div><div style={{ fontSize: 13, fontWeight: 600, color: T.text1 }}>Invite Partner</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>Send a link to join your household</div></div>
+                      <div><div style={{ fontSize: 13, fontWeight: 600, color: T.text1 }}>Invite Partner</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>Invite by Gmail address</div></div>
                     </button>
                     <div style={{ ...cardS, padding: "16px 18px", display: "flex", alignItems: "center", gap: 12 }}>
                       <Home size={18} style={{ color: T.gold }} />
@@ -996,14 +989,20 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
             <div style={{ fontSize: 18, fontWeight: 800, color: T.text1 }}>Invite Partner</div>
             <button onClick={() => setInviteModal(false)} style={{ background: "none", border: "none", color: T.text3, cursor: "pointer" }}><X size={22} /></button>
           </div>
-          <p style={{ fontSize: 13, color: T.text2, marginBottom: 16, lineHeight: 1.5 }}>Share this link with your partner. They'll sign in with Google and automatically join your household.</p>
-          <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16 }}>
-            <input readOnly value={inviteLink} style={{ ...inpS, flex: 1, fontSize: 11, fontFamily: "monospace" }} />
-            <button onClick={copyInvite} style={{ ...btnP, padding: "12px 16px", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6 }}>
-              {inviteCopied ? <><Check size={14} />Copied</> : <><Copy size={14} />Copy</>}
-            </button>
-          </div>
-          <p style={{ fontSize: 11, color: T.text3, margin: 0 }}>Link expires in 7 days. Only one use per link.</p>
+          {inviteEmailSent ? (
+            <div style={{ textAlign: "center", padding: "20px 0" }}>
+              <Check size={32} style={{ color: T.succ, marginBottom: 12 }} />
+              <div style={{ fontSize: 14, fontWeight: 600, color: T.text1, marginBottom: 8 }}>Invite sent!</div>
+              <p style={{ fontSize: 13, color: T.text2, margin: 0 }}>When <strong>{inviteEmail}</strong> signs in with Google, they'll be prompted to join your household.</p>
+            </div>
+          ) : (<>
+            <p style={{ fontSize: 13, color: T.text2, marginBottom: 16, lineHeight: 1.5 }}>Enter your partner's Gmail address. They'll see a join prompt the next time they sign in with Google.</p>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16 }}>
+              <input type="email" placeholder="partner@gmail.com" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} onKeyDown={e => { if (e.key === "Enter") sendEmailInvite(); }} style={{ ...inpS, flex: 1 }} />
+              <button onClick={sendEmailInvite} style={{ ...btnP, padding: "12px 16px", whiteSpace: "nowrap" }}>Send</button>
+            </div>
+            <p style={{ fontSize: 11, color: T.text3, margin: 0 }}>Invite expires in 7 days.</p>
+          </>)}
         </div></div>}
 
         {sf && <div style={mOvS}><div style={mInS}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}><div style={{ fontSize: 18, fontWeight: 800, color: T.text1 }}>{eId ? "Edit" : "Add"} Expense</div><button onClick={rstF} style={{ background: "none", border: "none", color: T.text3, cursor: "pointer" }}><X size={22} /></button></div>
@@ -1101,19 +1100,9 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState(null); // eslint-disable-line no-unused-vars
   const [pendingInviteData, setPendingInviteData] = useState(null);
-  const [inviteError, setInviteError] = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "light");
   const toggle = () => setTheme(v => { const next = v === "dark" ? "light" : "dark"; localStorage.setItem("theme", next); return next; });
 
-  // Capture invite token from URL path (/invite/TOKEN) or query (?invite=TOKEN) on mount
-  useEffect(() => {
-    const pathMatch = window.location.pathname.match(/^\/invite\/([a-zA-Z0-9]+)$/);
-    const invite = pathMatch ? pathMatch[1] : new URLSearchParams(window.location.search).get("invite");
-    if (invite) {
-      localStorage.setItem("pendingInvite", invite);
-      window.history.replaceState({}, "", "/");
-    }
-  }, []);
 
   useEffect(() => {
     if (!sbReady) { setAuthLoading(false); return; }
@@ -1174,26 +1163,21 @@ export default function App() {
     return () => { subscription.unsubscribe(); clearTimeout(timeout); };
   }, []);
 
-  // Separate effect: check pendingInvite AFTER auth is fully loaded
+  // Separate effect: check for email-based pending invite AFTER auth is fully loaded
   useEffect(() => {
-    if (!sbReady || authLoading || !profile) return;
-    const token = localStorage.getItem("pendingInvite");
-    if (!token) return;
-    localStorage.removeItem("pendingInvite");
+    if (!sbReady || authLoading || !profile || !household) return;
     (async () => {
       try {
-        const { data: inv } = await supabase.from("invites").select("*").eq("token", token).eq("used", false).maybeSingle();
-        if (!inv || new Date(inv.expires_at) <= new Date()) { setInviteError(true); return; }
+        const { data: inv } = await supabase.from("invites").select("*").eq("invited_email", profile.email).eq("used", false).gt("expires_at", new Date().toISOString()).maybeSingle();
+        if (!inv) return;
         const { data: invitedH } = await supabase.from("households").select("*").eq("id", inv.household_id).single();
-        if (!invitedH) { setInviteError(true); return; }
-        // Show confirmation screen — works for ALL users (new or existing)
+        if (!invitedH || invitedH.id === household?.id) return;
         setPendingInviteData({ inv, invitedHousehold: invitedH, userId: profile.id });
-      } catch (e) { console.error("[invite] error:", e); setInviteError(true); }
+      } catch (e) { console.error("[invite] error:", e); }
     })();
-  }, [authLoading, profile]);
+  }, [authLoading, profile, household]);
 
   const handleLogout = async () => {
-    setInviteError(false);
     if (sbReady) {
       try { await supabase.auth.signOut(); } catch (e) { console.error("[logout] error:", e); }
       window.location.href = "/";
