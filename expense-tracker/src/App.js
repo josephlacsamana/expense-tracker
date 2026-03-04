@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Plus, Trash2, Edit3, X, Check, Search, MessageSquare, LayoutDashboard, PieChart, Settings, ChevronDown, Lock, LogOut, ImagePlus, Send, RefreshCw, Download, AlertTriangle, TrendingUp, TrendingDown, PiggyBank, CreditCard, Building2, Wallet, Lightbulb, Coins, Sun, Moon, Repeat, Copy, UserPlus, Home } from "lucide-react";
+import { Plus, Trash2, Edit3, X, Check, Search, MessageSquare, LayoutDashboard, PieChart, Settings, ChevronDown, Lock, LogOut, ImagePlus, Send, RefreshCw, Download, AlertTriangle, TrendingUp, TrendingDown, Wallet, Lightbulb, Coins, Sun, Moon, Repeat, Copy, UserPlus, Home } from "lucide-react";
 import { PieChart as RPie, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, LineChart, Line, CartesianGrid, Legend } from "recharts";
 import { supabase, sbReady } from "./supabase";
 import { themes, DEF_CCO, DEF_CATS, EXTRA_COLORS, PERIODS, LOCAL_USERS, DEBT_TYPES, DEFAULT_BUDGETS, DEFAULT_PINS, aIcons, dIcons, uid, fmt, fmtS, td, pld, stripE, startOf, prevRange, localStore } from "./constants";
