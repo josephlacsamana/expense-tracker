@@ -38,10 +38,17 @@ function LoginScreen({ onLogin, theme, toggleTheme, authError, localMode }) {
 
   const ua = navigator.userAgent || "";
   const isInAppBrowser = /FBAN|FBAV|FB_IAB|Instagram|Messenger/i.test(ua);
+  const isIOS = /iPhone|iPad|iPod/i.test(ua);
 
   const openInChrome = () => {
     const url = window.location.href;
-    window.location.href = `intent://${window.location.hostname}${window.location.pathname}${window.location.search}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(url)};end`;
+    if (isIOS) {
+      // iOS: use Chrome's custom URL scheme (googlechromes for https)
+      window.location.href = url.replace(/^https:\/\//, "googlechromes://");
+    } else {
+      // Android: use intent scheme
+      window.location.href = `intent://${window.location.hostname}${window.location.pathname}${window.location.search}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(url)};end`;
+    }
   };
 
   const brandText = "Shared Finance";
