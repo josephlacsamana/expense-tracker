@@ -32,7 +32,7 @@ function LoginScreen({ onLogin, theme, toggleTheme, authError, localMode }) {
     try {
       // Always redirect to base URL — invite token is in localStorage and handled separately after auth
       const redirectTo = window.location.origin;
-      const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo } });
+      const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo, queryParams: { prompt: "select_account" } } });
       if (error) { setErr(error.message); setSigningIn(false); }
     } catch { setErr("Failed to start sign in."); setSigningIn(false); }
   };
@@ -160,7 +160,7 @@ function LoginScreen({ onLogin, theme, toggleTheme, authError, localMode }) {
 
 // ─── NO HOUSEHOLD SCREEN ───
 // ─── MAIN APP ───
-function MainApp({ user, householdId, householdRole, onLogout, theme, toggleTheme }) {
+function MainApp({ user, householdId, householdRole, profile, household, onLogout, theme, toggleTheme }) {
   const T = themes[theme];
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const { exp, setExp, accts, setAccts, budgets, setBudgets, genBudget, setGenBudget, cats, setCats, rec, setRec, debts, setDebts, dPays, setDPays, users, ld, toast, tst, catColors, svE, svA, svB, svCats, svGB, svR, svD, svDP, callAI } = useApp();
@@ -212,6 +212,8 @@ function MainApp({ user, householdId, householdRole, onLogout, theme, toggleThem
   const [inviteModal, setInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteEmailSent, setInviteEmailSent] = useState(false);
+  const [editHhName, setEditHhName] = useState(false);
+  const [hhName, setHhName] = useState(household?.name || "My Household");
   const [invLinkCopied, setInvLinkCopied] = useState(false);
 
   const pillS = (a) => ({
@@ -326,6 +328,13 @@ function MainApp({ user, householdId, householdRole, onLogout, theme, toggleThem
     const b = new Blob([h + r], { type: "text/csv" }); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = "expenses.csv"; a.click(); URL.revokeObjectURL(u);
   };
   const clearAll = async () => { setExp([]); setAccts([]); setRec([]); setDebts([]); setDPays([]); setGenBudget(0); setCats(DEF_CATS); setBudgets(DEFAULT_BUDGETS); try { if (sbReady) { await Promise.all([sb.deleteAllExpenses(householdId), sb.deleteAllAccounts(householdId), sb.deleteAllRecurring(householdId), sb.deleteAllDebts(householdId), sb.saveCategories(DEF_CATS, householdId), sb.saveSetting("budgets", DEFAULT_BUDGETS, householdId), sb.saveSetting("genBudget", 0, householdId)]); } else { await localStore.set("expenses", JSON.stringify([])); await localStore.set("accounts", JSON.stringify([])); await localStore.set("recurring", JSON.stringify([])); await localStore.set("debts", JSON.stringify([])); await localStore.set("debtPayments", JSON.stringify([])); await localStore.set("genBudget", JSON.stringify(0)); await localStore.set("categories", JSON.stringify(DEF_CATS)); await localStore.set("budgets", JSON.stringify(DEFAULT_BUDGETS)); } } catch {} setClr(false); tst("All data cleared"); };
+
+  const saveHhName = async () => {
+    if (!hhName.trim() || !householdId) return;
+    await supabase.from("households").update({ name: hhName.trim() }).eq("id", householdId);
+    setEditHhName(false);
+    tst("Household name updated");
+  };
 
   const sendEmailInvite = async () => {
     if (!sbReady || !householdId || !inviteEmail.trim()) return;
@@ -459,8 +468,11 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
       {isDesktop && (
         <div style={{ width: 250, height: "100vh", background: T.surface, borderRight: `1px solid ${T.border}`, padding: "28px 0", display: "flex", flexDirection: "column", flexShrink: 0, position: "sticky", top: 0, alignSelf: "flex-start", boxSizing: "border-box" }}>
           <div style={{ padding: "0 24px", marginBottom: 36 }}>
-            <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, color: T.text1, letterSpacing: -0.5 }}>Expense<span style={{ color: T.gold }}>Tracker</span></h1>
-            <p style={{ color: T.text3, fontSize: 11, margin: "4px 0 0" }}>Logged in as <span style={{ color: T.gold }}>{user}</span></p>
+            <h1 style={{ fontSize: 22, fontWeight: 800, margin: "0 0 14px", color: T.text1, letterSpacing: -0.5 }}>Expense<span style={{ color: T.gold }}>Tracker</span></h1>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              {profile?.avatar_url ? <img src={profile.avatar_url} alt="" style={{ width: 34, height: 34, borderRadius: "50%", objectFit: "cover", border: `2px solid ${T.gold}`, flexShrink: 0 }} /> : <div style={{ width: 34, height: 34, borderRadius: "50%", background: T.goldMuted, border: `2px solid ${T.gold}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: T.gold, flexShrink: 0 }}>{(user || "?")[0].toUpperCase()}</div>}
+              <div><div style={{ fontSize: 13, fontWeight: 600, color: T.text1 }}>{user}</div><div style={{ fontSize: 10, color: T.text3, marginTop: 1 }}>{profile?.email || ""}</div></div>
+            </div>
           </div>
           {tabs.map(t => {
             const I = t.icon;
@@ -964,6 +976,16 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
 
               {sub === "settings" && (<>
                 <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 14 }}>Settings</div>
+
+                {/* Profile card */}
+                <div style={{ ...cardS, padding: "16px 18px", display: "flex", alignItems: "center", gap: 14, marginBottom: 12 }}>
+                  {profile?.avatar_url ? <img src={profile.avatar_url} alt="" style={{ width: 48, height: 48, borderRadius: "50%", objectFit: "cover", border: `2px solid ${T.gold}`, flexShrink: 0 }} /> : <div style={{ width: 48, height: 48, borderRadius: "50%", background: T.goldMuted, border: `2px solid ${T.gold}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 700, color: T.gold, flexShrink: 0 }}>{(user || "?")[0].toUpperCase()}</div>}
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: T.text1 }}>{profile?.display_name || user}</div>
+                    <div style={{ fontSize: 11, color: T.text3, marginTop: 2 }}>{profile?.email || ""}</div>
+                  </div>
+                </div>
+
                 {sbReady && householdId && (
                   <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 8, marginBottom: 16 }}>
                     {householdRole === "owner" && <button onClick={() => { setInviteEmail(""); setInviteEmailSent(false); setInviteModal(true); }} style={{ ...cardS, width: "100%", padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>
@@ -971,13 +993,27 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
                       <div><div style={{ fontSize: 13, fontWeight: 600, color: T.text1 }}>Invite Partner</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>Invite by Gmail address</div></div>
                     </button>}
                     <div style={{ ...cardS, padding: "16px 18px", display: "flex", alignItems: "center", gap: 12 }}>
-                      <Home size={18} style={{ color: T.gold }} />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: T.text1 }}>Household</div>
-                          <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: householdRole === "owner" ? "rgba(245,181,38,0.15)" : "rgba(138,128,120,0.15)", color: householdRole === "owner" ? T.gold : T.text3, textTransform: "capitalize" }}>{householdRole}</span>
+                      <Home size={18} style={{ color: T.gold, flexShrink: 0 }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                          {editHhName ? (
+                            <input value={hhName} onChange={e => setHhName(e.target.value)} onKeyDown={e => { if (e.key === "Enter") saveHhName(); if (e.key === "Escape") setEditHhName(false); }} style={{ ...inpS, padding: "4px 8px", fontSize: 12, flex: 1 }} autoFocus />
+                          ) : (
+                            <div style={{ fontSize: 13, fontWeight: 600, color: T.text1, flex: 1 }}>{hhName}</div>
+                          )}
+                          <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: householdRole === "owner" ? "rgba(245,181,38,0.15)" : "rgba(138,128,120,0.15)", color: householdRole === "owner" ? T.gold : T.text3, textTransform: "capitalize", flexShrink: 0 }}>{householdRole}</span>
                         </div>
-                        <div style={{ fontSize: 10, color: T.text3 }}>{users.length} member{users.length !== 1 ? "s" : ""}</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <div style={{ fontSize: 10, color: T.text3, flex: 1 }}>{users.length} member{users.length !== 1 ? "s" : ""}</div>
+                          {householdRole === "owner" && (editHhName ? (
+                            <div style={{ display: "flex", gap: 4 }}>
+                              <button onClick={saveHhName} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 6, border: "none", background: T.gold, color: "#0C0C12", fontWeight: 700, cursor: "pointer" }}>Save</button>
+                              <button onClick={() => { setEditHhName(false); setHhName(household?.name || "My Household"); }} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 6, border: `1px solid ${T.border}`, background: "transparent", color: T.text3, cursor: "pointer" }}>Cancel</button>
+                            </div>
+                          ) : (
+                            <button onClick={() => setEditHhName(true)} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 6, border: `1px solid ${T.border}`, background: "transparent", color: T.text3, cursor: "pointer" }}>Rename</button>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1275,7 +1311,7 @@ export default function App() {
     if (user && household) {
       return (
         <AppProvider user={user} householdId={household.id} theme={theme}>
-          <MainApp user={user} householdId={household.id} householdRole={householdRole} onLogout={handleLogout} theme={theme} toggleTheme={toggle} />
+          <MainApp user={user} householdId={household.id} householdRole={householdRole} profile={profile} household={household} onLogout={handleLogout} theme={theme} toggleTheme={toggle} />
         </AppProvider>
       );
     }
