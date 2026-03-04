@@ -19,6 +19,7 @@ function LoginScreen({ onLogin, theme, toggleTheme, authError, localMode }) {
   const [err, setErr] = useState("");
   const [pins, setPins] = useState(DEFAULT_PINS);
   const [signingIn, setSigningIn] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   useEffect(() => {
     if (localMode) { (async () => { try { const r = await localStore.get("pins"); if (r?.value) setPins(JSON.parse(r.value)); } catch {} })(); }
@@ -38,18 +39,6 @@ function LoginScreen({ onLogin, theme, toggleTheme, authError, localMode }) {
 
   const ua = navigator.userAgent || "";
   const isInAppBrowser = /FBAN|FBAV|FB_IAB|Instagram|Messenger/i.test(ua);
-  const isIOS = /iPhone|iPad|iPod/i.test(ua);
-
-  const openInChrome = () => {
-    const url = window.location.href;
-    if (isIOS) {
-      // iOS: use Chrome's custom URL scheme (googlechromes for https)
-      window.location.href = url.replace(/^https:\/\//, "googlechromes://");
-    } else {
-      // Android: use intent scheme
-      window.location.href = `intent://${window.location.hostname}${window.location.pathname}${window.location.search}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(url)};end`;
-    }
-  };
 
   const brandText = "Shared Finance";
 
@@ -142,13 +131,12 @@ function LoginScreen({ onLogin, theme, toggleTheme, authError, localMode }) {
             )}
             {isInAppBrowser && (
               <div style={{ background: theme === "dark" ? "rgba(245,181,38,0.08)" : "rgba(245,181,38,0.12)", border: "1px solid rgba(245,181,38,0.35)", borderRadius: 14, padding: "16px 18px" }}>
-                <p style={{ color: T.text1, fontSize: 13, fontWeight: 700, margin: "0 0 6px" }}>Open in Chrome to sign in</p>
-                <p style={{ color: T.text2, fontSize: 12, margin: "0 0 14px", lineHeight: 1.6 }}>Google sign-in does not work inside Messenger. Tap the button below to open this page in Chrome.</p>
-                <button onClick={openInChrome} style={{ width: "100%", padding: "13px 16px", borderRadius: 12, border: "none", background: "#4285F4", color: "#FFF", fontSize: 13, fontWeight: 700, cursor: "pointer", marginBottom: 10 }}>
-                  Open in Chrome
+                <p style={{ color: T.text1, fontSize: 13, fontWeight: 700, margin: "0 0 6px" }}>Cannot sign in here</p>
+                <p style={{ color: T.text2, fontSize: 12, margin: "0 0 14px", lineHeight: 1.6 }}>Google sign-in does not work inside Messenger. Copy the link below and open it in Chrome or Safari.</p>
+                <button onClick={() => { try { navigator.clipboard.writeText(window.location.href).then(() => { setLinkCopied(true); setTimeout(() => setLinkCopied(false), 3000); }); } catch { setLinkCopied(true); setTimeout(() => setLinkCopied(false), 3000); } }} style={{ width: "100%", padding: "13px 16px", borderRadius: 12, border: "none", background: T.grad, color: theme === "dark" ? "#0C0C12" : "#FFF", fontSize: 13, fontWeight: 700, cursor: "pointer", marginBottom: 12 }}>
+                  {linkCopied ? "Link Copied!" : "Copy Link"}
                 </button>
-                <p style={{ color: T.text3, fontSize: 10, margin: 0, textAlign: "center", lineHeight: 1.5 }}>Or copy and paste this URL into Chrome:</p>
-                <p style={{ color: T.gold, fontSize: 10, margin: "4px 0 0", textAlign: "center", wordBreak: "break-all", fontWeight: 600 }}>{window.location.href}</p>
+                <p style={{ color: T.text3, fontSize: 11, margin: 0, textAlign: "center", lineHeight: 1.6 }}>Then open Chrome or Safari, paste the link, and sign in from there.</p>
               </div>
             )}
             <button onClick={doGoogleLogin} disabled={signingIn || isInAppBrowser} style={{
@@ -746,7 +734,7 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
             <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
               <input type="file" ref={fr} accept="image/*" onChange={doImg} style={{ display: "none" }} />
               <button onClick={() => fr.current?.click()} disabled={cl} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 11, color: T.text2, cursor: "pointer", flexShrink: 0 }}><ImagePlus size={18} /></button>
-              <textarea value={ci} onChange={e => setCi(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); doChat(); } }} disabled={cl} placeholder={att ? "Add a note about this receipt..." : "Type expense or ask..."} rows={1} style={{ ...inpS, flex: 1, resize: "none", minHeight: 42 }} />
+              <textarea value={ci} onChange={e => setCi(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey && isDesktop) { e.preventDefault(); doChat(); } }} disabled={cl} placeholder={att ? "Add a note about this receipt..." : "Type expense or ask..."} rows={1} style={{ ...inpS, flex: 1, resize: "none", minHeight: 42 }} />
               <button onClick={doChat} disabled={cl || (!ci.trim() && !att)} style={{ background: (ci.trim() || att) ? T.grad : T.surface, border: "none", borderRadius: 12, padding: 11, color: (ci.trim() || att) ? (theme === "dark" ? "#0C0C12" : "#FFF") : T.text3, cursor: "pointer", flexShrink: 0, boxShadow: (ci.trim() || att) ? "0 4px 12px rgba(245,181,38,0.2)" : "none" }}><Send size={18} /></button>
             </div>
           </div>
