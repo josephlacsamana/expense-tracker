@@ -212,6 +212,7 @@ function MainApp({ user, householdId, householdRole, onLogout, theme, toggleThem
   const [inviteModal, setInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteEmailSent, setInviteEmailSent] = useState(false);
+  const [invLinkCopied, setInvLinkCopied] = useState(false);
 
   const pillS = (a) => ({
     padding: isDesktop ? "8px 18px" : "7px 14px", borderRadius: 20, fontSize: isDesktop ? 12 : 11, fontWeight: 600, cursor: "pointer", transition: "all 0.2s",
@@ -991,10 +992,17 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
             <button onClick={() => setInviteModal(false)} style={{ background: "none", border: "none", color: T.text3, cursor: "pointer" }}><X size={22} /></button>
           </div>
           {inviteEmailSent ? (
-            <div style={{ textAlign: "center", padding: "20px 0" }}>
+            <div style={{ textAlign: "center", padding: "8px 0 4px" }}>
               <Check size={32} style={{ color: T.succ, marginBottom: 12 }} />
               <div style={{ fontSize: 14, fontWeight: 600, color: T.text1, marginBottom: 8 }}>Invite sent!</div>
-              <p style={{ fontSize: 13, color: T.text2, margin: 0 }}>When <strong>{inviteEmail}</strong> signs in with Google, they'll be prompted to join your household.</p>
+              <p style={{ fontSize: 13, color: T.text2, marginBottom: 16 }}>When <strong>{inviteEmail}</strong> signs in with Google, they'll be prompted to join your household.</p>
+              <div style={{ background: T.inputBg, border: `1px solid ${T.inputBorder}`, borderRadius: 12, padding: "12px 14px", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                <span style={{ fontSize: 12, color: T.text3, fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{window.location.origin}</span>
+                <button onClick={() => { navigator.clipboard.writeText(window.location.origin).then(() => { setInvLinkCopied(true); setTimeout(() => setInvLinkCopied(false), 2500); }); }} style={{ ...btnP, padding: "7px 14px", fontSize: 12, whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 5 }}>
+                  <Check size={12} style={{ display: invLinkCopied ? "block" : "none" }} />{invLinkCopied ? "Copied!" : "Copy Link"}
+                </button>
+              </div>
+              <p style={{ fontSize: 11, color: T.text3, margin: 0 }}>Send them this link — when they open it and sign in, the join prompt will appear automatically.</p>
             </div>
           ) : (<>
             <p style={{ fontSize: 13, color: T.text2, marginBottom: 16, lineHeight: 1.5 }}>Enter your partner's Gmail address. They'll see a join prompt the next time they sign in with Google.</p>
