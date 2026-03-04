@@ -331,7 +331,8 @@ function MainApp({ user, householdId, householdRole, onLogout, theme, toggleThem
     const email = inviteEmail.trim().toLowerCase();
     const { data: existing } = await supabase.from("invites").select("*").eq("household_id", householdId).eq("invited_email", email).eq("used", false).gt("expires_at", new Date().toISOString()).limit(1);
     if (existing?.length) { setInviteEmailSent(true); return; }
-    const { error } = await supabase.from("invites").insert({ household_id: householdId, created_by: profile?.id, invited_email: email, token: uid() });
+    const { data: { user: cu } } = await supabase.auth.getUser();
+    const { error } = await supabase.from("invites").insert({ household_id: householdId, created_by: cu?.id || null, invited_email: email, token: uid() });
     if (!error) setInviteEmailSent(true);
   };
 
@@ -1233,21 +1234,6 @@ export default function App() {
   if (sbReady) {
     const user = profile?.display_name || null;
 
-    if (inviteError) {
-      const T = themes[theme];
-      return (
-        <div style={{ minHeight: "100vh", background: T.gradBg, display: "flex", justifyContent: "center", alignItems: "center", padding: 24 }}>
-          <div style={{ background: T.modalSurface, border: `1px solid ${T.borderStrong}`, borderRadius: 24, padding: 36, width: "100%", maxWidth: 420, boxShadow: "0 24px 64px rgba(0,0,0,0.3)", textAlign: "center" }}>
-            <div style={{ width: 56, height: 56, borderRadius: 16, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
-              <AlertTriangle size={26} style={{ color: T.err }} />
-            </div>
-            <h2 style={{ fontSize: 20, fontWeight: 800, color: T.text1, margin: "0 0 10px" }}>Invite Failed</h2>
-            <p style={{ color: T.text2, fontSize: 14, margin: "0 0 24px", lineHeight: 1.6 }}>The invite link could not be processed. It may have expired or already been used. Ask your partner to generate a new invite link from Settings.</p>
-            <button onClick={handleLogout} style={{ padding: "13px 32px", borderRadius: 12, border: "none", background: T.grad, color: theme === "dark" ? "#0C0C12" : "#FFF", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>Sign Out and Try Again</button>
-          </div>
-        </div>
-      );
-    }
 
     if (pendingInviteData) {
       const T = themes[theme];
