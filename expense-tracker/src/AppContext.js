@@ -32,6 +32,7 @@ export function AppProvider({ children, user, householdId, householdRole, profil
   const [rec, setRec] = useState([]);
   const [debts, setDebts] = useState([]);
   const [dPays, setDPays] = useState([]);
+  const [acctHist, setAcctHist] = useState([]);
   const [users, setUsers] = useState([user]);
   const [ld, setLd] = useState(true);
   const [toast, setToast] = useState(null);
@@ -61,6 +62,7 @@ export function AppProvider({ children, user, householdId, householdRole, profil
             if (d.debts.length) setDebts(d.debts);
             if (d.debtPayments.length) setDPays(d.debtPayments);
             if (d.categories) setCats(d.categories);
+            try { const ah = await sb.loadAccountHistory(householdId); if (ah.length) setAcctHist(ah); } catch {}
             setLd(false); return;
           }
           // Supabase empty — try migrating localStorage data up
@@ -103,6 +105,7 @@ export function AppProvider({ children, user, householdId, householdRole, profil
             try { const ct = await localStore.get("categories"); if (ct?.value) { const pc = JSON.parse(ct.value); if (Array.isArray(pc) && pc.length > 0) setCats(pc); } } catch {}
             try { const dt = await localStore.get("debts"); if (dt?.value) setDebts(JSON.parse(dt.value)); } catch {}
             try { const dtp = await localStore.get("debtPayments"); if (dtp?.value) setDPays(JSON.parse(dtp.value)); } catch {}
+            try { const ah = await localStore.get("acctHist"); if (ah?.value) setAcctHist(JSON.parse(ah.value)); } catch {}
             setLd(false); return;
           }
         }
@@ -133,6 +136,7 @@ export function AppProvider({ children, user, householdId, householdRole, profil
   const svR = async (d, opts) => { setRec(d); try { if (sbReady) { if (opts?.deleteId) await sb.deleteRecurring(opts.deleteId, householdId); else if (opts?.upsert) await sb.upsertRecurring(opts.upsert, householdId); else if (opts?.upsertMany) await sb.upsertRecurringBulk(opts.upsertMany, householdId); else await sb.upsertRecurringBulk(d, householdId); } else await localStore.set("recurring", JSON.stringify(d)); } catch {} };
   const svD = async (d, opts) => { setDebts(d); try { if (sbReady) { if (opts?.deleteId) await sb.deleteDebt(opts.deleteId, householdId); else if (opts?.upsert) await sb.upsertDebt(opts.upsert, householdId); } else await localStore.set("debts", JSON.stringify(d)); } catch {} };
   const svDP = async (d, opts) => { setDPays(d); try { if (sbReady) { if (opts?.upsert) await sb.upsertDebtPayment(opts.upsert, householdId); } else await localStore.set("debtPayments", JSON.stringify(d)); } catch {} };
+  const svAH = async (entry) => { setAcctHist(prev => [entry, ...prev]); try { if (sbReady) await sb.upsertAccountHistory(entry, householdId); else await localStore.set("acctHist", JSON.stringify([entry, ...acctHist])); } catch {} };
 
   // ─── AI ───
   const callAI = async (m, s, ret = 2) => {
@@ -152,13 +156,13 @@ export function AppProvider({ children, user, householdId, householdRole, profil
     // Styles
     pillS, cardS, inpS, btnP, btnG, mOvS, mInS,
     // Data
-    exp, accts, budgets, genBudget, cats, rec, debts, dPays, users, ld, toast,
+    exp, accts, budgets, genBudget, cats, rec, debts, dPays, acctHist, users, ld, toast,
     // Setters (for local use by tabs)
-    setExp, setAccts, setBudgets, setGenBudget, setCats, setRec, setDebts, setDPays,
+    setExp, setAccts, setBudgets, setGenBudget, setCats, setRec, setDebts, setDPays, setAcctHist,
     // Actions
     tst, catColors,
     // Save functions
-    svE, svA, svB, svCats, svGB, svR, svD, svDP,
+    svE, svA, svB, svCats, svGB, svR, svD, svDP, svAH,
     // AI
     callAI,
   };

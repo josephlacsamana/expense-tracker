@@ -4,7 +4,7 @@ import { useApp } from "../AppContext";
 import { fmt, td, uid, stripE } from "../constants";
 
 export default function ChatTab() {
-  const { exp, cats, debts, users, svE, tst, callAI, user, isDesktop, T, cardS, inpS, btnP, btnG } = useApp();
+  const { exp, accts, cats, debts, users, svE, svA, svAH, tst, callAI, user, isDesktop, T, cardS, inpS, btnP, btnG } = useApp();
 
   const [msgs, setMsgs] = useState([{ role: "assistant", content: `Hey ${user}! Tell me what you spent and I'll log it. Upload a receipt or just type it out.` }]);
   const [ci, setCi] = useState("");
@@ -17,15 +17,17 @@ export default function ChatTab() {
   const fr = useRef(null);
 
   const debtCtx = debts.length ? `\nDebts:\n${debts.map(d => `- ${d.name} (${d.type}): Balance PHP ${d.currentBalance.toFixed(0)} of PHP ${d.totalAmount.toFixed(0)}, Min PHP ${d.minPayment || 0}/mo${d.interestRate ? `, ${d.interestRate}% APR` : ""}${d.dueDate ? `, due day ${d.dueDate}` : ""}`).join("\n")}\nTotal debt: PHP ${debts.reduce((s, d) => s + d.currentBalance, 0).toFixed(0)}` : "";
+  const acctCtx = accts.length ? `\nAccounts:\n${accts.map(a => `- "${a.name}" (${a.type}): PHP ${a.balance.toFixed(2)}`).join("\n")}\nIf user mentions paying from a specific account/bank/card, set "account" to the matching account name. If not mentioned, omit "account".` : "";
   const SYS = `You are an expense tracker assistant for a couple (${users.join(" and ")}). Currency: PHP (Philippine Peso).
 RESPOND ONLY WITH VALID JSON. No markdown, no backticks. Today: ${td()}. Current user: ${user}.
-Format: {"expenses":[{"amount":number,"category":"${cats.join("|")}","description":"text","date":"YYYY-MM-DD"}],"message":"confirmation text, NO emojis"}
+Format: {"expenses":[{"amount":number,"category":"${cats.join("|")}","description":"text","date":"YYYY-MM-DD"${accts.length ? ',"account":"account name or omit"' : ""}}],"message":"confirmation text, NO emojis"}
 Not expenses: {"expenses":[],"message":"response, NO emojis"}
 Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multiple. Categories: ${cats.join(", ")}. If unsure pick "Other". gas/grab/angkas=Transport. food/jollibee/grocery/coffee=Food. netflix/spotify=Subscriptions. meralco/pldt/water=Bills.
-For debt questions (repayment timeline, interest savings, what-if scenarios): use expenses:[] and answer in message. Use amortization math for timelines. Be specific with numbers and months.${debtCtx}`;
+For debt questions (repayment timeline, interest savings, what-if scenarios): use expenses:[] and answer in message. Use amortization math for timelines. Be specific with numbers and months.${debtCtx}${acctCtx}`;
 
+  const resolveAcct = (name) => { if (!name) return null; const n = name.toLowerCase(); return accts.find(a => a.name.toLowerCase() === n || a.name.toLowerCase().includes(n) || n.includes(a.name.toLowerCase())) || null; };
   const parseR = (t) => {
-    try { let c = t.replace(/```json|```/g, "").trim(); const m = c.match(/\{[\s\S]*\}/); if (m) { const p = JSON.parse(m[0]); return { expenses: (p.expenses || []).map(e => ({ ...e, category: cats.includes(e.category) ? e.category : "Other", date: e.date || td() })), message: p.message || "" }; } return { expenses: [], message: t.slice(0, 300) }; }
+    try { let c = t.replace(/```json|```/g, "").trim(); const m = c.match(/\{[\s\S]*\}/); if (m) { const p = JSON.parse(m[0]); return { expenses: (p.expenses || []).map(e => { const matched = resolveAcct(e.account); return { ...e, category: cats.includes(e.category) ? e.category : "Other", date: e.date || td(), accountId: matched?.id || null, accountName: matched?.name || null }; }), message: p.message || "" }; } return { expenses: [], message: t.slice(0, 300) }; }
     catch { if (t && !t.startsWith("{")) return { expenses: [], message: t.slice(0, 300) }; return { expenses: [], message: "Could not parse." }; }
   };
 
@@ -59,14 +61,32 @@ For debt questions (repayment timeline, interest savings, what-if scenarios): us
   };
 
   const findDup = (e) => { const desc = (e.description || "").toLowerCase(); const amt = e.amount; return exp.find(x => x.category === e.category && Math.abs(x.amount - amt) / (amt || 1) <= 0.1 && desc && (x.description || "").toLowerCase().includes(desc.toLowerCase().split(" ")[0])); };
-  const confirmAll = () => { if (!pe || !pe.length) return; svE([...pe, ...exp], { upsertMany: pe }); const sum = pe.map(e => `  ${e.description || e.category} (${e.category}) - ${fmt(e.amount)}`).join("\n"); setMsgs(v => [...v, { role: "assistant", content: `Saved ${pe.length} expenses:\n${sum}\nTotal: ${fmt(pe.reduce((s, e) => s + e.amount, 0))}` }]); tst(`${pe.length} added`); setPe(null); setEditIdx(null); };
+  const deductAccts = (items) => {
+    const byAcct = {};
+    items.forEach(e => { if (e.accountId) { byAcct[e.accountId] = (byAcct[e.accountId] || 0) + e.amount; } });
+    if (Object.keys(byAcct).length === 0) return;
+    let updated = [...accts];
+    const histEntries = [];
+    Object.entries(byAcct).forEach(([aid, total]) => {
+      updated = updated.map(a => {
+        if (a.id !== aid) return a;
+        const oldBal = a.balance;
+        const newBal = parseFloat((a.balance - total).toFixed(2));
+        histEntries.push({ id: uid(), accountId: aid, oldBalance: oldBal, newBalance: newBal, change: -total, reason: "expense", description: items.filter(e => e.accountId === aid).map(e => e.description || e.category).join(", "), createdAt: Date.now() });
+        return { ...a, balance: newBal, updatedAt: Date.now() };
+      });
+    });
+    svA(updated);
+    histEntries.forEach(h => svAH && svAH(h));
+  };
+  const confirmAll = () => { if (!pe || !pe.length) return; svE([...pe, ...exp], { upsertMany: pe }); deductAccts(pe); const sum = pe.map(e => `  ${e.description || e.category} (${e.category}) - ${fmt(e.amount)}${e.accountName ? ` [${e.accountName}]` : ""}`).join("\n"); setMsgs(v => [...v, { role: "assistant", content: `Saved ${pe.length} expenses:\n${sum}\nTotal: ${fmt(pe.reduce((s, e) => s + e.amount, 0))}` }]); tst(`${pe.length} added`); setPe(null); setEditIdx(null); };
   const rejectAll = () => { const n = pe?.length || 0; setPe(null); setEditIdx(null); setMsgs(v => [...v, { role: "assistant", content: `Discarded all ${n} expenses. No changes were saved.` }]); };
-  const saveSingle = (i) => { if (!pe) return; const e = pe[i]; svE([e, ...exp], { upsert: e }); setMsgs(v => [...v, { role: "assistant", content: `Saved: ${e.description || e.category} (${e.category}) - ${fmt(e.amount)} on ${e.date}` }]); tst(`Saved: ${e.description || e.category}`); const rest = pe.filter((_, j) => j !== i); setPe(rest.length ? rest : null); if (editIdx === i) { setEditIdx(null); setEditForm(null); } };
+  const saveSingle = (i) => { if (!pe) return; const e = pe[i]; svE([e, ...exp], { upsert: e }); deductAccts([e]); setMsgs(v => [...v, { role: "assistant", content: `Saved: ${e.description || e.category} (${e.category}) - ${fmt(e.amount)} on ${e.date}${e.accountName ? ` [${e.accountName}]` : ""}` }]); tst(`Saved: ${e.description || e.category}`); const rest = pe.filter((_, j) => j !== i); setPe(rest.length ? rest : null); if (editIdx === i) { setEditIdx(null); setEditForm(null); } };
   const discardSingle = (i) => { if (!pe) return; const e = pe[i]; setMsgs(v => [...v, { role: "assistant", content: `Discarded: ${e.description || e.category} (${e.category}) - ${fmt(e.amount)}` }]); const rest = pe.filter((_, j) => j !== i); setPe(rest.length ? rest : null); if (editIdx === i) { setEditIdx(null); setEditForm(null); } };
   const startEdit = (i) => { setEditIdx(i); setEditForm({ ...pe[i] }); };
   const cancelEdit = () => { setEditIdx(null); setEditForm(null); };
   const applyEdit = (i) => { if (!editForm) return; const u = [...pe]; u[i] = { ...editForm, amount: parseFloat(editForm.amount) || 0 }; setPe(u); setEditIdx(null); setEditForm(null); };
-  const applyAndSave = (i) => { if (!editForm) return; const e = { ...editForm, amount: parseFloat(editForm.amount) || 0 }; svE([e, ...exp], { upsert: e }); setMsgs(v => [...v, { role: "assistant", content: `Saved: ${e.description || e.category} (${e.category}) - ${fmt(e.amount)} on ${e.date}` }]); tst(`Saved: ${e.description || e.category}`); const rest = (pe || []).filter((_, j) => j !== i); setPe(rest.length ? rest : null); setEditIdx(null); setEditForm(null); };
+  const applyAndSave = (i) => { if (!editForm) return; const e = { ...editForm, amount: parseFloat(editForm.amount) || 0 }; svE([e, ...exp], { upsert: e }); deductAccts([e]); setMsgs(v => [...v, { role: "assistant", content: `Saved: ${e.description || e.category} (${e.category}) - ${fmt(e.amount)} on ${e.date}${e.accountName ? ` [${e.accountName}]` : ""}` }]); tst(`Saved: ${e.description || e.category}`); const rest = (pe || []).filter((_, j) => j !== i); setPe(rest.length ? rest : null); setEditIdx(null); setEditForm(null); };
 
   // scroll on message change
   const prevMsgsLen = useRef(msgs.length);
@@ -102,6 +122,7 @@ For debt questions (repayment timeline, interest savings, what-if scenarios): us
                       <select value={editForm.category} onChange={ev => setEditForm({ ...editForm, category: ev.target.value })} style={{ ...inpS, flex: 1, padding: "8px 10px", fontSize: 12 }}>{cats.map(c => <option key={c} value={c}>{c}</option>)}</select>
                     </div>
                     <input type="date" value={editForm.date} onChange={ev => setEditForm({ ...editForm, date: ev.target.value })} style={{ ...inpS, padding: "8px 10px", fontSize: 12 }} />
+                    {accts.length > 0 && <select value={editForm.accountId || ""} onChange={ev => { const a = accts.find(x => x.id === ev.target.value); setEditForm({ ...editForm, accountId: a?.id || null, accountName: a?.name || null }); }} style={{ ...inpS, padding: "8px 10px", fontSize: 12 }}><option value="">No account linked</option>{accts.map(a => <option key={a.id} value={a.id}>{a.name} ({fmt(a.balance)})</option>)}</select>}
                     <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
                       <button onClick={() => applyAndSave(i)} style={{ ...btnP, padding: "7px 14px", fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}><Check size={12} />Done & Save</button>
                       <button onClick={() => applyEdit(i)} style={{ ...btnG, padding: "7px 14px", fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}><Check size={12} />Done</button>
@@ -112,7 +133,7 @@ For debt questions (repayment timeline, interest savings, what-if scenarios): us
                   <>
                     {dup && <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: T.err, marginBottom: 6 }}><AlertTriangle size={12} />Similar entry found on {dup.date}</div>}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                      <div><div style={{ fontSize: 13, fontWeight: 600 }}>{e.description || e.category}</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>{e.category} -- {e.date}</div></div>
+                      <div><div style={{ fontSize: 13, fontWeight: 600 }}>{e.description || e.category}</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>{e.category} -- {e.date}{e.accountName ? ` -- ${e.accountName}` : ""}</div></div>
                       <div style={{ fontSize: 15, fontWeight: 800, color: T.gold }}>{fmt(e.amount)}</div>
                     </div>
                     <div style={{ display: "flex", gap: 6, marginTop: 8, justifyContent: "flex-end" }}>

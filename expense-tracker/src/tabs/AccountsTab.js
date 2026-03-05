@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Plus, Trash2, Edit3, X, ChevronDown, AlertTriangle, Wallet, Coins } from "lucide-react";
+import { Plus, Trash2, Edit3, X, ChevronDown, AlertTriangle, Wallet, Coins, Clock } from "lucide-react";
 import { useApp } from "../AppContext";
 import { aIcons, dIcons, DEBT_TYPES, fmt, fmtS, td, uid, pld } from "../constants";
 
 export default function AccountsTab() {
-  const { exp, accts, budgets, genBudget, cats, rec, debts, dPays, catColors, svE, svA, svB, svCats, svGB, svR, svD, svDP, tst, user, theme, isDesktop, T, cardS, pillS, inpS, btnP, btnG, mOvS, mInS } = useApp();
+  const { exp, accts, budgets, genBudget, cats, rec, debts, dPays, acctHist, catColors, svE, svA, svB, svCats, svGB, svR, svD, svDP, svAH, tst, user, theme, isDesktop, T, cardS, pillS, inpS, btnP, btnG, mOvS, mInS } = useApp();
 
   const [accSub, setAccSub] = useState("accounts");
   const [saf, setSaf] = useState(false);
@@ -38,12 +38,24 @@ export default function AccountsTab() {
   const doAcct = () => {
     if (!af.name.trim() || !af.balance || isNaN(parseFloat(af.balance))) return;
     const en = { id: eaId || uid(), name: af.name.trim(), balance: parseFloat(parseFloat(af.balance).toFixed(2)), type: af.type, updatedAt: Date.now() };
-    if (eaId) { svA(accts.map(a => a.id === eaId ? en : a), { upsert: en }); tst("Account updated"); } else { svA([...accts, en], { upsert: en }); tst("Account added"); }
+    if (eaId) {
+      const old = accts.find(a => a.id === eaId);
+      svA(accts.map(a => a.id === eaId ? en : a), { upsert: en });
+      if (old && old.balance !== en.balance) {
+        svAH({ id: uid(), accountId: eaId, oldBalance: old.balance, newBalance: en.balance, change: parseFloat((en.balance - old.balance).toFixed(2)), reason: "manual", description: "Manual balance update", createdAt: Date.now() });
+      }
+      tst("Account updated");
+    } else {
+      svA([...accts, en], { upsert: en });
+      svAH({ id: uid(), accountId: en.id, oldBalance: 0, newBalance: en.balance, change: en.balance, reason: "manual", description: "Account created", createdAt: Date.now() });
+      tst("Account added");
+    }
     rstAf();
   };
   const rstAf = () => { setAf({ name: "", balance: "", type: "savings" }); setEaId(null); setSaf(false); };
   const edA = (a) => { setAf({ name: a.name, balance: String(a.balance), type: a.type }); setEaId(a.id); setSaf(true); };
   const delA = (id) => { svA(accts.filter(a => a.id !== id), { deleteId: id }); setDac(null); tst("Account removed"); };
+  const [viewAH, setViewAH] = useState(null);
 
   const saveBudgets = () => { svB(bf); setSbf(false); tst("Budgets saved"); };
 
@@ -85,10 +97,23 @@ export default function AccountsTab() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}><div style={{ fontSize: 18, fontWeight: 800 }}>Accounts</div><button onClick={() => { rstAf(); setSaf(true); }} style={{ ...btnP, padding: "10px 16px", fontSize: 12, display: "flex", alignItems: "center", gap: 5 }}><Plus size={14} />Add</button></div>
           {accts.length > 0 && (<div style={{ background: `linear-gradient(135deg,${theme === "dark" ? "rgba(52,211,153,0.08)" : "rgba(5,150,105,0.06)"},transparent)`, border: `1px solid ${theme === "dark" ? "rgba(52,211,153,0.15)" : "rgba(5,150,105,0.15)"}`, borderRadius: 18, padding: "16px 18px", marginBottom: 18 }}><div style={{ fontSize: 10, color: T.text3, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>Net Worth</div><div style={{ fontSize: 30, fontWeight: 800, color: T.ok, marginTop: 2 }}>{fmt(totA)}</div></div>)}
           <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 8 }}>
-            {accts.map(a => { const I = aIcons[a.type] || Wallet; return (
-              <div key={a.id} style={{ ...cardS, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}><div style={{ width: 42, height: 42, borderRadius: 13, background: T.goldMuted, display: "flex", alignItems: "center", justifyContent: "center" }}><I size={18} style={{ color: T.gold }} /></div><div><div style={{ fontSize: 13, fontWeight: 600 }}>{a.name}</div><div style={{ fontSize: 10, color: T.text3, textTransform: "capitalize" }}>{a.type}</div></div></div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ fontSize: 16, fontWeight: 800, color: T.ok }}>{fmt(a.balance)}</div><button onClick={() => edA(a)} style={{ background: "none", border: "none", color: T.gold, cursor: "pointer", padding: 4 }}><Edit3 size={14} /></button><button onClick={() => setDac(a.id)} style={{ background: "none", border: "none", color: T.err, cursor: "pointer", padding: 4 }}><Trash2 size={14} /></button></div>
+            {accts.map(a => { const I = aIcons[a.type] || Wallet; const hist = acctHist.filter(h => h.accountId === a.id).sort((x, y) => y.createdAt - x.createdAt); const isEx = viewAH === a.id; return (
+              <div key={a.id} style={{ ...cardS, padding: 0, overflow: "hidden" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}><div style={{ width: 42, height: 42, borderRadius: 13, background: T.goldMuted, display: "flex", alignItems: "center", justifyContent: "center" }}><I size={18} style={{ color: T.gold }} /></div><div><div style={{ fontSize: 13, fontWeight: 600 }}>{a.name}</div><div style={{ fontSize: 10, color: T.text3, textTransform: "capitalize" }}>{a.type}</div></div></div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ fontSize: 16, fontWeight: 800, color: T.ok }}>{fmt(a.balance)}</div>
+                    <button onClick={() => setViewAH(isEx ? null : a.id)} style={{ background: "none", border: "none", color: T.text3, cursor: "pointer", padding: 4, display: "flex", alignItems: "center", gap: 2 }}><Clock size={13} /><span style={{ fontSize: 10 }}>{hist.length}</span></button>
+                    <button onClick={() => edA(a)} style={{ background: "none", border: "none", color: T.gold, cursor: "pointer", padding: 4 }}><Edit3 size={14} /></button><button onClick={() => setDac(a.id)} style={{ background: "none", border: "none", color: T.err, cursor: "pointer", padding: 4 }}><Trash2 size={14} /></button></div>
+                </div>
+                {isEx && <div style={{ borderTop: `1px solid ${T.border}`, padding: "10px 16px", background: theme === "dark" ? "rgba(0,0,0,0.2)" : "rgba(0,0,0,0.02)" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: T.text2, marginBottom: 8 }}>Balance History</div>
+                  {hist.length === 0 && <div style={{ fontSize: 11, color: T.text3, padding: "8px 0" }}>No history recorded yet.</div>}
+                  {hist.slice(0, 15).map(h => (<div key={h.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${T.border}` }}>
+                    <div><div style={{ fontSize: 12, fontWeight: 600, color: h.change >= 0 ? T.ok : T.err }}>{h.change >= 0 ? "+" : ""}{fmt(h.change)}</div><div style={{ fontSize: 10, color: T.text3 }}>{h.description || h.reason}</div></div>
+                    <div style={{ textAlign: "right" }}><div style={{ fontSize: 11, color: T.text2 }}>{fmt(h.newBalance)}</div><div style={{ fontSize: 9, color: T.text3 }}>{new Date(h.createdAt).toLocaleDateString("en-PH", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</div></div>
+                  </div>))}
+                  {hist.length > 15 && <div style={{ fontSize: 10, color: T.text3, marginTop: 6, textAlign: "center" }}>...and {hist.length - 15} more</div>}
+                </div>}
               </div>); })}
           </div>
         </>)}

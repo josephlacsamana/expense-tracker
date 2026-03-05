@@ -61,6 +61,18 @@ export const sb = {
   upsertDebtPayment: async (p, hid) => {
     await supabase.from("debt_payments").upsert({ id: p.id, debt_id: p.debtId, amount: p.amount, date: p.date, new_balance: p.newBalance, household_id: hid, created_at: p.createdAt });
   },
+  // Account History
+  loadAccountHistory: async (hid) => {
+    const { data } = await supabase.from("account_history").select("*").eq("household_id", hid).order("created_at", { ascending: false });
+    return data?.map(r => ({ id: r.id, accountId: r.account_id, oldBalance: Number(r.old_balance), newBalance: Number(r.new_balance), change: Number(r.change_amount), reason: r.reason, description: r.description || "", createdAt: r.created_at })) || [];
+  },
+  upsertAccountHistory: async (h, hid) => {
+    await supabase.from("account_history").upsert({ id: h.id, account_id: h.accountId, old_balance: h.oldBalance, new_balance: h.newBalance, change_amount: h.change, reason: h.reason, description: h.description || "", household_id: hid, created_at: h.createdAt });
+  },
+  deleteAccountHistoryByAccount: async (accountId, hid) => {
+    await supabase.from("account_history").delete().eq("account_id", accountId).eq("household_id", hid);
+  },
+  deleteAllAccountHistory: async (hid) => { await supabase.from("account_history").delete().eq("household_id", hid); },
   // Categories
   saveCategories: async (cats, hid) => {
     await supabase.from("categories").delete().eq("household_id", hid);

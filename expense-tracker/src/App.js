@@ -270,6 +270,7 @@ export default function App() {
       handling = true;
       try {
         if (!s) { console.log("[auth] no session"); setSession(null); setProfile(null); setHousehold(null); setHouseholdRole(null); setPendingInviteData(null); clearTimeout(timeout); setAuthLoading(false); handling = false; return; }
+
         setSession(s);
 
         // 1. Fetch or create profile

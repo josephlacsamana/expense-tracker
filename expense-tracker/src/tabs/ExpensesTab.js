@@ -4,7 +4,7 @@ import { useApp } from "../AppContext";
 import { PERIODS, fmt, pld, startOf, td, uid } from "../constants";
 
 export default function ExpensesTab() {
-  const { exp, accts, cats, rec, catColors, svE, svA, svR, tst, user, users, isDesktop, T, cardS, pillS, inpS, btnP, btnG, mOvS, mInS } = useApp();
+  const { exp, accts, cats, rec, catColors, svE, svA, svR, svAH, tst, user, users, isDesktop, T, cardS, pillS, inpS, btnP, btnG, mOvS, mInS } = useApp();
 
   // ─── Expense list state ───
   const [expSub, setExpSub] = useState("list");
@@ -39,9 +39,9 @@ export default function ExpensesTab() {
     let updAccts = [...accts];
     if (eId) {
       const old = exp.find(e => e.id === eId);
-      if (old?.accountId) { const i = updAccts.findIndex(a => a.id === old.accountId); if (i >= 0) updAccts[i] = { ...updAccts[i], balance: updAccts[i].balance + old.amount, updatedAt: Date.now() }; }
+      if (old?.accountId) { const i = updAccts.findIndex(a => a.id === old.accountId); if (i >= 0) { const prev = updAccts[i]; updAccts[i] = { ...prev, balance: prev.balance + old.amount, updatedAt: Date.now() }; svAH({ id: uid(), accountId: prev.id, oldBalance: prev.balance, newBalance: prev.balance + old.amount, change: old.amount, reason: "expense_edit", description: `Reversed: ${old.description || old.category}`, createdAt: Date.now() }); } }
     }
-    if (en.accountId) { const i = updAccts.findIndex(a => a.id === en.accountId); if (i >= 0) updAccts[i] = { ...updAccts[i], balance: updAccts[i].balance - en.amount, updatedAt: Date.now() }; }
+    if (en.accountId) { const i = updAccts.findIndex(a => a.id === en.accountId); if (i >= 0) { const prev = updAccts[i]; updAccts[i] = { ...prev, balance: prev.balance - en.amount, updatedAt: Date.now() }; svAH({ id: uid(), accountId: prev.id, oldBalance: prev.balance, newBalance: prev.balance - en.amount, change: -en.amount, reason: "expense", description: en.description || en.category, createdAt: Date.now() }); } }
     if (JSON.stringify(updAccts) !== JSON.stringify(accts)) { const changed = updAccts.filter((a, i) => a !== accts[i]); changed.forEach(a => svA(updAccts, { upsert: a })); }
     if (eId) { svE(exp.map(e => e.id === eId ? en : e), { upsert: en }); tst("Updated"); } else { svE([en, ...exp], { upsert: en }); tst("Added"); }
     rstF();
@@ -50,7 +50,7 @@ export default function ExpensesTab() {
   const edF = (e) => { setForm({ amount: String(e.amount), category: e.category, description: e.description, date: e.date, addedBy: e.addedBy, accountId: e.accountId || "" }); setEId(e.id); setSf(true); };
   const delE = (id) => {
     const del = exp.find(e => e.id === id);
-    if (del?.accountId) { const acc = accts.find(a => a.id === del.accountId); if (acc) { const restored = { ...acc, balance: acc.balance + del.amount, updatedAt: Date.now() }; svA(accts.map(a => a.id === acc.id ? restored : a), { upsert: restored }); } }
+    if (del?.accountId) { const acc = accts.find(a => a.id === del.accountId); if (acc) { const restored = { ...acc, balance: acc.balance + del.amount, updatedAt: Date.now() }; svA(accts.map(a => a.id === acc.id ? restored : a), { upsert: restored }); svAH({ id: uid(), accountId: acc.id, oldBalance: acc.balance, newBalance: acc.balance + del.amount, change: del.amount, reason: "expense_delete", description: `Deleted: ${del.description || del.category}`, createdAt: Date.now() }); } }
     svE(exp.filter(e => e.id !== id), { deleteId: id }); setDc(null); tst("Deleted");
   };
 
