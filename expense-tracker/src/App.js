@@ -346,11 +346,13 @@ function MainApp({ user, householdId, householdRole, profile, household, onLogou
     if (!error) setInviteEmailSent(true);
   };
 
+  const debtCtx = debts.length ? `\nDebts:\n${debts.map(d => `- ${d.name} (${d.type}): Balance PHP ${d.currentBalance.toFixed(0)} of PHP ${d.totalAmount.toFixed(0)}, Min PHP ${d.minPayment || 0}/mo${d.interestRate ? `, ${d.interestRate}% APR` : ""}${d.dueDate ? `, due day ${d.dueDate}` : ""}`).join("\n")}\nTotal debt: PHP ${debts.reduce((s, d) => s + d.currentBalance, 0).toFixed(0)}` : "";
   const SYS = `You are an expense tracker assistant for a couple (${users.join(" and ")}). Currency: PHP (Philippine Peso).
 RESPOND ONLY WITH VALID JSON. No markdown, no backticks. Today: ${td()}. Current user: ${user}.
 Format: {"expenses":[{"amount":number,"category":"${cats.join("|")}","description":"text","date":"YYYY-MM-DD"}],"message":"confirmation text, NO emojis"}
 Not expenses: {"expenses":[],"message":"response, NO emojis"}
-Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multiple. Categories: ${cats.join(", ")}. If unsure pick "Other". gas/grab/angkas=Transport. food/jollibee/grocery/coffee=Food. netflix/spotify=Subscriptions. meralco/pldt/water=Bills.`;
+Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multiple. Categories: ${cats.join(", ")}. If unsure pick "Other". gas/grab/angkas=Transport. food/jollibee/grocery/coffee=Food. netflix/spotify=Subscriptions. meralco/pldt/water=Bills.
+For debt questions (repayment timeline, interest savings, what-if scenarios): use expenses:[] and answer in message. Use amortization math for timelines. Be specific with numbers and months.${debtCtx}`;
   const parseR = (t) => {
     try { let c = t.replace(/```json|```/g, "").trim(); const m = c.match(/\{[\s\S]*\}/); if (m) { const p = JSON.parse(m[0]); return { expenses: (p.expenses || []).map(e => ({ ...e, category: cats.includes(e.category) ? e.category : "Other", date: e.date || td() })), message: p.message || "" }; } return { expenses: [], message: t.slice(0, 300) }; }
     catch { if (t && !t.startsWith("{")) return { expenses: [], message: t.slice(0, 300) }; return { expenses: [], message: "Could not parse." }; }
@@ -403,15 +405,16 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
     const [pS, pE] = prevRange(ip); const pT = exp.filter(e => { const d = pld(e.date); return d >= pS && d < pE; }).reduce((s, e) => s + e.amount, 0);
     const t5x = [...rel].sort((a, b) => b.amount - a.amount).slice(0, 5);
     const bStr = Object.entries(budgets).map(([c, v]) => `- ${c}: Budget PHP ${v}, Spent PHP ${(bc[c] || 0).toFixed(0)}`).join("\n");
-    const sum = `${ip.toUpperCase()} REVIEW:\nTotal: PHP ${tot.toFixed(2)}\nPrev: PHP ${pT.toFixed(2)}\nBy category:\n${Object.entries(bc).map(([c, v]) => `- ${c}: PHP ${v.toFixed(0)}`).join("\n")}\nBy person:\n${Object.entries(bp).map(([p, v]) => `- ${p}: PHP ${v.toFixed(0)}`).join("\n")}\nTop 5:\n${t5x.map(e => `- ${e.description}: PHP ${e.amount}`).join("\n")}\nBudgets:\n${bStr}`;
-    const IS = `You are ${users.join(" and ")}'s personal finance advisor. Filipino couple. No emojis. Respond ONLY with valid JSON (no markdown, no code fences). Format: {"overview":"1-2 sentence summary","categoryAnalysis":"2-3 sentences about category spending","patterns":"2-3 sentences about spending patterns or habits","tips":["tip 1","tip 2","tip 3"]}. Each tip should be specific and actionable with numbers. Keep it concise.`;
+    const debtStr = debts.length ? `\nDebts:\n${debts.map(d => `- ${d.name} (${d.type}): PHP ${d.currentBalance.toFixed(0)} remaining of PHP ${d.totalAmount.toFixed(0)}, ${d.interestRate || 0}% APR, Min PHP ${d.minPayment || 0}/mo`).join("\n")}\nTotal debt: PHP ${debts.reduce((s, d) => s + d.currentBalance, 0).toFixed(0)}\nTotal min payments: PHP ${debts.reduce((s, d) => s + (d.minPayment || 0), 0).toFixed(0)}/mo` : "";
+    const sum = `${ip.toUpperCase()} REVIEW:\nTotal: PHP ${tot.toFixed(2)}\nPrev: PHP ${pT.toFixed(2)}\nBy category:\n${Object.entries(bc).map(([c, v]) => `- ${c}: PHP ${v.toFixed(0)}`).join("\n")}\nBy person:\n${Object.entries(bp).map(([p, v]) => `- ${p}: PHP ${v.toFixed(0)}`).join("\n")}\nTop 5:\n${t5x.map(e => `- ${e.description}: PHP ${e.amount}`).join("\n")}\nBudgets:\n${bStr}${debtStr}`;
+    const IS = `You are ${users.join(" and ")}'s personal finance advisor. Filipino couple. No emojis. Respond ONLY with valid JSON (no markdown, no code fences). Format: {"overview":"1-2 sentence summary","categoryAnalysis":"2-3 sentences about category spending","patterns":"2-3 sentences about spending patterns or habits","debtAnalysis":"if debts exist: 2-3 sentences covering total debt load, highest priority debt, and one specific repayment tip with numbers. If no debts, return empty string.","tips":["tip 1","tip 2","tip 3"]}. Each tip should be specific and actionable with numbers. Keep it concise.`;
     try {
       const raw = await callAI([{ role: "user", content: sum }], IS);
       const clean = stripE(raw || "");
       let parsed;
       try { parsed = JSON.parse(clean); } catch { const m = clean.match(/\{[\s\S]*\}/); parsed = m ? JSON.parse(m[0]) : null; }
-      const data = { bc, bp, tot, pT, t5x, period: ip, count: rel.length };
-      if (parsed && parsed.overview) { setIt({ ...parsed, data }); } else { setIt({ overview: clean, categoryAnalysis: "", patterns: "", tips: [], data }); }
+      const data = { bc, bp, tot, pT, t5x, period: ip, count: rel.length, debts };
+      if (parsed && parsed.overview) { setIt({ ...parsed, data }); } else { setIt({ overview: clean, categoryAnalysis: "", patterns: "", debtAnalysis: "", tips: [], data }); }
     } catch { setIt({ error: "Failed to generate insights." }); }
     setIl(false);
   };
@@ -970,6 +973,15 @@ Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multi
                         </div>
                       ))}
                     </div>
+                  </div>}
+                  {it.debtAnalysis && it.data?.debts?.length > 0 && <div style={{ ...cardS, padding: isDesktop ? 22 : 18, marginBottom: 16 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: T.text1, marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}><Coins size={16} style={{ color: T.gold }} />Debt Summary</div>
+                    <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "repeat(3,1fr)" : "1fr 1fr", gap: 10, marginBottom: 14 }}>
+                      <div style={{ background: theme === "dark" ? "rgba(239,68,68,0.08)" : "rgba(239,68,68,0.06)", borderRadius: 12, padding: 12 }}><div style={{ fontSize: 10, color: T.text3, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8 }}>Total Owed</div><div style={{ fontSize: 18, fontWeight: 800, color: T.err, marginTop: 4 }}>{fmt(it.data.debts.reduce((s, d) => s + d.currentBalance, 0))}</div></div>
+                      <div style={{ background: T.inputBg, borderRadius: 12, padding: 12 }}><div style={{ fontSize: 10, color: T.text3, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8 }}>Min/Month</div><div style={{ fontSize: 18, fontWeight: 800, color: T.text1, marginTop: 4 }}>{fmt(it.data.debts.reduce((s, d) => s + (d.minPayment || 0), 0))}</div></div>
+                      <div style={{ background: T.inputBg, borderRadius: 12, padding: 12, ...(isDesktop ? {} : { gridColumn: "1 / -1" }) }}><div style={{ fontSize: 10, color: T.text3, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.8 }}>Active Debts</div><div style={{ fontSize: 18, fontWeight: 800, color: T.gold, marginTop: 4 }}>{it.data.debts.filter(d => d.currentBalance > 0).length}</div></div>
+                    </div>
+                    <p style={{ fontSize: 13, lineHeight: 1.7, color: T.text2, margin: 0 }}>{it.debtAnalysis}</p>
                   </div>}
                 </>}
               </>)}
