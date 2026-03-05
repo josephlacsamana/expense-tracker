@@ -4,11 +4,11 @@ import { PieChart as RPie, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis,
 import { supabase, sbReady } from "../supabase";
 import { sb } from "../db";
 import { useApp } from "../AppContext";
-import { DEF_CATS, DEFAULT_BUDGETS, fmt, fmtS, td, uid, pld, stripE, startOf, prevRange } from "../constants";
+import { DEF_CATS, DEFAULT_BUDGETS, fmt, fmtS, uid, pld, stripE, startOf, prevRange } from "../constants";
 import ChartTooltip from "../components/ChartTooltip";
 
 export default function MoreTab() {
-  const { exp, accts, budgets, cats, rec, debts, dPays, catColors, svE, svA, svB, svCats, svGB, svR, svD, svDP, setExp, setAccts, setBudgets, setGenBudget, setCats, setRec, setDebts, setDPays, tst, user, users, householdId, householdRole, profile, household, isDesktop, T, theme, cardS, pillS, inpS, btnP, btnG, mOvS, mInS, callAI } = useApp();
+  const { exp, budgets, debts, catColors, setExp, setAccts, setBudgets, setGenBudget, setCats, setRec, setDebts, setDPays, tst, user, users, householdId, householdRole, profile, household, isDesktop, T, theme, cardS, pillS, inpS, btnP, btnG, mOvS, mInS, callAI } = useApp();
 
   const [sub, setSub] = useState("insights");
   const [ip, setIp] = useState("Weekly");

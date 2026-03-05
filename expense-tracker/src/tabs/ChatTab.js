@@ -4,7 +4,7 @@ import { useApp } from "../AppContext";
 import { fmt, td, uid, stripE } from "../constants";
 
 export default function ChatTab() {
-  const { exp, cats, accts, debts, users, svE, tst, callAI, user, isDesktop, T, cardS, inpS, btnP, btnG, mOvS, mInS } = useApp();
+  const { exp, cats, debts, users, svE, tst, callAI, user, isDesktop, T, cardS, inpS, btnP, btnG } = useApp();
 
   const [msgs, setMsgs] = useState([{ role: "assistant", content: `Hey ${user}! Tell me what you spent and I'll log it. Upload a receipt or just type it out.` }]);
   const [ci, setCi] = useState("");
@@ -69,7 +69,6 @@ For debt questions (repayment timeline, interest savings, what-if scenarios): us
   const applyAndSave = (i) => { if (!editForm) return; const e = { ...editForm, amount: parseFloat(editForm.amount) || 0 }; svE([e, ...exp], { upsert: e }); setMsgs(v => [...v, { role: "assistant", content: `Saved: ${e.description || e.category} (${e.category}) - ${fmt(e.amount)} on ${e.date}` }]); tst(`Saved: ${e.description || e.category}`); const rest = (pe || []).filter((_, j) => j !== i); setPe(rest.length ? rest : null); setEditIdx(null); setEditForm(null); };
 
   // scroll on message change
-  const scrollRef = useRef(null);
   const prevMsgsLen = useRef(msgs.length);
   if (msgs.length !== prevMsgsLen.current) { prevMsgsLen.current = msgs.length; setTimeout(() => cr.current?.scrollIntoView({ behavior: "smooth" }), 50); }
 

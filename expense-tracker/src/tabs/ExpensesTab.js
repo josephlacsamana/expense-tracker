@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Plus, Trash2, Edit3, X, Check, Search, ChevronDown, AlertTriangle, Repeat } from "lucide-react";
 import { useApp } from "../AppContext";
-import { PERIODS, fmt, pld, startOf, prevRange, td, uid } from "../constants";
+import { PERIODS, fmt, pld, startOf, td, uid } from "../constants";
 
 export default function ExpensesTab() {
   const { exp, accts, cats, rec, catColors, svE, svA, svR, tst, user, users, isDesktop, T, cardS, pillS, inpS, btnP, btnG, mOvS, mInS } = useApp();
