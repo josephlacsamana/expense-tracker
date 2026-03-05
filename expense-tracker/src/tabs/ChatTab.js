@@ -133,14 +133,31 @@ For debt questions (repayment timeline, interest savings, what-if scenarios): us
     setCl(false);
   };
 
+  const buildDataCtx = () => {
+    const now = new Date(); const mS = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+    const thisM = exp.filter(e => e.date >= mS);
+    const tot = thisM.reduce((s, e) => s + e.amount, 0);
+    const bc = thisM.reduce((a, e) => { a[e.category] = (a[e.category] || 0) + e.amount; return a; }, {});
+    const bp = thisM.reduce((a, e) => { a[e.addedBy] = (a[e.addedBy] || 0) + e.amount; return a; }, {});
+    const prevMS = new Date(now.getFullYear(), now.getMonth() - 1, 1); const prevME = new Date(now.getFullYear(), now.getMonth(), 1);
+    const prevMStr = `${prevMS.getFullYear()}-${String(prevMS.getMonth() + 1).padStart(2, "0")}`;
+    const prevExp = exp.filter(e => e.date >= `${prevMStr}-01` && e.date < `${prevME.getFullYear()}-${String(prevME.getMonth() + 1).padStart(2, "0")}-01`);
+    const prevTot = prevExp.reduce((s, e) => s + e.amount, 0);
+    const top5 = [...thisM].sort((a, b) => b.amount - a.amount).slice(0, 5);
+    const budgetStr = Object.keys(budgets).length ? `\nBudgets:\n${Object.entries(budgets).map(([c, v]) => `- ${c}: Budget PHP ${v}, Spent PHP ${(bc[c] || 0).toFixed(0)}`).join("\n")}` : "";
+    return `\nThis month's data (${now.toLocaleString("en", { month: "long", year: "numeric" })}):\nTotal spent: PHP ${tot.toFixed(2)} across ${thisM.length} transactions\nBy category:\n${Object.entries(bc).sort((a, b) => b[1] - a[1]).map(([c, v]) => `- ${c}: PHP ${v.toFixed(0)}`).join("\n")}\nBy person:\n${Object.entries(bp).map(([p, v]) => `- ${p}: PHP ${v.toFixed(0)}`).join("\n")}\nTop 5 this month:\n${top5.map(e => `- ${e.description || e.category}: PHP ${e.amount} (${e.category}, ${e.date})`).join("\n")}\nLast month total: PHP ${prevTot.toFixed(2)} across ${prevExp.length} transactions${budgetStr}`;
+  };
+
+  const QUERY_SYS = `You are a helpful financial assistant for a couple (${users.join(" and ")}). Currency: PHP (Philippine Peso). No emojis ever. Answer questions about their spending using the data provided. Be specific with numbers. Keep answers concise (2-4 sentences max). Today: ${td()}.${debtCtx}${acctCtx}`;
+
   const sendChip = async (text) => {
     if (cl) return;
     setCi(""); setCl(true);
     setMsgs(v => [...v, { role: "user", content: text }]);
     try {
-      const raw = await callAI([{ role: "user", content: text }], SYS);
-      const p = parseR(raw); const t = stripE(p.message || "Done.");
-      if (p.expenses?.length > 0) setPe(p.expenses.map(e => ({ ...e, id: uid(), addedBy: user, createdAt: Date.now() })));
+      const dataCtx = buildDataCtx();
+      const raw = await callAI([{ role: "user", content: dataCtx + "\n\nQuestion: " + text }], QUERY_SYS);
+      const t = stripE(raw || "No response.");
       setMsgs(v => [...v, { role: "assistant", content: t }]);
     } catch { setMsgs(v => [...v, { role: "assistant", content: "Something went wrong." }]); }
     setCl(false);
@@ -191,21 +208,6 @@ For debt questions (repayment timeline, interest savings, what-if scenarios): us
             )}
           </div>
         ))}
-        {showChips && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14, paddingLeft: 4 }}>
-            {CHIPS.map((c, i) => (
-              <button key={i} onClick={() => sendChip(c.msg)} style={{ padding: "8px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: "pointer", border: `1px solid ${T.borderStrong}`, background: T.surface, color: T.gold, transition: "all 0.2s" }}>{c.label}</button>
-            ))}
-            <button onClick={() => setShowRevPer(v => !v)} style={{ padding: "8px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: "pointer", border: `1px solid ${T.gold}`, background: T.goldMuted, color: T.gold, transition: "all 0.2s" }}>Spending review</button>
-          </div>
-        )}
-        {showRevPer && showChips && (
-          <div style={{ display: "flex", gap: 6, marginBottom: 14, paddingLeft: 4 }}>
-            {["Weekly", "Monthly", "Quarterly", "Yearly"].map(p => (
-              <button key={p} onClick={() => genReview(p)} style={pillS(false)}>{p}</button>
-            ))}
-          </div>
-        )}
         {cl && <div style={{ display: "flex", marginBottom: 10 }}><div style={{ padding: "12px 16px", borderRadius: 16, background: T.chatBot, border: `1px solid ${T.chatBotBorder}`, color: T.gold, fontSize: 13 }}>Thinking...</div></div>}
         {pe && pe.length > 0 && (
           <div style={{ ...cardS, marginBottom: 10, borderColor: T.borderStrong }}>
@@ -256,6 +258,21 @@ For debt questions (repayment timeline, interest savings, what-if scenarios): us
         <div ref={cr} />
       </div>
 
+      {showChips && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+          {CHIPS.map((c, i) => (
+            <button key={i} onClick={() => sendChip(c.msg)} style={{ padding: "7px 12px", borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: "pointer", border: `1px solid ${T.borderStrong}`, background: T.surface, color: T.gold, transition: "all 0.2s" }}>{c.label}</button>
+          ))}
+          <button onClick={() => setShowRevPer(v => !v)} style={{ padding: "7px 12px", borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: "pointer", border: `1px solid ${T.gold}`, background: T.goldMuted, color: T.gold, transition: "all 0.2s" }}>Spending review</button>
+        </div>
+      )}
+      {showRevPer && showChips && (
+        <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+          {["Weekly", "Monthly", "Quarterly", "Yearly"].map(p => (
+            <button key={p} onClick={() => genReview(p)} style={pillS(false)}>{p}</button>
+          ))}
+        </div>
+      )}
       {att && (
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", marginBottom: 6, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12 }}>
           <img src={att.preview} alt="attached" style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 8, border: `1px solid ${T.border}` }} />
