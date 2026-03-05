@@ -9,7 +9,10 @@ AI-powered receipt scanning, chat-based expense logging, dashboards, analytics, 
 
 | Item | Details |
 |---|---|
-| **App code** | `expense-tracker/src/App.js` (single-file, all components + inline styles) |
+| **App code** | `expense-tracker/src/App.js` (~416 lines — auth, LoginScreen, nav shell only) |
+| **Tab files** | `src/tabs/DashboardTab.js`, `src/tabs/ExpensesTab.js`, `src/tabs/ChatTab.js`, `src/tabs/AccountsTab.js`, `src/tabs/MoreTab.js` |
+| **Components** | `src/components/ChartTooltip.js` (shared recharts tooltip) |
+| **Shared modules** | `src/constants.js` (themes, consts, utils), `src/hooks.js` (useMediaQuery), `src/db.js` (Supabase helpers), `src/AppContext.js` (global state + style helpers + provider) |
 | **API proxy** | `expense-tracker/api/chat.js` (Vercel serverless, solves CORS for Anthropic API) |
 | **Hosting** | Vercel (free tier), Root Directory = `expense-tracker` |
 | **Stack** | React 19, recharts, lucide-react, inline styles (no CSS framework) |
@@ -33,7 +36,7 @@ AI-powered receipt scanning, chat-based expense logging, dashboards, analytics, 
 | `profiles` | id (UUID PK), email, display_name, avatar_url, created_at | Google Auth profiles |
 | `households` | id (UUID PK), name, created_at | Household groups |
 | `household_members` | id (UUID PK), household_id, user_id, role, joined_at | Membership + roles |
-| `invites` | id (UUID PK), household_id, created_by, token, used, used_by, created_at, expires_at | Single-use invite links |
+| `invites` | id (UUID PK), household_id, created_by, token, used, used_by, created_at, expires_at, invited_email | Email-based invite — matches on sign-in |
 | `debts` | id (TEXT PK), name, type, total_amount, current_balance, due_date, interest_rate, min_payment, added_by, household_id (FK), created_at, updated_at | Debt tracking, scoped to household |
 | `debt_payments` | id (TEXT PK), debt_id (FK), amount, date, new_balance, household_id (FK), created_at | Payment history, scoped to household |
 
@@ -228,33 +231,22 @@ On first Supabase load with empty tables, existing localStorage data is auto-mig
 - [x] Configure Google OAuth in Google Cloud Console
 - [x] Custom favicon (gold peso coin SVG) and browser tab title ("Shared Finance")
 
-**9b-lite + 9c — Households & Invite Link System** 🔄 REDESIGNED
+**9b-lite + 9c — Households & Invite System** ✅ DONE (Email-based)
 - [x] Create `households` table (id UUID, name, created_at)
 - [x] Create `household_members` table (household_id, user_id, role: "owner"/"member", joined_at)
-- [x] Create `invites` table (id, household_id, created_by, token, used, used_by, created_at, expires_at)
+- [x] Create `invites` table (with `invited_email` column — email-based, not link/token)
 - [x] Auto-create household on first Google sign-in (always, no gate)
-- [x] Invite token captured from URL path `/invite/TOKEN` → stored in localStorage
-- [x] Token persisted through OAuth redirect via localStorage
-- [x] "Invite Partner" button in Settings with copy-link modal
-- [x] Reuse existing unused invite instead of creating duplicates
-- [x] Users list fetched from household_members (not all profiles)
-- [x] Household info card in Settings (member count + role)
-- [x] Supabase RLS policies: invites SELECT, households SELECT, invites UPDATE, household_members INSERT
-
-**Invite Flow (Redesigned — decoupled from auth):**
-- [x] `handleSession` only handles profile + household assignment (no invite logic inside auth)
-- [x] New user always gets a household auto-created first (clean, no RLS timing issues)
-- [x] Separate `useEffect` after auth checks `pendingInvite` from localStorage
-- [x] If valid token found → fetch invite + household → show "Accept & Join" confirmation screen
-- [x] User clicks Accept → delete from current household → insert into invited household → mark invite used
+- [x] "Invite Partner" button (owner only) — enter partner's Gmail, no link needed
+- [x] Invite stored in DB with `invited_email` field
+- [x] On sign-in, `handleSession` checks for pending email invite matching user's email
+- [x] If valid invite found → show "Accept & Join" confirmation screen (inside auth flow, no race condition)
+- [x] User clicks Accept → leave current household → join invited household → invite marked used
 - [x] User clicks Decline → stays in their auto-created household
-- [x] If token invalid/expired → show clear error message
-- [x] `acceptInvite` updated to work for all users (new or existing)
-
-**Known invite flow limitation:**
-- Invite link MUST be opened directly in the phone's main browser (Chrome/Safari)
-- Opening the link inside a chat app (WhatsApp, Viber, Messenger) uses an in-app browser that does NOT share localStorage — the invite token gets lost and a new household is created instead
-- Workaround: always copy-paste the link and open in Chrome
+- [x] Invite reuse: if unexpired invite already exists for that email, don't create a duplicate
+- [x] "Invite sent!" confirmation shows copyable app URL (for easy sharing)
+- [x] Users list fetched from household_members (not all profiles)
+- [x] Household info card in Settings (member count + role badge)
+- [x] Supabase RLS: invites SELECT by email, households SELECT for invited users, household_members INSERT
 
 **9b-full — Data Isolation** ✅ DONE
 - [x] Add `household_id` column to all data tables (expenses, accounts, recurring, categories, settings, debts, debt_payments)
@@ -265,16 +257,19 @@ On first Supabase load with empty tables, existing localStorage data is auto-mig
 - [x] All sb helper functions accept and include household_id
 - [x] Seeding, migration, and clearAll pass household_id
 
-**9d — Role-Based Permissions**
-- [ ] Owner role: full access to everything (the person who created the household)
-- [ ] Member role: full access to all features EXCEPT Settings > Clear All Data
-- [ ] Hide or disable "Clear All Data" button for members
-- [ ] Show role badge in Settings (Owner / Member)
-- [ ] Owner can see list of household members in Settings
+**9d — Role-Based Permissions** ✅ DONE
+- [x] Owner role: full access to everything (the person who created the household)
+- [x] Member role: full access to all features EXCEPT Settings > Clear All Data
+- [x] Hide "Clear All Data" button for members
+- [x] Hide "Invite Partner" button for members
+- [x] Show role badge in Settings (Owner / Member) — gold pill for owner, grey for member
+- [ ] Owner can see list of household members by name in Settings (currently shows count only)
 
-**9e — Profile & Household UI**
-- [ ] Profile section in Settings: name, email, avatar (from Google)
-- [ ] Household name display (editable by owner)
+**9e — Profile & Household UI** 🔄 PARTIAL
+- [x] Profile card in Settings: avatar, display name, email (from Google)
+- [x] Avatar + name + email shown in desktop sidebar
+- [x] Household name display (editable by owner via inline Rename)
+- [x] Google OAuth forces account picker (`prompt: "select_account"`) — no more auto-login
 - [ ] "addedBy" field uses actual user names from profiles (not hardcoded)
 - [ ] Person filter on Dashboard/Expenses uses real household member names
 - [ ] Summary cards show per-person breakdown using real names
@@ -344,12 +339,13 @@ Dashboard | Expenses | AI Chat | Accounts | More
 - [x] Payment modal pre-fills min monthly payment amount (editable)
 - [x] Debt form has helper text under each field explaining what it means
 
-**11b — AI Debt Insights**
-- [ ] AI calculates repayment timelines based on current balance, interest rate, and payment amounts
-- [ ] "What if" scenarios: "If I pay P5,000/month on my credit card, when will it be paid off?"
-- [ ] Interest savings calculator: "How much do I save by paying P2,000 extra per month?"
-- [ ] AI can answer debt questions in the existing AI Chat (e.g., "How much do I owe total?", "When is my next credit card due?")
-- [ ] Debt summary included in AI Insights reviews (alongside spending analysis)
+**11b — AI Debt Insights** ✅ DONE
+- [x] AI Chat SYS prompt includes full debt context (name, type, balance, APR, min payment, due date)
+- [x] AI calculates repayment timelines using amortization math
+- [x] "What if" scenarios: "If I pay P5,000/month on my credit card, when will it be paid off?"
+- [x] Interest savings calculator: "How much do I save by paying P2,000 extra per month?"
+- [x] AI can answer debt questions in AI Chat (total owed, next due date, payoff timeline, etc.)
+- [x] Debt summary included in AI Insights reviews (debtAnalysis field in JSON + debt summary card in UI)
 
 **11c — Payment Alerts & Notifications**
 - [ ] PWA push notifications for approaching due dates (3 days before, 1 day before, day of)
@@ -360,25 +356,21 @@ Dashboard | Expenses | AI Chat | Accounts | More
 - [ ] Daily/weekly debt summary notification (optional, configurable in Settings)
 - [ ] Email notifications (future/lower priority): Supabase Edge Function to send reminder emails
 
-### Phase 12 — Code Refactoring
+### Phase 12 — Code Refactoring ✅ DONE
 
-**Why:** `App.js` is a single file with ~1600+ lines covering all components, styles, state, and logic. As the app grows this becomes harder to maintain and debug.
+**Why:** `App.js` was ~1600+ lines. Splitting into feature files makes future work touch only the relevant file.
 
-**Plan:**
-- [ ] Split into feature-based component files under `src/components/`
-  - `Dashboard.js` — dashboard tab + charts
-  - `Expenses.js` — expense list + recurring sub-tabs
-  - `AIChat.js` — chat interface + receipt upload
-  - `Accounts.js` — accounts + budgets + debts sub-tabs
-  - `More.js` — insights + settings sub-tabs
-  - `Login.js` — login screen
-- [ ] Move shared styles/theme into `src/theme.js`
-- [ ] Move Supabase helpers into `src/db.js` (already partially in `supabase.js`)
-- [ ] Move utility functions (uid, fmt, stripEmoji, etc.) into `src/utils.js`
-- [ ] Keep `App.js` as the root shell — auth, routing, global state only
-- [ ] No behavior changes — pure structural refactor, all features stay identical
-
-**When to do it:** After Phase 11 is fully complete and the app is stable.
+- [x] `src/constants.js` — themes, DEF_CATS, PERIODS, uid, fmt, helpers, all constants
+- [x] `src/hooks.js` — `useMediaQuery`
+- [x] `src/db.js` — full `sb` Supabase CRUD helpers
+- [x] `src/AppContext.js` — global state, save functions, callAI, style helpers (pillS, cardS, etc.), householdRole/profile/household
+- [x] `src/components/ChartTooltip.js` — shared recharts tooltip
+- [x] `src/tabs/DashboardTab.js` — own `per` state (independent period selector)
+- [x] `src/tabs/ExpensesTab.js` — includes Expense + Recurring modals, person filter
+- [x] `src/tabs/ChatTab.js` — all chat/AI logic + duplicate detection + edit mode
+- [x] `src/tabs/AccountsTab.js` — includes Account + Budget + Debt modals
+- [x] `src/tabs/MoreTab.js` — Insights + Settings + Invite modal
+- [x] `App.js` — 416 lines, auth + LoginScreen + nav shell only
 
 ---
 
@@ -390,39 +382,46 @@ Dashboard | Expenses | AI Chat | Accounts | More
 
 ---
 
-## Session Notes (2026-03-04)
+## Session Notes (2026-03-05)
 
 ### What was done this session:
-1. **Removed all hardcoded seed data** — deleted `SEED_EXP` (50 fake expenses) and `SEED_ACCT` (BDO/BPI/GCash) from App.js. App now starts with empty state instead of seeding fake data on first load.
-2. **Fixed AI Insights button on mobile** — `padding: undefined` was wiping out button padding on mobile, making it look thin. Fixed to `14px 20px`.
-3. **Fixed Settings card text in dark mode** — "Invite Partner", "Export CSV", "Household" cards had no explicit text color, making them unreadable in dark mode. Added `color: T.text1`.
-4. **Invite flow confirmed working** — invite link works when opened directly in Chrome. In-app browsers (WhatsApp/Viber) lose the localStorage token. Rowena must always open the link in Chrome directly.
-5. **DB cleanup** — deleted all rogue households (Rowena's, Seph's, Tres's). Manually moved Rowena into Joseph's household via SQL.
+1. **Email-based invite system** — replaced link/token invite with email-based. Owner enters partner's Gmail in Settings → invite stored in DB with `invited_email` → on partner's next sign-in, `handleSession` detects the invite and shows "Accept & Join" prompt automatically (no link opening required).
+2. **Phase 9d — Role-based permissions** — Clear All Data + Invite Partner hidden for members. Owner/Member badge pill added to Household card in Settings.
+3. **Phase 9e (partial) — Profile & Household UI** — Profile card in Settings (avatar, name, email from Google). Avatar + name + email in desktop sidebar. Household name editable by owner inline. Google OAuth now uses `prompt: "select_account"` to always show account picker.
+4. **Phase 11b — AI Debt Insights** — Debt context added to AI Chat SYS prompt (balance, APR, min payment, due day per debt). Debt data included in Insights review prompt. `debtAnalysis` field added to AI JSON response. Debt summary card added to Insights UI.
+5. **Refactor steps 1-4 done** — constants.js, hooks.js, db.js, AppContext.js extracted from App.js. App.js now imports from these.
 
-### Current DB state (as of end of session):
+### Current DB state:
 - Joseph's household ID: `6ee010f1-7050-4096-b198-d3bc4fae250c`
 - Members: Joseph (owner) + Rowena (member)
-- All other profiles/households cleaned up
+- Rowena was manually inserted via SQL; email invite system is now the correct flow going forward
 
-### Recurring issue — Seph & Tres keep reappearing:
-- `trespares2020@gmail.com` (Tres) and `jlacsamana122@gmail.com` (Seph) are Joseph's alt accounts
-- Every time they sign in, a new household is auto-created
-- Need to either: (a) add an allowlist of allowed emails, or (b) just delete them via SQL when they appear
-- SQL to nuke them: `DELETE FROM profiles WHERE email IN ('trespares2020@gmail.com', 'jlacsamana122@gmail.com');` (run household cleanup first)
+### Invite system — how it works now:
+- Owner goes to Settings → Invite Partner → enters partner's Gmail → clicks Send
+- Invite record created in `invites` table with `invited_email` set
+- Partner signs in with Google → `handleSession` queries invites table for their email → shows "Accept & Join" screen
+- No link sharing, no in-app browser issues, no localStorage dependency
+- SQL: `ALTER TABLE invites ADD COLUMN IF NOT EXISTS invited_email TEXT;`
+- SQL: `CREATE POLICY "Users can view invites by email" ON invites FOR SELECT USING (invited_email = auth.email());`
+- SQL: `CREATE POLICY "Users can view households they are invited to" ON households FOR SELECT USING (id IN (SELECT household_id FROM invites WHERE invited_email = (auth.jwt() ->> 'email') AND used = false AND expires_at > now()));`
 
-### Rowena's household is manually set (not via invite):
-- Rowena (`marbidarowena27@gmail.com`) was manually inserted into Joseph's household via SQL
-- Next time she logs out and back in, she should stay in the correct household (membership persists)
-- If it breaks again, use: `INSERT INTO household_members (household_id, user_id, role) VALUES ('6ee010f1-7050-4096-b198-d3bc4fae250c', (SELECT id FROM profiles WHERE email = 'marbidarowena27@gmail.com'), 'member');`
+### Seph & Tres alt accounts:
+- `trespares2020@gmail.com` (Tres) and `jlacsamana122@gmail.com` (Seph) are Joseph's test accounts
+- Every sign-in creates a new household — clean up with:
+  - Delete invites first: `DELETE FROM invites WHERE created_by IN (SELECT id FROM profiles WHERE email IN ('trespares2020@gmail.com', 'jlacsamana122@gmail.com'));`
+  - Then: `DELETE FROM household_members WHERE user_id IN (SELECT id FROM profiles WHERE email IN ('trespares2020@gmail.com', 'jlacsamana122@gmail.com'));`
+  - Then: `DELETE FROM profiles WHERE email IN ('trespares2020@gmail.com', 'jlacsamana122@gmail.com');`
+  - Then delete from Supabase Auth dashboard
 
 ---
 
 ## Active Bugs / To Do Next Session
 
-- [ ] **Allowlist** — only allow josephlacsamana7@gmail.com and marbidarowena27@gmail.com to sign in (block all others to prevent rogue households)
-- [ ] **Verify Rowena's household persists** after she logs out and back in
-- [ ] Phase 9d — Role-based permissions (owner vs member)
-- [ ] Phase 11b — AI Debt Insights
+- [ ] **Verify Rowena's invite flow** — test email-based invite end-to-end with Rowena's Gmail
+- [ ] **Uncommitted changes** — Phase 9d, 9e, 11b, email invite, refactor steps 1-4 are in App.js but NOT committed yet. Run: `git add -A ; git commit -m "Feat: email invite, Phase 9d/9e, Phase 11b AI debt insights, refactor step 1-4"`
+- [ ] Phase 9e remaining — addedBy uses real profile names, person filter uses real names
+- [ ] Phase 9d remaining — list household members by name in Settings (currently shows count only)
+- [ ] Phase 11c — Payment alerts (in-app badge on Accounts tab when payments due)
 
 ---
 

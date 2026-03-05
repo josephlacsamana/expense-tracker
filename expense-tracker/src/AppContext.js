@@ -1,13 +1,27 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { supabase, sbReady } from "./supabase";
-import { DEF_CATS, DEF_CCO, EXTRA_COLORS, DEFAULT_BUDGETS, localStore } from "./constants";
+import { themes, DEF_CATS, DEF_CCO, EXTRA_COLORS, DEFAULT_BUDGETS, localStore } from "./constants";
 import { useMediaQuery } from "./hooks";
 import { sb } from "./db";
 
 const AppContext = createContext(null);
 
-export function AppProvider({ children, user, householdId, theme }) {
+export function AppProvider({ children, user, householdId, householdRole, profile, household, theme }) {
   const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const T = themes[theme];
+
+  // ─── STYLE HELPERS (available to all tabs via context) ───
+  const pillS = (a) => ({
+    padding: isDesktop ? "8px 18px" : "7px 14px", borderRadius: 20, fontSize: isDesktop ? 12 : 11, fontWeight: 600, cursor: "pointer", transition: "all 0.2s",
+    border: a ? `1px solid ${T.gold}` : `1px solid ${T.pillInactiveBorder}`,
+    background: a ? T.goldMuted : T.pillInactiveBg, color: a ? T.gold : T.text3,
+  });
+  const cardS = { background: T.surface, border: `1px solid ${T.border}`, borderRadius: 18, padding: 18, boxShadow: T.cardShadow };
+  const inpS = { width: "100%", padding: isDesktop ? "14px 16px" : "12px 14px", borderRadius: 12, fontSize: isDesktop ? 15 : 14, outline: "none", boxSizing: "border-box", border: `1px solid ${T.inputBorder}`, background: T.inputBg, color: T.text1 };
+  const btnP = { padding: isDesktop ? "15px 24px" : "14px 20px", borderRadius: 14, border: "none", cursor: "pointer", background: T.grad, color: theme === "dark" ? "#0C0C12" : "#FFF", fontSize: isDesktop ? 15 : 14, fontWeight: 700, boxShadow: "0 4px 16px rgba(245,181,38,0.2)" };
+  const btnG = { padding: isDesktop ? "15px 24px" : "14px 20px", borderRadius: 14, cursor: "pointer", fontSize: isDesktop ? 15 : 14, fontWeight: 600, border: `1px solid ${T.inputBorder}`, background: "transparent", color: T.text2 };
+  const mOvS = { position: "fixed", inset: 0, background: T.modalBg, zIndex: 999, display: "flex", justifyContent: "center", alignItems: "center", padding: isDesktop ? 40 : 20, backdropFilter: "blur(4px)" };
+  const mInS = { background: T.modalSurface, border: `1px solid ${T.borderStrong}`, borderRadius: 24, padding: isDesktop ? 36 : 28, width: "100%", maxWidth: isDesktop ? 480 : 400, boxShadow: "0 24px 64px rgba(0,0,0,0.3)" };
 
   // ─── GLOBAL DATA STATE ───
   const [exp, setExp] = useState([]);
@@ -133,8 +147,10 @@ export function AppProvider({ children, user, householdId, theme }) {
   };
 
   const value = {
-    // Auth
-    user, householdId, theme, isDesktop,
+    // Auth & identity
+    user, householdId, householdRole, profile, household, theme, isDesktop, T,
+    // Styles
+    pillS, cardS, inpS, btnP, btnG, mOvS, mInS,
     // Data
     exp, accts, budgets, genBudget, cats, rec, debts, dPays, users, ld, toast,
     // Setters (for local use by tabs)
