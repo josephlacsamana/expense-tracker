@@ -1,10 +1,12 @@
 import { useState, useRef } from "react";
-import { X, Check, Send, ImagePlus, AlertTriangle } from "lucide-react";
+import { X, Check, Send, ImagePlus, AlertTriangle, TrendingUp, Lightbulb, Coins, PieChart } from "lucide-react";
+import { PieChart as RPie, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
+import ChartTooltip from "../components/ChartTooltip";
 import { useApp } from "../AppContext";
-import { fmt, td, uid, stripE } from "../constants";
+import { fmt, td, uid, stripE, pld, startOf, prevRange, fmtS } from "../constants";
 
 export default function ChatTab() {
-  const { exp, accts, cats, debts, users, svE, svA, svAH, tst, callAI, user, isDesktop, T, cardS, inpS, btnP, btnG } = useApp();
+  const { exp, accts, budgets, cats, debts, catColors, users, svE, svA, svAH, tst, callAI, user, theme, isDesktop, T, cardS, pillS, inpS, btnP, btnG } = useApp();
 
   const [msgs, setMsgs] = useState([{ role: "assistant", content: `Hey ${user}! Tell me what you spent and I'll log it. Upload a receipt or just type it out.` }]);
   const [ci, setCi] = useState("");
@@ -13,6 +15,8 @@ export default function ChatTab() {
   const [att, setAtt] = useState(null);
   const [editIdx, setEditIdx] = useState(null);
   const [editForm, setEditForm] = useState(null);
+  const [showRevPer, setShowRevPer] = useState(false);
+
   const cr = useRef(null);
   const fr = useRef(null);
 
@@ -88,6 +92,60 @@ For debt questions (repayment timeline, interest savings, what-if scenarios): us
   const applyEdit = (i) => { if (!editForm) return; const u = [...pe]; u[i] = { ...editForm, amount: parseFloat(editForm.amount) || 0 }; setPe(u); setEditIdx(null); setEditForm(null); };
   const applyAndSave = (i) => { if (!editForm) return; const e = { ...editForm, amount: parseFloat(editForm.amount) || 0 }; svE([e, ...exp], { upsert: e }); deductAccts([e]); setMsgs(v => [...v, { role: "assistant", content: `Saved: ${e.description || e.category} (${e.category}) - ${fmt(e.amount)} on ${e.date}${e.accountName ? ` [${e.accountName}]` : ""}` }]); tst(`Saved: ${e.description || e.category}`); const rest = (pe || []).filter((_, j) => j !== i); setPe(rest.length ? rest : null); setEditIdx(null); setEditForm(null); };
 
+  // Quick action chips
+  const CHIPS = [
+    { label: "What did I spend this month?", msg: "What did I spend this month? Give me a summary." },
+    { label: "Budget check", msg: "How am I doing against my budget this month? Am I over or under?" },
+    { label: "Top expenses", msg: "What are my biggest expenses this month?" },
+    { label: "Compare with last month", msg: "Compare my spending this month vs last month." },
+    ...(debts.length ? [{ label: "Debt payoff plan", msg: "Give me a debt payoff plan. Which debt should I prioritize and why?" }] : []),
+  ];
+  const showChips = msgs.length === 1 && !cl && !pe;
+
+  const genReview = async (period) => {
+    setShowRevPer(false);
+    if (cl) return;
+    const ps = startOf(period); const rel = exp.filter(e => pld(e.date) >= ps);
+    if (!rel.length) { setMsgs(v => [...v, { role: "user", content: `Generate ${period} spending review` }, { role: "assistant", content: `No expenses found for this ${period.toLowerCase()} period.` }]); return; }
+    setCl(true);
+    setMsgs(v => [...v, { role: "user", content: `Generate ${period} spending review` }]);
+    const tot = rel.reduce((s, e) => s + e.amount, 0);
+    const bc = rel.reduce((a, e) => { a[e.category] = (a[e.category] || 0) + e.amount; return a; }, {});
+    const bp = rel.reduce((a, e) => { a[e.addedBy] = (a[e.addedBy] || 0) + e.amount; return a; }, {});
+    const [pS, pE] = prevRange(period); const pT = exp.filter(e => { const d = pld(e.date); return d >= pS && d < pE; }).reduce((s, e) => s + e.amount, 0);
+    const t5x = [...rel].sort((a, b) => b.amount - a.amount).slice(0, 5);
+    const bStr = Object.entries(budgets).map(([c, v]) => `- ${c}: Budget PHP ${v}, Spent PHP ${(bc[c] || 0).toFixed(0)}`).join("\n");
+    const debtStr = debts.length ? `\nDebts:\n${debts.map(d => `- ${d.name} (${d.type}): PHP ${d.currentBalance.toFixed(0)} remaining of PHP ${d.totalAmount.toFixed(0)}, ${d.interestRate || 0}% APR, Min PHP ${d.minPayment || 0}/mo`).join("\n")}\nTotal debt: PHP ${debts.reduce((s, d) => s + d.currentBalance, 0).toFixed(0)}` : "";
+    const sum = `${period.toUpperCase()} REVIEW:\nTotal: PHP ${tot.toFixed(2)}\nPrev: PHP ${pT.toFixed(2)}\nBy category:\n${Object.entries(bc).map(([c, v]) => `- ${c}: PHP ${v.toFixed(0)}`).join("\n")}\nBy person:\n${Object.entries(bp).map(([p, v]) => `- ${p}: PHP ${v.toFixed(0)}`).join("\n")}\nTop 5:\n${t5x.map(e => `- ${e.description}: PHP ${e.amount}`).join("\n")}\nBudgets:\n${bStr}${debtStr}`;
+    const IS = `You are ${users.join(" and ")}'s personal finance advisor. Filipino couple. No emojis. Respond ONLY with valid JSON (no markdown, no code fences). Format: {"overview":"1-2 sentence summary","categoryAnalysis":"2-3 sentences about category spending","patterns":"2-3 sentences about spending patterns or habits","debtAnalysis":"if debts exist: 2-3 sentences covering total debt load, highest priority debt, and one specific repayment tip with numbers. If no debts, return empty string.","tips":["tip 1","tip 2","tip 3"]}. Each tip should be specific and actionable with numbers. Keep it concise.`;
+    try {
+      const raw = await callAI([{ role: "user", content: sum }], IS);
+      const clean = stripE(raw || "");
+      let parsed;
+      try { parsed = JSON.parse(clean); } catch { const m = clean.match(/\{[\s\S]*\}/); parsed = m ? JSON.parse(m[0]) : null; }
+      const data = { bc, bp, tot, pT, t5x, period, count: rel.length, debts };
+      if (parsed && parsed.overview) {
+        setMsgs(v => [...v, { role: "assistant", content: "__INSIGHT__", insight: { ...parsed, data } }]);
+      } else {
+        setMsgs(v => [...v, { role: "assistant", content: clean || "Could not generate review." }]);
+      }
+    } catch { setMsgs(v => [...v, { role: "assistant", content: "Failed to generate review." }]); }
+    setCl(false);
+  };
+
+  const sendChip = async (text) => {
+    if (cl) return;
+    setCi(""); setCl(true);
+    setMsgs(v => [...v, { role: "user", content: text }]);
+    try {
+      const raw = await callAI([{ role: "user", content: text }], SYS);
+      const p = parseR(raw); const t = stripE(p.message || "Done.");
+      if (p.expenses?.length > 0) setPe(p.expenses.map(e => ({ ...e, id: uid(), addedBy: user, createdAt: Date.now() })));
+      setMsgs(v => [...v, { role: "assistant", content: t }]);
+    } catch { setMsgs(v => [...v, { role: "assistant", content: "Something went wrong." }]); }
+    setCl(false);
+  };
+
   // scroll on message change
   const prevMsgsLen = useRef(msgs.length);
   if (msgs.length !== prevMsgsLen.current) { prevMsgsLen.current = msgs.length; setTimeout(() => cr.current?.scrollIntoView({ behavior: "smooth" }), 50); }
@@ -97,9 +155,57 @@ For debt questions (repayment timeline, interest savings, what-if scenarios): us
       <div style={{ flex: 1, overflowY: "auto", marginBottom: 14 }}>
         {msgs.map((m, i) => (
           <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", marginBottom: 10 }}>
-            <div style={{ maxWidth: isDesktop ? "65%" : "82%", padding: "12px 16px", borderRadius: 16, background: m.role === "user" ? T.chatUser : T.chatBot, border: m.role === "user" ? "none" : `1px solid ${T.chatBotBorder}`, color: m.role === "user" ? T.chatUserText : T.text1, fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap", fontWeight: m.role === "user" ? 600 : 400 }}>{m.content}</div>
+            {m.insight ? (
+              <div style={{ maxWidth: isDesktop ? "90%" : "95%", width: "100%" }}>
+                {/* Summary stats */}
+                <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "repeat(3, 1fr)" : "1fr 1fr", gap: 8, marginBottom: 10 }}>
+                  <div style={{ ...cardS, padding: 14 }}><div style={{ fontSize: 9, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, color: T.text3, marginBottom: 4 }}>Total Spent</div><div style={{ fontSize: 18, fontWeight: 800, color: T.gold }}>{fmt(m.insight.data.tot)}</div><div style={{ fontSize: 10, color: m.insight.data.pT > 0 ? (m.insight.data.tot > m.insight.data.pT ? T.err : T.ok) : T.text3, marginTop: 2 }}>{m.insight.data.pT > 0 ? `${m.insight.data.tot > m.insight.data.pT ? "+" : ""}${(((m.insight.data.tot - m.insight.data.pT) / m.insight.data.pT) * 100).toFixed(1)}% vs prev` : "No prev data"}</div></div>
+                  <div style={{ ...cardS, padding: 14 }}><div style={{ fontSize: 9, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, color: T.text3, marginBottom: 4 }}>Transactions</div><div style={{ fontSize: 18, fontWeight: 800, color: T.text1 }}>{m.insight.data.count}</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>this {m.insight.data.period.toLowerCase()}</div></div>
+                  <div style={{ ...cardS, padding: 14, ...(isDesktop ? {} : { gridColumn: "1 / -1" }) }}><div style={{ fontSize: 9, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, color: T.text3, marginBottom: 4 }}>Previous {m.insight.data.period}</div><div style={{ fontSize: 18, fontWeight: 800, color: T.text2 }}>{m.insight.data.pT > 0 ? fmt(m.insight.data.pT) : "--"}</div></div>
+                </div>
+                {/* Overview */}
+                {m.insight.overview && <div style={{ ...cardS, padding: 16, marginBottom: 10 }}><div style={{ fontSize: 13, fontWeight: 700, color: T.gold, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}><TrendingUp size={14} />Overview</div><div style={{ fontSize: 12, lineHeight: 1.7, color: T.text2 }}>{m.insight.overview}</div></div>}
+                {/* Charts */}
+                <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 8, marginBottom: 10 }}>
+                  <div style={{ ...cardS, padding: 16 }}><div style={{ fontSize: 13, fontWeight: 700, color: T.text1, marginBottom: 10 }}>By Category</div>
+                    <ResponsiveContainer width="100%" height={160}><RPie><Pie data={Object.entries(m.insight.data.bc).map(([name, value]) => ({ name, value }))} cx="50%" cy="50%" innerRadius={40} outerRadius={65} dataKey="value" stroke="none">{Object.keys(m.insight.data.bc).map((c, j) => <Cell key={j} fill={catColors[c] || T.text3} />)}</Pie><Tooltip content={<ChartTooltip />} /></RPie></ResponsiveContainer>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>{Object.entries(m.insight.data.bc).sort((a, b) => b[1] - a[1]).map(([c, v]) => <div key={c} style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 9, color: T.text3 }}><div style={{ width: 6, height: 6, borderRadius: 3, background: catColors[c] || T.text3 }} />{c}: {fmt(v)}</div>)}</div>
+                  </div>
+                  <div style={{ ...cardS, padding: 16 }}><div style={{ fontSize: 13, fontWeight: 700, color: T.text1, marginBottom: 10 }}>By Person</div>
+                    <ResponsiveContainer width="100%" height={160}><BarChart data={Object.entries(m.insight.data.bp).map(([name, value]) => ({ name, value }))} barSize={isDesktop ? 40 : 32}><XAxis dataKey="name" tick={{ fill: T.text3, fontSize: 10 }} axisLine={false} tickLine={false} /><YAxis tick={{ fill: T.text3, fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={fmtS} /><Tooltip content={<ChartTooltip />} /><Bar dataKey="value" radius={[6, 6, 0, 0]} fill={T.gold} /></BarChart></ResponsiveContainer>
+                  </div>
+                </div>
+                {/* Category analysis */}
+                {m.insight.categoryAnalysis && <div style={{ ...cardS, padding: 16, marginBottom: 10 }}><div style={{ fontSize: 13, fontWeight: 700, color: T.gold, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}><PieChart size={14} />Category Analysis</div><div style={{ fontSize: 12, lineHeight: 1.7, color: T.text2 }}>{m.insight.categoryAnalysis}</div></div>}
+                {/* Patterns */}
+                {m.insight.patterns && <div style={{ ...cardS, padding: 16, marginBottom: 10 }}><div style={{ fontSize: 13, fontWeight: 700, color: T.gold, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}><Coins size={14} />Spending Patterns</div><div style={{ fontSize: 12, lineHeight: 1.7, color: T.text2 }}>{m.insight.patterns}</div></div>}
+                {/* Top expenses */}
+                {m.insight.data.t5x.length > 0 && <div style={{ ...cardS, padding: 16, marginBottom: 10 }}><div style={{ fontSize: 13, fontWeight: 700, color: T.text1, marginBottom: 10 }}>Top Expenses</div>{m.insight.data.t5x.map((e, j) => <div key={j} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: j < m.insight.data.t5x.length - 1 ? `1px solid ${T.border}` : "none" }}><div><div style={{ fontSize: 12, fontWeight: 600, color: T.text1 }}>{e.description || e.category}</div><div style={{ fontSize: 9, color: T.text3, marginTop: 1 }}>{e.category} / {e.date}</div></div><div style={{ fontSize: 13, fontWeight: 700, color: T.gold }}>{fmt(e.amount)}</div></div>)}</div>}
+                {/* Tips */}
+                {m.insight.tips?.length > 0 && <div style={{ ...cardS, padding: 16, marginBottom: 10 }}><div style={{ fontSize: 13, fontWeight: 700, color: T.gold, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}><Lightbulb size={14} />Tips</div>{m.insight.tips.map((tip, j) => <div key={j} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: j < m.insight.tips.length - 1 ? 8 : 0 }}><div style={{ minWidth: 20, height: 20, borderRadius: 10, background: T.goldMuted, color: T.gold, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700 }}>{j + 1}</div><div style={{ fontSize: 12, lineHeight: 1.6, color: T.text2, paddingTop: 1 }}>{tip}</div></div>)}</div>}
+                {/* Debt analysis */}
+                {m.insight.debtAnalysis && m.insight.data?.debts?.length > 0 && <div style={{ ...cardS, padding: 16, marginBottom: 10 }}><div style={{ fontSize: 13, fontWeight: 700, color: T.text1, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}><Coins size={14} style={{ color: T.gold }} />Debt Summary</div><div style={{ display: "grid", gridTemplateColumns: isDesktop ? "repeat(3,1fr)" : "1fr 1fr", gap: 8, marginBottom: 10 }}><div style={{ background: theme === "dark" ? "rgba(239,68,68,0.08)" : "rgba(239,68,68,0.06)", borderRadius: 10, padding: 10 }}><div style={{ fontSize: 9, color: T.text3, fontWeight: 600, textTransform: "uppercase" }}>Total Owed</div><div style={{ fontSize: 16, fontWeight: 800, color: T.err, marginTop: 3 }}>{fmt(m.insight.data.debts.reduce((s, d) => s + d.currentBalance, 0))}</div></div><div style={{ background: T.inputBg, borderRadius: 10, padding: 10 }}><div style={{ fontSize: 9, color: T.text3, fontWeight: 600, textTransform: "uppercase" }}>Min/Month</div><div style={{ fontSize: 16, fontWeight: 800, color: T.text1, marginTop: 3 }}>{fmt(m.insight.data.debts.reduce((s, d) => s + (d.minPayment || 0), 0))}</div></div></div><p style={{ fontSize: 12, lineHeight: 1.7, color: T.text2, margin: 0 }}>{m.insight.debtAnalysis}</p></div>}
+              </div>
+            ) : (
+              <div style={{ maxWidth: isDesktop ? "65%" : "82%", padding: "12px 16px", borderRadius: 16, background: m.role === "user" ? T.chatUser : T.chatBot, border: m.role === "user" ? "none" : `1px solid ${T.chatBotBorder}`, color: m.role === "user" ? T.chatUserText : T.text1, fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap", fontWeight: m.role === "user" ? 600 : 400 }}>{m.content}</div>
+            )}
           </div>
         ))}
+        {showChips && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14, paddingLeft: 4 }}>
+            {CHIPS.map((c, i) => (
+              <button key={i} onClick={() => sendChip(c.msg)} style={{ padding: "8px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: "pointer", border: `1px solid ${T.borderStrong}`, background: T.surface, color: T.gold, transition: "all 0.2s" }}>{c.label}</button>
+            ))}
+            <button onClick={() => setShowRevPer(v => !v)} style={{ padding: "8px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: "pointer", border: `1px solid ${T.gold}`, background: T.goldMuted, color: T.gold, transition: "all 0.2s" }}>Spending review</button>
+          </div>
+        )}
+        {showRevPer && showChips && (
+          <div style={{ display: "flex", gap: 6, marginBottom: 14, paddingLeft: 4 }}>
+            {["Weekly", "Monthly", "Quarterly", "Yearly"].map(p => (
+              <button key={p} onClick={() => genReview(p)} style={pillS(false)}>{p}</button>
+            ))}
+          </div>
+        )}
         {cl && <div style={{ display: "flex", marginBottom: 10 }}><div style={{ padding: "12px 16px", borderRadius: 16, background: T.chatBot, border: `1px solid ${T.chatBotBorder}`, color: T.gold, fontSize: 13 }}>Thinking...</div></div>}
         {pe && pe.length > 0 && (
           <div style={{ ...cardS, marginBottom: 10, borderColor: T.borderStrong }}>

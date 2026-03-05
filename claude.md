@@ -39,6 +39,8 @@ AI-powered receipt scanning, chat-based expense logging, dashboards, analytics, 
 | `invites` | id (UUID PK), household_id, created_by, token, used, used_by, created_at, expires_at, invited_email | Email-based invite — matches on sign-in |
 | `debts` | id (TEXT PK), name, type, total_amount, current_balance, due_date, interest_rate, min_payment, added_by, household_id (FK), created_at, updated_at | Debt tracking, scoped to household |
 | `debt_payments` | id (TEXT PK), debt_id (FK), amount, date, new_balance, household_id (FK), created_at | Payment history, scoped to household |
+| `account_history` | id (TEXT PK), account_id, old_balance, new_balance, change_amount, reason, description, household_id (FK), created_at | Balance change log per account |
+| `insights` | id (TEXT PK), period, data (JSONB), ai_response (JSONB), household_id (FK), created_at | Saved AI spending reviews (Phase 14) |
 
 Default categories: `["Food", "Transport", "Bills", "Shopping", "Health", "Entertainment", "Subscriptions", "Other"]`
 
@@ -355,6 +357,42 @@ Dashboard | Expenses | AI Chat | Accounts | More
 - [ ] In-app notification banner/badge on the Accounts tab when payments are due
 - [ ] Daily/weekly debt summary notification (optional, configurable in Settings)
 - [ ] Email notifications (future/lower priority): Supabase Edge Function to send reminder emails
+
+### Phase 13 — AI Chat Hub (Unified)
+
+**13a — Quick Action Chips** 🔄 IN PROGRESS
+- [ ] Pre-chat suggestion chips shown when chat has only the welcome message
+- [ ] Chips: "What did I spend this month?", "Budget check", "Top expenses", "Spending review", "Debt payoff plan", "Compare with last month"
+- [ ] Tapping a chip auto-sends the question to AI immediately
+- [ ] "Spending review" chip shows a period picker (Weekly/Monthly/Quarterly/Yearly) before generating
+- [ ] Chips disappear once user sends first message or AI responds
+
+**13b — Move Insights into AI Chat**
+- [ ] Remove Insights sub-tab from More (More becomes just Settings)
+- [ ] "Spending review" chip triggers the existing AI insights prompt with expense data context
+- [ ] AI returns structured JSON (overview, categoryAnalysis, patterns, tips, debtAnalysis)
+- [ ] Render rich insight cards + charts inline in the chat feed (same UI as current Insights, but inside chat)
+- [ ] Period selector appears when "Spending review" chip is tapped
+
+**13c — Chat History Persistence (optional/future)**
+- [ ] Persist chat messages to state/localStorage so conversation survives tab navigation
+- [ ] Clear chat button to reset conversation
+
+### Phase 14 — Saved Insights + PDF Export
+
+**14a — Insights Persistence**
+- [ ] New `insights` Supabase table: id (TEXT PK), period, data (JSONB), ai_response (JSONB), household_id (FK), created_at
+- [ ] Auto-save every generated insight to the table
+- [ ] "Past Reviews" accessible from chat (chip or button)
+- [ ] List view: date, period label, total spent preview
+- [ ] Tap to view full past insight (rendered inline or modal)
+- [ ] Delete old insights
+
+**14b — PDF Export**
+- [ ] "Download PDF" button on each insight (current + past)
+- [ ] Uses browser window.print() API targeting the insight content
+- [ ] Clean print stylesheet: white background, no nav, proper margins
+- [ ] Include header with household name, period, date generated
 
 ### Phase 12 — Code Refactoring ✅ DONE
 
