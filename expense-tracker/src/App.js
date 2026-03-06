@@ -144,14 +144,23 @@ function LoginScreen({ onLogin, theme, toggleTheme, authError, localMode }) {
 
 // ─── MAIN APP (nav shell + tab router) ───
 function MainApp({ onLogout, toggleTheme }) {
-  const { user, profile, theme, isDesktop, T, ld, toast } = useApp();
+  const { user, profile, debts, theme, isDesktop, T, ld, toast } = useApp();
   const [tab, setTab] = useState("dashboard");
+
+  // Due-soon debts: due within 3 days or overdue this month
+  const dueCount = (() => {
+    const today = new Date().getDate();
+    return debts.filter(d => d.currentBalance > 0 && d.dueDate).filter(d => {
+      const diff = d.dueDate - today;
+      return (diff >= 0 && diff <= 3) || (diff < 0 && diff >= -3);
+    }).length;
+  })();
 
   const tabs = [
     { id: "dashboard", label: "Dashboard", icon: PieChart },
     { id: "expenses", label: "Expenses", icon: LayoutDashboard },
     { id: "chat", label: "AI Chat", icon: MessageSquare },
-    { id: "accounts", label: "Accounts", icon: Wallet },
+    { id: "accounts", label: "Accounts", icon: Wallet, badge: dueCount },
     { id: "more", label: "More", icon: Settings }
   ];
 
@@ -177,6 +186,7 @@ function MainApp({ onLogout, toggleTheme }) {
               <button key={t.id} onClick={() => setTab(t.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 24px", margin: "2px 10px", borderRadius: 12, border: "none", cursor: "pointer", background: a ? T.goldMuted : "transparent", color: a ? T.gold : T.text2, fontSize: 13, fontWeight: a ? 700 : 500, textAlign: "left", width: "calc(100% - 20px)", transition: "all 0.2s", position: "relative" }}>
                 {a && <div style={{ position: "absolute", left: 0, width: 3, height: 24, borderRadius: "0 2px 2px 0", background: T.gold }} />}
                 <I size={18} />{t.label}
+                {t.badge > 0 && <span style={{ marginLeft: "auto", background: T.err, color: "#FFF", fontSize: 10, fontWeight: 700, borderRadius: 10, padding: "2px 7px", minWidth: 18, textAlign: "center" }}>{t.badge}</span>}
               </button>
             );
           })}
@@ -216,7 +226,7 @@ function MainApp({ onLogout, toggleTheme }) {
           <div style={{ maxWidth: 600, margin: "14px auto 0", padding: "0 20px", width: "100%", boxSizing: "border-box" }}>
             <div style={{ display: "flex", gap: 2, background: T.surface, borderRadius: 16, padding: 4, border: `1px solid ${T.border}` }}>
               {tabs.map(t => { const I = t.icon; const a = tab === t.id;
-                return <button key={t.id} onClick={() => setTab(t.id)} style={{ flex: 1, padding: "10px 4px", borderRadius: 12, border: "none", background: a ? T.goldMuted : "transparent", color: a ? T.gold : T.text3, fontSize: 10, fontWeight: 700, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, position: "relative" }}><I size={16} />{t.label}{a && <div style={{ position: "absolute", bottom: 2, width: 16, height: 2, borderRadius: 1, background: T.gold }} />}</button>;
+                return <button key={t.id} onClick={() => setTab(t.id)} style={{ flex: 1, padding: "10px 4px", borderRadius: 12, border: "none", background: a ? T.goldMuted : "transparent", color: a ? T.gold : T.text3, fontSize: 10, fontWeight: 700, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, position: "relative" }}><span style={{ position: "relative" }}><I size={16} />{t.badge > 0 && <span style={{ position: "absolute", top: -4, right: -8, background: T.err, color: "#FFF", fontSize: 8, fontWeight: 700, borderRadius: 8, padding: "1px 4px", minWidth: 12, textAlign: "center" }}>{t.badge}</span>}</span>{t.label}{a && <div style={{ position: "absolute", bottom: 2, width: 16, height: 2, borderRadius: 1, background: T.gold }} />}</button>;
               })}
             </div>
           </div>
