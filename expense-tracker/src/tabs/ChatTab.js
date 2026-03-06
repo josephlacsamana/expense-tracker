@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { X, Check, Send, ImagePlus, AlertTriangle, TrendingUp, Lightbulb, Coins, PieChart, History, Trash2, Download } from "lucide-react";
 import { PieChart as RPie, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
 import ChartTooltip from "../components/ChartTooltip";
@@ -8,7 +8,9 @@ import { fmt, td, uid, stripE, pld, startOf, prevRange, fmtS } from "../constant
 export default function ChatTab() {
   const { exp, accts, budgets, cats, debts, catColors, users, svE, svA, svAH, svIns, delIns, insights, tst, callAI, user, household, theme, isDesktop, T, cardS, pillS, inpS, btnP, btnG, mOvS, mInS } = useApp();
 
-  const [msgs, setMsgs] = useState([{ role: "assistant", content: `Hey ${user}! Tell me what you spent and I'll log it. Upload a receipt or just type it out.` }]);
+  const welcome = { role: "assistant", content: `Hey ${user}! Tell me what you spent and I'll log it. Upload a receipt or just type it out.` };
+  const [msgs, setMsgs] = useState(() => { try { const s = localStorage.getItem("chatMsgs"); if (s) { const p = JSON.parse(s); if (Array.isArray(p) && p.length > 0) return p; } } catch {} return [welcome]; });
+  useEffect(() => { try { localStorage.setItem("chatMsgs", JSON.stringify(msgs)); } catch {} }, [msgs]);
   const [ci, setCi] = useState("");
   const [cl, setCl] = useState(false);
   const [pe, setPe] = useState(null);
@@ -202,6 +204,9 @@ ${ins.debtAnalysis && debtRows ? `<h2>Debt Summary</h2><table><tr><th>Debt</th><
 
   return (
     <div style={{ flex: 1, maxWidth: isDesktop ? 720 : 600, margin: "0 auto", padding: isDesktop ? "28px 36px 20px" : "18px 20px", width: "100%", boxSizing: "border-box", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      {msgs.length > 1 && <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 6 }}>
+        <button onClick={() => { setMsgs([welcome]); setPe(null); setEditIdx(null); setEditForm(null); }} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: "pointer", border: `1px solid ${T.border}`, background: "transparent", color: T.text3 }}><Trash2 size={11} />Clear chat</button>
+      </div>}
       <div style={{ flex: 1, overflowY: "auto", marginBottom: 14 }}>
         {msgs.map((m, i) => (
           <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", marginBottom: 10 }}>
