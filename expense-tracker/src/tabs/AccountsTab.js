@@ -19,11 +19,14 @@ export default function AccountsTab() {
   const [delCat, setDelCat] = useState(null);
   const [sdf, setSdf] = useState(false);
   const [edtId, setEdtId] = useState(null);
-  const [ddf, setDdf] = useState({ name: "", type: "Credit Card", totalAmount: "", currentBalance: "", dueDate: "", interestRate: "", minPayment: "" });
+  const [ddf, setDdf] = useState({ name: "", type: "Credit Card", totalAmount: "", currentBalance: "", dueDate: "", interestRate: "", minPayment: "", startDate: "" });
   const [ddDc, setDdDc] = useState(null);
   const [spay, setSpay] = useState(null);
   const [payAmt, setPayAmt] = useState("");
   const [payDate, setPayDate] = useState(td());
+  const [payFee, setPayFee] = useState("");
+  const [bulkDt, setBulkDt] = useState(null);
+  const [bulkMonths, setBulkMonths] = useState("");
   const [viewDt, setViewDt] = useState(null);
 
   // Computed
@@ -62,12 +65,12 @@ export default function AccountsTab() {
   // Debt CRUD
   const doDebt = () => {
     if (!ddf.name.trim() || !ddf.totalAmount || isNaN(parseFloat(ddf.totalAmount))) return;
-    const en = { id: edtId || uid(), name: ddf.name.trim(), type: ddf.type, totalAmount: parseFloat(parseFloat(ddf.totalAmount).toFixed(2)), currentBalance: parseFloat(parseFloat(ddf.currentBalance || ddf.totalAmount).toFixed(2)), dueDate: parseInt(ddf.dueDate) || null, interestRate: parseFloat(ddf.interestRate) || 0, minPayment: parseFloat(ddf.minPayment) || 0, addedBy: user, createdAt: edtId ? (debts.find(d => d.id === edtId)?.createdAt || Date.now()) : Date.now(), updatedAt: Date.now() };
+    const en = { id: edtId || uid(), name: ddf.name.trim(), type: ddf.type, totalAmount: parseFloat(parseFloat(ddf.totalAmount).toFixed(2)), currentBalance: parseFloat(parseFloat(ddf.currentBalance || ddf.totalAmount).toFixed(2)), dueDate: parseInt(ddf.dueDate) || null, interestRate: parseFloat(ddf.interestRate) || 0, minPayment: parseFloat(ddf.minPayment) || 0, startDate: ddf.startDate || null, addedBy: user, createdAt: edtId ? (debts.find(d => d.id === edtId)?.createdAt || Date.now()) : Date.now(), updatedAt: Date.now() };
     if (edtId) { svD(debts.map(d => d.id === edtId ? en : d), { upsert: en }); tst("Debt updated"); } else { svD([...debts, en], { upsert: en }); tst("Debt added"); }
     rstDf();
   };
-  const rstDf = () => { setDdf({ name: "", type: "Credit Card", totalAmount: "", currentBalance: "", dueDate: "", interestRate: "", minPayment: "" }); setEdtId(null); setSdf(false); };
-  const edDebt = (d) => { setDdf({ name: d.name, type: d.type, totalAmount: String(d.totalAmount), currentBalance: String(d.currentBalance), dueDate: d.dueDate ? String(d.dueDate) : "", interestRate: String(d.interestRate || ""), minPayment: String(d.minPayment || "") }); setEdtId(d.id); setSdf(true); };
+  const rstDf = () => { setDdf({ name: "", type: "Credit Card", totalAmount: "", currentBalance: "", dueDate: "", interestRate: "", minPayment: "", startDate: "" }); setEdtId(null); setSdf(false); };
+  const edDebt = (d) => { setDdf({ name: d.name, type: d.type, totalAmount: String(d.totalAmount), currentBalance: String(d.currentBalance), dueDate: d.dueDate ? String(d.dueDate) : "", interestRate: String(d.interestRate || ""), minPayment: String(d.minPayment || ""), startDate: d.startDate || "" }); setEdtId(d.id); setSdf(true); };
   const delDebt = (id) => {
     svD(debts.filter(d => d.id !== id), { deleteId: id });
     svDP(dPays.filter(p => p.debtId !== id));
@@ -76,15 +79,40 @@ export default function AccountsTab() {
   const doPayment = () => {
     if (!spay || !payAmt || isNaN(parseFloat(payAmt))) return;
     const amt = parseFloat(parseFloat(payAmt).toFixed(2));
+    const fee = parseFloat(payFee) || 0;
     const debt = debts.find(d => d.id === spay);
     if (!debt) return;
     const newBal = Math.max(0, debt.currentBalance - amt);
-    const payment = { id: uid(), debtId: spay, amount: amt, date: payDate || td(), newBalance: newBal, createdAt: Date.now() };
+    const payment = { id: uid(), debtId: spay, amount: amt, date: payDate || td(), newBalance: newBal, lateFee: fee, createdAt: Date.now() };
     const updDebt = { ...debt, currentBalance: newBal, updatedAt: Date.now() };
     svD(debts.map(d => d.id === spay ? updDebt : d), { upsert: updDebt });
     svDP([payment, ...dPays], { upsert: payment });
-    setSpay(null); setPayAmt(""); setPayDate(td());
+    setSpay(null); setPayAmt(""); setPayDate(td()); setPayFee("");
     tst(`Payment of ${fmt(amt)} recorded`);
+  };
+
+  // Bulk import historical payments
+  const doBulkImport = () => {
+    if (!bulkDt || !bulkMonths || isNaN(parseInt(bulkMonths))) return;
+    const debt = debts.find(d => d.id === bulkDt);
+    if (!debt) return;
+    const n = parseInt(bulkMonths);
+    if (n <= 0 || n > 120) return;
+    const start = new Date(debt.startDate || debt.createdAt);
+    const newPays = [];
+    for (let i = 0; i < n; i++) {
+      const m = new Date(start.getFullYear(), start.getMonth() + i, Math.min(debt.dueDate || 15, 28));
+      const dateStr = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, "0")}-${String(m.getDate()).padStart(2, "0")}`;
+      if (!dPays.some(p => p.debtId === debt.id && p.date.slice(0, 7) === dateStr.slice(0, 7))) {
+        newPays.push({ id: uid(), debtId: debt.id, amount: debt.minPayment || 0, date: dateStr, newBalance: 0, lateFee: 0, createdAt: Date.now() });
+      }
+    }
+    if (newPays.length > 0) {
+      const all = [...newPays, ...dPays];
+      svDP(all, { upsertMany: newPays });
+      tst(`${newPays.length} payments imported`);
+    } else { tst("No new months to import"); }
+    setBulkDt(null); setBulkMonths("");
   };
 
   return (
@@ -214,7 +242,7 @@ export default function AccountsTab() {
               <div key={d.id} style={{ ...cardS, padding: 0, overflow: "hidden" }}>
                 <div style={{ padding: "14px 16px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}><div style={{ width: 38, height: 38, borderRadius: 11, background: T.goldMuted, display: "flex", alignItems: "center", justifyContent: "center" }}><DI size={16} style={{ color: T.gold }} /></div><div><div style={{ fontSize: 13, fontWeight: 700 }}>{d.name}</div><div style={{ fontSize: 10, color: T.text3 }}>{d.type}{d.dueDate ? ` -- Due day ${d.dueDate}` : ""}</div></div></div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}><div style={{ width: 38, height: 38, borderRadius: 11, background: T.goldMuted, display: "flex", alignItems: "center", justifyContent: "center" }}><DI size={16} style={{ color: T.gold }} /></div><div><div style={{ fontSize: 13, fontWeight: 700 }}>{d.name}</div><div style={{ fontSize: 10, color: T.text3 }}>{d.type}{d.dueDate ? ` -- Due day ${d.dueDate}` : ""}{d.startDate ? ` -- Since ${new Date(d.startDate + "T00:00:00").toLocaleDateString("en-PH", { month: "short", year: "numeric" })}` : ""}</div></div></div>
                     <div style={{ textAlign: "right" }}><div style={{ fontSize: 16, fontWeight: 800, color: d.currentBalance > 0 ? T.err : T.ok }}>{fmt(d.currentBalance)}</div><div style={{ fontSize: 10, color: T.text3 }}>of {fmt(d.totalAmount)}</div></div>
                   </div>
                   <div style={{ marginTop: 10, height: 6, borderRadius: 3, background: theme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)", overflow: "hidden" }}><div style={{ height: "100%", borderRadius: 3, width: `${Math.min(100, pdP)}%`, background: pdP >= 100 ? T.ok : T.gold, transition: "width 0.3s" }} /></div>
@@ -227,12 +255,68 @@ export default function AccountsTab() {
                     <button onClick={() => setDdDc(d.id)} style={{ background: "none", border: "none", color: T.err, cursor: "pointer", padding: 4 }}><Trash2 size={14} /></button>
                   </div>
                 </div>
-                {isEx && <div style={{ borderTop: `1px solid ${T.border}`, padding: "10px 16px", background: theme === "dark" ? "rgba(0,0,0,0.2)" : "rgba(0,0,0,0.02)" }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: T.text2, marginBottom: 8 }}>Payment History</div>
+                {isEx && (() => {
+                  // Monthly payment grid
+                  const grid = [];
+                  if (d.startDate) {
+                    const s = new Date(d.startDate + "T00:00:00");
+                    const now = new Date();
+                    const cur = new Date(s.getFullYear(), s.getMonth(), 1);
+                    const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+                    while (cur < end) {
+                      const ym = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}`;
+                      const paid = pays.some(p => p.date.slice(0, 7) === ym);
+                      const isCur = cur.getFullYear() === now.getFullYear() && cur.getMonth() === now.getMonth();
+                      grid.push({ ym, label: cur.toLocaleDateString("en-PH", { month: "short", year: "2-digit" }), paid, isCur });
+                      cur.setMonth(cur.getMonth() + 1);
+                    }
+                  }
+                  const mPaid = grid.filter(g => g.paid).length;
+                  const mMissed = grid.filter(g => !g.paid && !g.isCur).length;
+                  const totalPaid = pays.reduce((s, p) => s + p.amount, 0);
+                  const totalFees = pays.reduce((s, p) => s + (p.lateFee || 0), 0);
+                  // Streak (consecutive paid months from most recent)
+                  let streak = 0;
+                  for (let i = grid.length - 1; i >= 0; i--) { if (grid[i].paid) streak++; else if (!grid[i].isCur) break; }
+
+                  return <div style={{ borderTop: `1px solid ${T.border}`, padding: "10px 16px", background: theme === "dark" ? "rgba(0,0,0,0.2)" : "rgba(0,0,0,0.02)" }}>
+                  {/* Payment stats */}
+                  {grid.length > 0 && <>
+                    <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+                      <div style={{ background: theme === "dark" ? "rgba(16,185,129,0.1)" : "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 10, padding: "8px 12px", flex: 1, minWidth: 70 }}><div style={{ fontSize: 9, color: T.text3, fontWeight: 600, textTransform: "uppercase" }}>Paid</div><div style={{ fontSize: 16, fontWeight: 800, color: T.ok }}>{mPaid}</div></div>
+                      <div style={{ background: mMissed > 0 ? (theme === "dark" ? "rgba(239,68,68,0.1)" : "rgba(239,68,68,0.06)") : (theme === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)"), border: `1px solid ${mMissed > 0 ? "rgba(239,68,68,0.2)" : T.border}`, borderRadius: 10, padding: "8px 12px", flex: 1, minWidth: 70 }}><div style={{ fontSize: 9, color: T.text3, fontWeight: 600, textTransform: "uppercase" }}>Missed</div><div style={{ fontSize: 16, fontWeight: 800, color: mMissed > 0 ? T.err : T.text2 }}>{mMissed}</div></div>
+                      <div style={{ background: theme === "dark" ? "rgba(245,181,38,0.1)" : "rgba(245,181,38,0.06)", border: "1px solid rgba(245,181,38,0.2)", borderRadius: 10, padding: "8px 12px", flex: 1, minWidth: 70 }}><div style={{ fontSize: 9, color: T.text3, fontWeight: 600, textTransform: "uppercase" }}>Streak</div><div style={{ fontSize: 16, fontWeight: 800, color: T.gold }}>{streak}</div></div>
+                      <div style={{ background: theme === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)", border: `1px solid ${T.border}`, borderRadius: 10, padding: "8px 12px", flex: 1, minWidth: 70 }}><div style={{ fontSize: 9, color: T.text3, fontWeight: 600, textTransform: "uppercase" }}>Total Paid</div><div style={{ fontSize: 14, fontWeight: 800, color: T.text1 }}>{fmt(totalPaid)}</div></div>
+                    </div>
+                    {totalFees > 0 && <div style={{ fontSize: 10, color: T.err, marginBottom: 8 }}>Total late fees: {fmt(totalFees)}</div>}
+                    {/* Monthly grid */}
+                    <div style={{ fontSize: 11, fontWeight: 700, color: T.text2, marginBottom: 6 }}>Monthly Payments</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 10 }}>
+                      {grid.map(g => (
+                        <div key={g.ym} title={`${g.label}: ${g.paid ? "Paid" : g.isCur ? "Current" : "Missed"}`} style={{ width: 28, height: 28, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 7, fontWeight: 700, cursor: "default", background: g.paid ? (theme === "dark" ? "rgba(16,185,129,0.2)" : "rgba(16,185,129,0.15)") : g.isCur ? (theme === "dark" ? "rgba(245,181,38,0.2)" : "rgba(245,181,38,0.15)") : (theme === "dark" ? "rgba(239,68,68,0.15)" : "rgba(239,68,68,0.1)"), color: g.paid ? T.ok : g.isCur ? T.gold : T.err, border: `1px solid ${g.paid ? "rgba(16,185,129,0.3)" : g.isCur ? "rgba(245,181,38,0.3)" : "rgba(239,68,68,0.2)"}` }}>{g.label}</div>
+                      ))}
+                    </div>
+                    <div style={{ display: "flex", gap: 10, marginBottom: 10, fontSize: 9, color: T.text3 }}>
+                      <span style={{ display: "flex", alignItems: "center", gap: 3 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: T.ok, display: "inline-block" }} />Paid</span>
+                      <span style={{ display: "flex", alignItems: "center", gap: 3 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: T.err, display: "inline-block" }} />Missed</span>
+                      <span style={{ display: "flex", alignItems: "center", gap: 3 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: T.gold, display: "inline-block" }} />Current</span>
+                    </div>
+                    {/* Bulk import */}
+                    {!bulkDt && <button onClick={() => { setBulkDt(d.id); setBulkMonths(""); }} style={{ ...btnG, padding: "6px 12px", fontSize: 10, marginBottom: 10, display: "flex", alignItems: "center", gap: 4 }}><Plus size={10} />Import past payments</button>}
+                    {bulkDt === d.id && <div style={{ display: "flex", gap: 6, marginBottom: 10, alignItems: "center" }}>
+                      <input type="number" inputMode="numeric" placeholder="How many months paid?" value={bulkMonths} onChange={e => setBulkMonths(e.target.value)} style={{ ...inpS, flex: 1, padding: "8px 12px", fontSize: 12 }} />
+                      <button onClick={doBulkImport} style={{ ...btnP, padding: "8px 14px", fontSize: 11 }}>Import</button>
+                      <button onClick={() => setBulkDt(null)} style={{ ...btnG, padding: "8px 12px", fontSize: 11 }}>Cancel</button>
+                    </div>}
+                  </>}
+                  {!d.startDate && grid.length === 0 && <div style={{ fontSize: 11, color: T.text3, marginBottom: 8, padding: "6px 0", fontStyle: "italic" }}>Set a start date to see the monthly payment grid. Edit this debt to add one.</div>}
+                  {/* Payment history list */}
+                  <div style={{ fontSize: 11, fontWeight: 700, color: T.text2, marginBottom: 6, marginTop: grid.length > 0 ? 4 : 0 }}>Payment History</div>
+                  <button onClick={() => { setSpay(d.id); setPayAmt(""); setPayDate(td()); setPayFee(""); }} style={{ ...btnG, padding: "5px 10px", fontSize: 10, marginBottom: 8, display: "flex", alignItems: "center", gap: 4 }}><Plus size={10} />Add past payment</button>
                   {pays.length === 0 && <div style={{ fontSize: 11, color: T.text3, padding: "8px 0" }}>No payments recorded yet.</div>}
-                  {pays.slice(0, 10).map(p => (<div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${T.border}` }}><div><div style={{ fontSize: 12, fontWeight: 600, color: T.ok }}>{fmt(p.amount)}</div><div style={{ fontSize: 10, color: T.text3 }}>{p.date}</div></div><div style={{ fontSize: 11, color: T.text3 }}>Bal: {fmt(p.newBalance)}</div></div>))}
-                  {pays.length > 10 && <div style={{ fontSize: 10, color: T.text3, marginTop: 6, textAlign: "center" }}>...and {pays.length - 10} more</div>}
-                </div>}
+                  {pays.slice(0, 15).map(p => (<div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${T.border}` }}><div><div style={{ fontSize: 12, fontWeight: 600, color: T.ok }}>{fmt(p.amount)}{p.lateFee > 0 && <span style={{ color: T.err, fontSize: 10, marginLeft: 6 }}>+{fmt(p.lateFee)} fee</span>}</div><div style={{ fontSize: 10, color: T.text3 }}>{p.date}</div></div><div style={{ fontSize: 11, color: T.text3 }}>{p.newBalance > 0 ? `Bal: ${fmt(p.newBalance)}` : ""}</div></div>))}
+                  {pays.length > 15 && <div style={{ fontSize: 10, color: T.text3, marginTop: 6, textAlign: "center" }}>...and {pays.length - 15} more</div>}
+                </div>; })()}
               </div>); })}
           </div>
         </>)}
@@ -271,16 +355,18 @@ export default function AccountsTab() {
             <div style={{ flex: 1 }}><input placeholder="Interest % (APR)" type="number" inputMode="decimal" value={ddf.interestRate} onChange={e => setDdf(v => ({ ...v, interestRate: e.target.value }))} style={inpS} /><div style={{ fontSize: 10, color: T.text3, marginTop: 4, paddingLeft: 2 }}>Annual interest rate</div></div>
           </div>
           <div><input placeholder="Min. Monthly Payment" type="number" inputMode="decimal" value={ddf.minPayment} onChange={e => setDdf(v => ({ ...v, minPayment: e.target.value }))} style={inpS} /><div style={{ fontSize: 10, color: T.text3, marginTop: 4, paddingLeft: 2 }}>Minimum amount due each month</div></div>
+          <div><input type="date" value={ddf.startDate} onChange={e => setDdf(v => ({ ...v, startDate: e.target.value }))} style={inpS} /><div style={{ fontSize: 10, color: T.text3, marginTop: 4, paddingLeft: 2 }}>When did you start paying this debt? (for payment tracking)</div></div>
           <button onClick={doDebt} style={{ ...btnP, width: "100%" }}>{edtId ? "Update" : "Add Debt"}</button>
         </div>
       </div></div>}
 
       {/* Payment modal */}
-      {spay && <div style={mOvS}><div style={{ ...mInS, maxWidth: 380 }}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}><div style={{ fontSize: 18, fontWeight: 800, color: T.text1 }}>Record Payment</div><button onClick={() => { setSpay(null); setPayAmt(""); setPayDate(td()); }} style={{ background: "none", border: "none", color: T.text3, cursor: "pointer" }}><X size={22} /></button></div>
+      {spay && <div style={mOvS}><div style={{ ...mInS, maxWidth: 380 }}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}><div style={{ fontSize: 18, fontWeight: 800, color: T.text1 }}>Record Payment</div><button onClick={() => { setSpay(null); setPayAmt(""); setPayDate(td()); setPayFee(""); }} style={{ background: "none", border: "none", color: T.text3, cursor: "pointer" }}><X size={22} /></button></div>
         <div style={{ fontSize: 13, color: T.text2, marginBottom: 14 }}>{debts.find(d => d.id === spay)?.name} -- Balance: {fmt(debts.find(d => d.id === spay)?.currentBalance || 0)}</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <input placeholder="Payment Amount" type="number" inputMode="decimal" value={payAmt} onChange={e => setPayAmt(e.target.value)} style={inpS} autoFocus />
           <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} style={inpS} />
+          <div><input placeholder="Late fee / penalty (optional)" type="number" inputMode="decimal" value={payFee} onChange={e => setPayFee(e.target.value)} style={inpS} /><div style={{ fontSize: 10, color: T.text3, marginTop: 4, paddingLeft: 2 }}>Any extra charges or penalties for this payment</div></div>
           <button onClick={doPayment} style={{ ...btnP, width: "100%" }}>Record Payment</button>
         </div>
       </div></div>}

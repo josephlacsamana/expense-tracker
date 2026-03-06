@@ -22,8 +22,8 @@ export const sb = {
       budgets: bR.data?.value || null,
       genBudget: gR.data?.value ?? null,
       pins: pR.data?.value || null,
-      debts: dR.data?.map(r => ({ id: r.id, name: r.name, type: r.type, totalAmount: Number(r.total_amount), currentBalance: Number(r.current_balance), dueDate: r.due_date ? Number(r.due_date) : null, interestRate: Number(r.interest_rate || 0), minPayment: Number(r.min_payment || 0), addedBy: r.added_by, createdAt: r.created_at, updatedAt: r.updated_at })) || [],
-      debtPayments: dpR.data?.map(r => ({ id: r.id, debtId: r.debt_id, amount: Number(r.amount), date: r.date, newBalance: Number(r.new_balance), createdAt: r.created_at })) || [],
+      debts: dR.data?.map(r => ({ id: r.id, name: r.name, type: r.type, totalAmount: Number(r.total_amount), currentBalance: Number(r.current_balance), dueDate: r.due_date ? Number(r.due_date) : null, interestRate: Number(r.interest_rate || 0), minPayment: Number(r.min_payment || 0), startDate: r.start_date || null, addedBy: r.added_by, createdAt: r.created_at, updatedAt: r.updated_at })) || [],
+      debtPayments: dpR.data?.map(r => ({ id: r.id, debtId: r.debt_id, amount: Number(r.amount), date: r.date, newBalance: Number(r.new_balance), lateFee: Number(r.late_fee || 0), createdAt: r.created_at })) || [],
     };
   },
   // Expenses
@@ -54,12 +54,16 @@ export const sb = {
   deleteAllRecurring: async (hid) => { await supabase.from("recurring").delete().eq("household_id", hid); },
   // Debts
   upsertDebt: async (d, hid) => {
-    await supabase.from("debts").upsert({ id: d.id, name: d.name, type: d.type, total_amount: d.totalAmount, current_balance: d.currentBalance, due_date: d.dueDate, interest_rate: d.interestRate, min_payment: d.minPayment, added_by: d.addedBy, household_id: hid, created_at: d.createdAt, updated_at: d.updatedAt });
+    await supabase.from("debts").upsert({ id: d.id, name: d.name, type: d.type, total_amount: d.totalAmount, current_balance: d.currentBalance, due_date: d.dueDate, interest_rate: d.interestRate, min_payment: d.minPayment, start_date: d.startDate || null, added_by: d.addedBy, household_id: hid, created_at: d.createdAt, updated_at: d.updatedAt });
   },
   deleteDebt: async (id, hid) => { await supabase.from("debt_payments").delete().eq("debt_id", id).eq("household_id", hid); await supabase.from("debts").delete().eq("id", id).eq("household_id", hid); },
   deleteAllDebts: async (hid) => { await supabase.from("debt_payments").delete().eq("household_id", hid); await supabase.from("debts").delete().eq("household_id", hid); },
   upsertDebtPayment: async (p, hid) => {
-    await supabase.from("debt_payments").upsert({ id: p.id, debt_id: p.debtId, amount: p.amount, date: p.date, new_balance: p.newBalance, household_id: hid, created_at: p.createdAt });
+    await supabase.from("debt_payments").upsert({ id: p.id, debt_id: p.debtId, amount: p.amount, date: p.date, new_balance: p.newBalance, late_fee: p.lateFee || 0, household_id: hid, created_at: p.createdAt });
+  },
+  upsertDebtPayments: async (arr, hid) => {
+    if (!arr.length) return;
+    await supabase.from("debt_payments").upsert(arr.map(p => ({ id: p.id, debt_id: p.debtId, amount: p.amount, date: p.date, new_balance: p.newBalance, late_fee: p.lateFee || 0, household_id: hid, created_at: p.createdAt })));
   },
   // Account History
   loadAccountHistory: async (hid) => {
