@@ -1,12 +1,12 @@
 import { useState, useRef } from "react";
-import { X, Check, Send, ImagePlus, AlertTriangle, TrendingUp, Lightbulb, Coins, PieChart, History, Trash2 } from "lucide-react";
+import { X, Check, Send, ImagePlus, AlertTriangle, TrendingUp, Lightbulb, Coins, PieChart, History, Trash2, Download } from "lucide-react";
 import { PieChart as RPie, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
 import ChartTooltip from "../components/ChartTooltip";
 import { useApp } from "../AppContext";
 import { fmt, td, uid, stripE, pld, startOf, prevRange, fmtS } from "../constants";
 
 export default function ChatTab() {
-  const { exp, accts, budgets, cats, debts, catColors, users, svE, svA, svAH, svIns, delIns, insights, tst, callAI, user, theme, isDesktop, T, cardS, pillS, inpS, btnP, btnG, mOvS, mInS } = useApp();
+  const { exp, accts, budgets, cats, debts, catColors, users, svE, svA, svAH, svIns, delIns, insights, tst, callAI, user, household, theme, isDesktop, T, cardS, pillS, inpS, btnP, btnG, mOvS, mInS } = useApp();
 
   const [msgs, setMsgs] = useState([{ role: "assistant", content: `Hey ${user}! Tell me what you spent and I'll log it. Upload a receipt or just type it out.` }]);
   const [ci, setCi] = useState("");
@@ -172,6 +172,30 @@ For debt questions (repayment timeline, interest savings, what-if scenarios): us
     setCl(false);
   };
 
+  const printInsight = (ins) => {
+    const d = ins.data || {};
+    const hhName = household?.name || "Shared Finance";
+    const catRows = Object.entries(d.bc || {}).sort((a, b) => b[1] - a[1]).map(([c, v]) => `<tr><td style="padding:6px 12px;border-bottom:1px solid #eee">${c}</td><td style="padding:6px 12px;border-bottom:1px solid #eee;text-align:right">PHP ${v.toLocaleString("en-PH", { minimumFractionDigits: 2 })}</td></tr>`).join("");
+    const personRows = Object.entries(d.bp || {}).map(([p, v]) => `<tr><td style="padding:6px 12px;border-bottom:1px solid #eee">${p}</td><td style="padding:6px 12px;border-bottom:1px solid #eee;text-align:right">PHP ${v.toLocaleString("en-PH", { minimumFractionDigits: 2 })}</td></tr>`).join("");
+    const topRows = (d.t5x || []).map((e, i) => `<tr><td style="padding:6px 12px;border-bottom:1px solid #eee">${i + 1}. ${e.description || e.category}</td><td style="padding:6px 12px;border-bottom:1px solid #eee">${e.category}</td><td style="padding:6px 12px;border-bottom:1px solid #eee">${e.date}</td><td style="padding:6px 12px;border-bottom:1px solid #eee;text-align:right">PHP ${e.amount.toLocaleString("en-PH", { minimumFractionDigits: 2 })}</td></tr>`).join("");
+    const debtRows = (d.debts || []).map(db => `<tr><td style="padding:6px 12px;border-bottom:1px solid #eee">${db.name} (${db.type})</td><td style="padding:6px 12px;border-bottom:1px solid #eee;text-align:right">PHP ${db.currentBalance.toLocaleString("en-PH", { minimumFractionDigits: 0 })}</td><td style="padding:6px 12px;border-bottom:1px solid #eee;text-align:right">PHP ${db.totalAmount.toLocaleString("en-PH", { minimumFractionDigits: 0 })}</td><td style="padding:6px 12px;border-bottom:1px solid #eee;text-align:right">${db.interestRate || 0}%</td></tr>`).join("");
+    const html = `<!DOCTYPE html><html><head><title>${d.period || ""} Spending Review - ${hhName}</title><style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#1a1a2e;margin:0;padding:32px 40px}h1{font-size:22px;margin:0 0 4px}h2{font-size:15px;color:#F5B526;margin:24px 0 10px;border-bottom:2px solid #F5B526;padding-bottom:4px}table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;padding:8px 12px;background:#f8f6f0;font-weight:700;font-size:12px;border-bottom:2px solid #ddd}.stats{display:flex;gap:20px;margin:16px 0}.stat{flex:1;background:#f8f6f0;border-radius:10px;padding:14px}.stat-label{font-size:10px;text-transform:uppercase;color:#8a8078;font-weight:600}.stat-val{font-size:20px;font-weight:800;margin-top:4px}.gold{color:#F5B526}.section{margin-bottom:6px;font-size:13px;line-height:1.7;color:#333}.tip{display:flex;gap:8px;margin-bottom:6px;font-size:13px;line-height:1.6}.tip-num{min-width:22px;height:22px;border-radius:50%;background:#fef3cd;color:#F5B526;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}.sub{font-size:11px;color:#8a8078;margin-top:2px}@media print{body{padding:20px 24px}}</style></head><body>
+<h1>${hhName} - ${d.period || ""} Spending Review</h1>
+<div class="sub">Generated ${new Date().toLocaleDateString("en-PH", { month: "long", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}</div>
+<div class="stats"><div class="stat"><div class="stat-label">Total Spent</div><div class="stat-val gold">PHP ${(d.tot || 0).toLocaleString("en-PH", { minimumFractionDigits: 2 })}</div></div><div class="stat"><div class="stat-label">Transactions</div><div class="stat-val">${d.count || 0}</div></div><div class="stat"><div class="stat-label">Previous ${d.period || ""}</div><div class="stat-val">${d.pT > 0 ? "PHP " + d.pT.toLocaleString("en-PH", { minimumFractionDigits: 2 }) : "--"}</div></div></div>
+${ins.overview ? `<h2>Overview</h2><div class="section">${ins.overview}</div>` : ""}
+${catRows ? `<h2>By Category</h2><table><tr><th>Category</th><th style="text-align:right">Amount</th></tr>${catRows}</table>` : ""}
+${personRows ? `<h2>By Person</h2><table><tr><th>Person</th><th style="text-align:right">Amount</th></tr>${personRows}</table>` : ""}
+${ins.categoryAnalysis ? `<h2>Category Analysis</h2><div class="section">${ins.categoryAnalysis}</div>` : ""}
+${ins.patterns ? `<h2>Spending Patterns</h2><div class="section">${ins.patterns}</div>` : ""}
+${topRows ? `<h2>Top Expenses</h2><table><tr><th>Description</th><th>Category</th><th>Date</th><th style="text-align:right">Amount</th></tr>${topRows}</table>` : ""}
+${ins.tips?.length ? `<h2>Tips</h2>${ins.tips.map((t, j) => `<div class="tip"><div class="tip-num">${j + 1}</div><div>${t}</div></div>`).join("")}` : ""}
+${ins.debtAnalysis && debtRows ? `<h2>Debt Summary</h2><table><tr><th>Debt</th><th style="text-align:right">Balance</th><th style="text-align:right">Total</th><th style="text-align:right">APR</th></tr>${debtRows}</table><div class="section" style="margin-top:10px">${ins.debtAnalysis}</div>` : ""}
+</body></html>`;
+    const w = window.open("", "_blank");
+    if (w) { w.document.write(html); w.document.close(); w.onafterprint = () => w.close(); setTimeout(() => w.print(), 300); }
+  };
+
   // scroll on message change
   const prevMsgsLen = useRef(msgs.length);
   if (msgs.length !== prevMsgsLen.current) { prevMsgsLen.current = msgs.length; setTimeout(() => cr.current?.scrollIntoView({ behavior: "smooth" }), 50); }
@@ -183,6 +207,10 @@ For debt questions (repayment timeline, interest savings, what-if scenarios): us
           <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", marginBottom: 10 }}>
             {m.insight ? (
               <div style={{ maxWidth: isDesktop ? "90%" : "95%", width: "100%" }}>
+                {/* Download PDF */}
+                <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 6 }}>
+                  <button onClick={() => printInsight(m.insight)} style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: "pointer", border: `1px solid ${T.border}`, background: T.surface, color: T.text3, transition: "all 0.2s" }}><Download size={12} />Download PDF</button>
+                </div>
                 {/* Summary stats */}
                 <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "repeat(3, 1fr)" : "1fr 1fr", gap: 8, marginBottom: 10 }}>
                   <div style={{ ...cardS, padding: 14 }}><div style={{ fontSize: 9, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, color: T.text3, marginBottom: 4 }}>Total Spent</div><div style={{ fontSize: 18, fontWeight: 800, color: T.gold }}>{fmt(m.insight.data.tot)}</div><div style={{ fontSize: 10, color: m.insight.data.pT > 0 ? (m.insight.data.tot > m.insight.data.pT ? T.err : T.ok) : T.text3, marginTop: 2 }}>{m.insight.data.pT > 0 ? `${m.insight.data.tot > m.insight.data.pT ? "+" : ""}${(((m.insight.data.tot - m.insight.data.pT) / m.insight.data.pT) * 100).toFixed(1)}% vs prev` : "No prev data"}</div></div>
