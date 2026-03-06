@@ -95,7 +95,7 @@ export default function AccountsTab() {
     tst(`Payment of ${fmt(amt)} recorded`);
   };
 
-  // Bulk import historical payments
+  // Bulk import historical payments — fills N unpaid months starting from first gap
   const doBulkImport = () => {
     if (!bulkDt || !bulkMonths || isNaN(parseInt(bulkMonths))) return;
     const debt = debts.find(d => d.id === bulkDt);
@@ -104,19 +104,25 @@ export default function AccountsTab() {
     const amt = parseFloat(bulkAmt) || debt.minPayment || 0;
     if (n <= 0 || n > 120) return;
     const start = new Date(debt.startDate || debt.createdAt);
+    const now = new Date();
+    const paidYMs = new Set(dPays.filter(p => p.debtId === debt.id).map(p => p.date.slice(0, 7)));
     const newPays = [];
-    for (let i = 0; i < n; i++) {
-      const m = new Date(start.getFullYear(), start.getMonth() + i, Math.min(debt.dueDate || 15, 28));
-      const dateStr = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, "0")}-${String(m.getDate()).padStart(2, "0")}`;
-      if (!dPays.some(p => p.debtId === debt.id && p.date.slice(0, 7) === dateStr.slice(0, 7))) {
+    let offset = 0;
+    while (newPays.length < n && offset < 240) {
+      const m = new Date(start.getFullYear(), start.getMonth() + offset, Math.min(debt.dueDate || 15, 28));
+      if (m > now) break;
+      const ym = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, "0")}`;
+      if (!paidYMs.has(ym)) {
+        const dateStr = `${ym}-${String(m.getDate()).padStart(2, "0")}`;
         newPays.push({ id: uid(), debtId: debt.id, amount: amt, date: dateStr, newBalance: 0, lateFee: 0, createdAt: Date.now() });
       }
+      offset++;
     }
     if (newPays.length > 0) {
       const all = [...newPays, ...dPays];
       svDP(all, { upsertMany: newPays });
       tst(`${newPays.length} payments imported at ${fmt(amt)} each`);
-    } else { tst("No new months to import"); }
+    } else { tst("No unpaid months to import"); }
     setBulkDt(null); setBulkMonths(""); setBulkAmt("");
   };
 
