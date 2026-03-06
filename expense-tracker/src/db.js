@@ -83,6 +83,16 @@ export const sb = {
     await supabase.from("settings").upsert({ key, value, household_id: hid });
   },
   clearAllSettings: async (hid) => { await supabase.from("settings").delete().eq("household_id", hid); },
+  // Insights
+  loadInsights: async (hid) => {
+    const { data } = await supabase.from("insights").select("*").eq("household_id", hid).order("created_at", { ascending: false }).limit(20);
+    return data?.map(r => ({ id: r.id, period: r.period, data: r.data, createdAt: r.created_at })) || [];
+  },
+  upsertInsight: async (ins, hid) => {
+    await supabase.from("insights").upsert({ id: ins.id, household_id: hid, period: ins.period, data: ins.data, created_at: ins.createdAt });
+  },
+  deleteInsight: async (id, hid) => { await supabase.from("insights").delete().eq("id", id).eq("household_id", hid); },
+  deleteAllInsights: async (hid) => { await supabase.from("insights").delete().eq("household_id", hid); },
   // Migrate localStorage → Supabase (one-time)
   migrate: async (expenses, accounts, recurring, categories, budgets, genBudget, pins, hid) => {
     const ops = [];

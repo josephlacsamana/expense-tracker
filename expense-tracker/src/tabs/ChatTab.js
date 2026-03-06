@@ -1,12 +1,12 @@
 import { useState, useRef } from "react";
-import { X, Check, Send, ImagePlus, AlertTriangle, TrendingUp, Lightbulb, Coins, PieChart } from "lucide-react";
+import { X, Check, Send, ImagePlus, AlertTriangle, TrendingUp, Lightbulb, Coins, PieChart, History, Trash2 } from "lucide-react";
 import { PieChart as RPie, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
 import ChartTooltip from "../components/ChartTooltip";
 import { useApp } from "../AppContext";
 import { fmt, td, uid, stripE, pld, startOf, prevRange, fmtS } from "../constants";
 
 export default function ChatTab() {
-  const { exp, accts, budgets, cats, debts, catColors, users, svE, svA, svAH, tst, callAI, user, theme, isDesktop, T, cardS, pillS, inpS, btnP, btnG } = useApp();
+  const { exp, accts, budgets, cats, debts, catColors, users, svE, svA, svAH, svIns, delIns, insights, tst, callAI, user, theme, isDesktop, T, cardS, pillS, inpS, btnP, btnG, mOvS, mInS } = useApp();
 
   const [msgs, setMsgs] = useState([{ role: "assistant", content: `Hey ${user}! Tell me what you spent and I'll log it. Upload a receipt or just type it out.` }]);
   const [ci, setCi] = useState("");
@@ -16,6 +16,7 @@ export default function ChatTab() {
   const [editIdx, setEditIdx] = useState(null);
   const [editForm, setEditForm] = useState(null);
   const [showRevPer, setShowRevPer] = useState(false);
+  const [showPastRev, setShowPastRev] = useState(false);
 
   const cr = useRef(null);
   const fr = useRef(null);
@@ -102,6 +103,11 @@ For debt questions (repayment timeline, interest savings, what-if scenarios): us
   ];
   const showChips = msgs.length === 1 && !cl && !pe;
 
+  const loadPastReview = (ins) => {
+    setShowPastRev(false);
+    setMsgs(v => [...v, { role: "user", content: `View saved ${ins.period} review from ${new Date(ins.createdAt).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}` }, { role: "assistant", content: "__INSIGHT__", insight: ins.data }]);
+  };
+
   const genReview = async (period) => {
     setShowRevPer(false);
     if (cl) return;
@@ -125,7 +131,10 @@ For debt questions (repayment timeline, interest savings, what-if scenarios): us
       try { parsed = JSON.parse(clean); } catch { const m = clean.match(/\{[\s\S]*\}/); parsed = m ? JSON.parse(m[0]) : null; }
       const data = { bc, bp, tot, pT, t5x, period, count: rel.length, debts };
       if (parsed && parsed.overview) {
-        setMsgs(v => [...v, { role: "assistant", content: "__INSIGHT__", insight: { ...parsed, data } }]);
+        const insightObj = { ...parsed, data };
+        const saved = { id: uid(), period, data: insightObj, createdAt: new Date().toISOString() };
+        svIns(saved);
+        setMsgs(v => [...v, { role: "assistant", content: "__INSIGHT__", insight: insightObj }]);
       } else {
         setMsgs(v => [...v, { role: "assistant", content: clean || "Could not generate review." }]);
       }
@@ -264,6 +273,7 @@ For debt questions (repayment timeline, interest savings, what-if scenarios): us
             <button key={i} onClick={() => sendChip(c.msg)} style={{ padding: "7px 12px", borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: "pointer", border: `1px solid ${T.borderStrong}`, background: T.surface, color: T.gold, transition: "all 0.2s" }}>{c.label}</button>
           ))}
           <button onClick={() => setShowRevPer(v => !v)} style={{ padding: "7px 12px", borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: "pointer", border: `1px solid ${T.gold}`, background: T.goldMuted, color: T.gold, transition: "all 0.2s" }}>Spending review</button>
+          {insights.length > 0 && <button onClick={() => setShowPastRev(true)} style={{ padding: "7px 12px", borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: "pointer", border: `1px solid ${T.borderStrong}`, background: T.surface, color: T.text3, transition: "all 0.2s", display: "flex", alignItems: "center", gap: 4 }}><History size={12} />Past reviews ({insights.length})</button>}
         </div>
       )}
       {showRevPer && showChips && (
@@ -289,6 +299,25 @@ For debt questions (repayment timeline, interest savings, what-if scenarios): us
         <textarea value={ci} onChange={e => setCi(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey && isDesktop) { e.preventDefault(); doChat(); } }} disabled={cl} placeholder={att ? "Add a note about this receipt..." : "Type expense or ask..."} rows={1} style={{ ...inpS, flex: 1, resize: "none", minHeight: 42 }} />
         <button onClick={doChat} disabled={cl || (!ci.trim() && !att)} style={{ background: (ci.trim() || att) ? T.grad : T.surface, border: "none", borderRadius: 12, padding: 11, color: (ci.trim() || att) ? (T.chatUserText) : T.text3, cursor: "pointer", flexShrink: 0, boxShadow: (ci.trim() || att) ? "0 4px 12px rgba(245,181,38,0.2)" : "none" }}><Send size={18} /></button>
       </div>
+
+      {showPastRev && <div style={mOvS}><div style={{ ...mInS, maxWidth: 500, maxHeight: "80vh", display: "flex", flexDirection: "column" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <div style={{ fontSize: 18, fontWeight: 800, color: T.text1 }}>Past Reviews</div>
+          <button onClick={() => setShowPastRev(false)} style={{ background: "none", border: "none", color: T.text3, cursor: "pointer" }}><X size={22} /></button>
+        </div>
+        <div style={{ flex: 1, overflowY: "auto" }}>
+          {insights.length === 0 ? <div style={{ fontSize: 13, color: T.text3, textAlign: "center", padding: 20 }}>No saved reviews yet.</div> : insights.map(ins => (
+            <div key={ins.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", marginBottom: 6, background: T.inputBg, borderRadius: 12, border: `1px solid ${T.border}`, cursor: "pointer" }} onClick={() => loadPastReview(ins)}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: T.text1 }}>{ins.period} Review</div>
+                <div style={{ fontSize: 11, color: T.text3, marginTop: 2 }}>{new Date(ins.createdAt).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}</div>
+                <div style={{ fontSize: 11, color: T.gold, marginTop: 2 }}>{fmt(ins.data?.data?.tot || 0)} total -- {ins.data?.data?.count || 0} transactions</div>
+              </div>
+              <button onClick={(ev) => { ev.stopPropagation(); delIns(ins.id); tst("Review deleted"); }} style={{ background: "none", border: "none", color: T.text3, cursor: "pointer", padding: 6, flexShrink: 0 }}><Trash2 size={14} /></button>
+            </div>
+          ))}
+        </div>
+      </div></div>}
     </div>
   );
 }
