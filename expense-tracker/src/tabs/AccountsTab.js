@@ -25,8 +25,6 @@ export default function AccountsTab() {
   const [payAmt, setPayAmt] = useState("");
   const [payDate, setPayDate] = useState(td());
   const [payFee, setPayFee] = useState("");
-  const [bulkDt, setBulkDt] = useState(null);
-  const [bulkMonths, setBulkMonths] = useState("");
   const [bulkAmt, setBulkAmt] = useState("");
   const [editPay, setEditPay] = useState(null);
   const [editPayForm, setEditPayForm] = useState({ amount: "", date: "", lateFee: "" });
@@ -93,37 +91,6 @@ export default function AccountsTab() {
     svDP([payment, ...dPays], { upsert: payment });
     setSpay(null); setPayAmt(""); setPayDate(td()); setPayFee("");
     tst(`Payment of ${fmt(amt)} recorded`);
-  };
-
-  // Bulk import historical payments — fills N unpaid months starting from first gap
-  const doBulkImport = () => {
-    if (!bulkDt || !bulkMonths || isNaN(parseInt(bulkMonths))) return;
-    const debt = debts.find(d => d.id === bulkDt);
-    if (!debt) return;
-    const n = parseInt(bulkMonths);
-    const amt = parseFloat(bulkAmt) || debt.minPayment || 0;
-    if (n <= 0 || n > 120) return;
-    const start = new Date(debt.startDate || debt.createdAt);
-    const now = new Date();
-    const paidYMs = new Set(dPays.filter(p => p.debtId === debt.id).map(p => p.date.slice(0, 7)));
-    const newPays = [];
-    let offset = 0;
-    while (newPays.length < n && offset < 240) {
-      const m = new Date(start.getFullYear(), start.getMonth() + offset, Math.min(debt.dueDate || 15, 28));
-      if (m > now) break;
-      const ym = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, "0")}`;
-      if (!paidYMs.has(ym)) {
-        const dateStr = `${ym}-${String(m.getDate()).padStart(2, "0")}`;
-        newPays.push({ id: uid(), debtId: debt.id, amount: amt, date: dateStr, newBalance: 0, lateFee: 0, createdAt: Date.now() });
-      }
-      offset++;
-    }
-    if (newPays.length > 0) {
-      const all = [...newPays, ...dPays];
-      svDP(all, { upsertMany: newPays });
-      tst(`${newPays.length} payments imported at ${fmt(amt)} each`);
-    } else { tst("No unpaid months to import"); }
-    setBulkDt(null); setBulkMonths(""); setBulkAmt("");
   };
 
   // Edit payment
@@ -283,7 +250,7 @@ export default function AccountsTab() {
                   </div>
                 </div>
                 {isEx && (() => {
-                  // Monthly payment grid
+                  // Build monthly grid
                   const grid = [];
                   if (d.startDate) {
                     const s = new Date(d.startDate + "T00:00:00");
@@ -292,9 +259,9 @@ export default function AccountsTab() {
                     const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
                     while (cur < end) {
                       const ym = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}`;
-                      const paid = pays.some(p => p.date.slice(0, 7) === ym);
+                      const pay = pays.find(p => p.date.slice(0, 7) === ym);
                       const isCur = cur.getFullYear() === now.getFullYear() && cur.getMonth() === now.getMonth();
-                      grid.push({ ym, label: cur.toLocaleDateString("en-PH", { month: "short", year: "2-digit" }), paid, isCur });
+                      grid.push({ ym, label: cur.toLocaleDateString("en-PH", { month: "short", year: "2-digit" }), paid: !!pay, pay, isCur, day: Math.min(d.dueDate || 15, 28) });
                       cur.setMonth(cur.getMonth() + 1);
                     }
                   }
@@ -302,9 +269,34 @@ export default function AccountsTab() {
                   const mMissed = grid.filter(g => !g.paid && !g.isCur).length;
                   const totalPaid = pays.reduce((s, p) => s + p.amount, 0);
                   const totalFees = pays.reduce((s, p) => s + (p.lateFee || 0), 0);
-                  // Streak (consecutive paid months from most recent)
                   let streak = 0;
                   for (let i = grid.length - 1; i >= 0; i--) { if (grid[i].paid) streak++; else if (!grid[i].isCur) break; }
+
+                  // Toggle month: click paid → remove, click unpaid → add with default amount
+                  const toggleMonth = (g) => {
+                    if (g.isCur) return;
+                    const defAmt = d.minPayment || 0;
+                    if (g.paid && g.pay) {
+                      // Remove payment
+                      svDP(dPays.filter(p => p.id !== g.pay.id), { deleteId: g.pay.id });
+                    } else {
+                      // Add payment
+                      const dateStr = `${g.ym}-${String(g.day).padStart(2, "0")}`;
+                      const np = { id: uid(), debtId: d.id, amount: defAmt, date: dateStr, newBalance: 0, lateFee: 0, createdAt: Date.now() };
+                      svDP([np, ...dPays], { upsert: np });
+                    }
+                  };
+
+                  // Mark all unpaid months as paid
+                  const markAllPaid = () => {
+                    const amt = parseFloat(bulkAmt) || d.minPayment || 0;
+                    const unpaid = grid.filter(g => !g.paid && !g.isCur);
+                    if (!unpaid.length) { tst("All months already paid"); return; }
+                    const newPays = unpaid.map(g => ({ id: uid(), debtId: d.id, amount: amt, date: `${g.ym}-${String(g.day).padStart(2, "0")}`, newBalance: 0, lateFee: 0, createdAt: Date.now() }));
+                    svDP([...newPays, ...dPays], { upsertMany: newPays });
+                    setBulkAmt("");
+                    tst(`${newPays.length} months marked as paid at ${fmt(amt)}`);
+                  };
 
                   return <div style={{ borderTop: `1px solid ${T.border}`, padding: "10px 16px", background: theme === "dark" ? "rgba(0,0,0,0.2)" : "rgba(0,0,0,0.02)" }}>
                   {/* Payment stats */}
@@ -316,11 +308,17 @@ export default function AccountsTab() {
                       <div style={{ background: theme === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)", border: `1px solid ${T.border}`, borderRadius: 10, padding: "8px 12px", flex: 1, minWidth: 70 }}><div style={{ fontSize: 9, color: T.text3, fontWeight: 600, textTransform: "uppercase" }}>Total Paid</div><div style={{ fontSize: 14, fontWeight: 800, color: T.text1 }}>{fmt(totalPaid)}</div></div>
                     </div>
                     {totalFees > 0 && <div style={{ fontSize: 10, color: T.err, marginBottom: 8 }}>Total late fees: {fmt(totalFees)}</div>}
-                    {/* Monthly grid */}
-                    <div style={{ fontSize: 11, fontWeight: 700, color: T.text2, marginBottom: 6 }}>Monthly Payments</div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 10 }}>
+
+                    {/* Interactive monthly grid */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: T.text2 }}>Monthly Payments <span style={{ fontWeight: 400, color: T.text3 }}>(tap to toggle)</span></div>
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 8 }}>
                       {grid.map(g => (
-                        <div key={g.ym} title={`${g.label}: ${g.paid ? "Paid" : g.isCur ? "Current" : "Missed"}`} style={{ width: 28, height: 28, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 7, fontWeight: 700, cursor: "default", background: g.paid ? (theme === "dark" ? "rgba(16,185,129,0.2)" : "rgba(16,185,129,0.15)") : g.isCur ? (theme === "dark" ? "rgba(245,181,38,0.2)" : "rgba(245,181,38,0.15)") : (theme === "dark" ? "rgba(239,68,68,0.15)" : "rgba(239,68,68,0.1)"), color: g.paid ? T.ok : g.isCur ? T.gold : T.err, border: `1px solid ${g.paid ? "rgba(16,185,129,0.3)" : g.isCur ? "rgba(245,181,38,0.3)" : "rgba(239,68,68,0.2)"}` }}>{g.label}</div>
+                        <div key={g.ym} onClick={() => toggleMonth(g)} title={`${g.label}: ${g.paid ? `Paid ${fmt(g.pay?.amount || 0)}` : g.isCur ? "Current month" : "Missed — tap to mark paid"}`} style={{ width: 32, height: 32, borderRadius: 6, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontSize: 7, fontWeight: 700, cursor: g.isCur ? "default" : "pointer", userSelect: "none", background: g.paid ? (theme === "dark" ? "rgba(16,185,129,0.2)" : "rgba(16,185,129,0.15)") : g.isCur ? (theme === "dark" ? "rgba(245,181,38,0.2)" : "rgba(245,181,38,0.15)") : (theme === "dark" ? "rgba(239,68,68,0.15)" : "rgba(239,68,68,0.1)"), color: g.paid ? T.ok : g.isCur ? T.gold : T.err, border: `1px solid ${g.paid ? "rgba(16,185,129,0.3)" : g.isCur ? "rgba(245,181,38,0.3)" : "rgba(239,68,68,0.2)"}`, transition: "all 0.15s" }}>
+                          <span>{g.label.split(" ")[0]}</span>
+                          <span style={{ fontSize: 6, opacity: 0.7 }}>{g.label.split(" ")[1]}</span>
+                        </div>
                       ))}
                     </div>
                     <div style={{ display: "flex", gap: 10, marginBottom: 10, fontSize: 9, color: T.text3 }}>
@@ -328,24 +326,20 @@ export default function AccountsTab() {
                       <span style={{ display: "flex", alignItems: "center", gap: 3 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: T.err, display: "inline-block" }} />Missed</span>
                       <span style={{ display: "flex", alignItems: "center", gap: 3 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: T.gold, display: "inline-block" }} />Current</span>
                     </div>
-                    {/* Bulk import */}
-                    {!bulkDt && <button onClick={() => { setBulkDt(d.id); setBulkMonths(""); setBulkAmt(""); }} style={{ ...btnG, padding: "6px 12px", fontSize: 10, marginBottom: 10, display: "flex", alignItems: "center", gap: 4 }}><Plus size={10} />Import past payments</button>}
-                    {bulkDt === d.id && <div style={{ marginBottom: 10 }}>
-                      <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
-                        <input type="number" inputMode="numeric" placeholder="Months" value={bulkMonths} onChange={e => setBulkMonths(e.target.value)} style={{ ...inpS, flex: 1, padding: "8px 12px", fontSize: 12 }} />
-                        <input type="number" inputMode="decimal" placeholder={`Amount (default ${fmt(d.minPayment || 0)})`} value={bulkAmt} onChange={e => setBulkAmt(e.target.value)} style={{ ...inpS, flex: 1, padding: "8px 12px", fontSize: 12 }} />
-                      </div>
-                      <div style={{ display: "flex", gap: 6 }}>
-                        <button onClick={doBulkImport} style={{ ...btnP, padding: "8px 14px", fontSize: 11 }}>Import</button>
-                        <button onClick={() => setBulkDt(null)} style={{ ...btnG, padding: "8px 12px", fontSize: 11 }}>Cancel</button>
-                      </div>
-                      <div style={{ fontSize: 9, color: T.text3, marginTop: 4 }}>Imports from start date, skips months already paid. Amount defaults to min payment if blank.</div>
-                    </div>}
+
+                    {/* Mark all paid */}
+                    <div style={{ display: "flex", gap: 6, marginBottom: 10, alignItems: "center" }}>
+                      <input type="number" inputMode="decimal" placeholder={`Amount per month (default ${fmt(d.minPayment || 0)})`} value={bulkAmt} onChange={e => setBulkAmt(e.target.value)} style={{ ...inpS, flex: 1, padding: "8px 12px", fontSize: 11 }} />
+                      <button onClick={markAllPaid} style={{ ...btnP, padding: "8px 14px", fontSize: 10, whiteSpace: "nowrap" }}>Mark all paid</button>
+                    </div>
                   </>}
                   {!d.startDate && grid.length === 0 && <div style={{ fontSize: 11, color: T.text3, marginBottom: 8, padding: "6px 0", fontStyle: "italic" }}>Set a start date to see the monthly payment grid. Edit this debt to add one.</div>}
+
                   {/* Payment history list */}
-                  <div style={{ fontSize: 11, fontWeight: 700, color: T.text2, marginBottom: 6, marginTop: grid.length > 0 ? 4 : 0 }}>Payment History</div>
-                  <button onClick={() => { setSpay(d.id); setPayAmt(""); setPayDate(td()); setPayFee(""); }} style={{ ...btnG, padding: "5px 10px", fontSize: 10, marginBottom: 8, display: "flex", alignItems: "center", gap: 4 }}><Plus size={10} />Add past payment</button>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, marginTop: grid.length > 0 ? 4 : 0 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: T.text2 }}>Payment History</div>
+                    <button onClick={() => { setSpay(d.id); setPayAmt(""); setPayDate(td()); setPayFee(""); }} style={{ ...btnG, padding: "4px 10px", fontSize: 10, display: "flex", alignItems: "center", gap: 3 }}><Plus size={10} />Add</button>
+                  </div>
                   {pays.length === 0 && <div style={{ fontSize: 11, color: T.text3, padding: "8px 0" }}>No payments recorded yet.</div>}
                   {pays.slice(0, 20).map(p => editPay?.id === p.id ? (
                     <div key={p.id} style={{ padding: "8px 0", borderBottom: `1px solid ${T.border}` }}>

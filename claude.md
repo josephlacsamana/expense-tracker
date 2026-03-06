@@ -14,7 +14,7 @@ AI-powered receipt scanning, chat-based expense logging, dashboards, analytics, 
 | **Components** | `src/components/ChartTooltip.js` (shared recharts tooltip) |
 | **Shared modules** | `src/constants.js` (themes, consts, utils), `src/hooks.js` (useMediaQuery), `src/db.js` (Supabase helpers), `src/AppContext.js` (global state + style helpers + provider) |
 | **API proxy** | `expense-tracker/api/chat.js` (Vercel serverless, solves CORS for Anthropic API) |
-| **Hosting** | Vercel (free tier), Root Directory = `expense-tracker` |
+| **Hosting** | Vercel (free tier), Root Directory = `expense-tracker`, Custom domain: `rxpenses.com` |
 | **Stack** | React 19, recharts, lucide-react, inline styles (no CSS framework) |
 | **Responsive** | `useMediaQuery` hook — `isDesktop` (>=1024px), sidebar on desktop, bottom nav on mobile |
 | **Supabase client** | `expense-tracker/src/supabase.js` (client init, exports `supabase` + `sbReady`) |
@@ -62,7 +62,7 @@ On first Supabase load with empty tables, existing localStorage data is auto-mig
 3. **Expenses** — sub-tabs: List (full list with search/filters) | Recurring (templates)
 4. **AI Chat** — Chat interface for adding expenses and asking questions
 5. **Accounts** — sub-tabs: Accounts (manual bank balances) | Budgets (general + per-category)
-6. **More** — sub-tabs: Insights (AI spending reviews) | Settings (categories, invite, export)
+6. **More** — Settings (categories, invite, export)
 
 ---
 
@@ -302,10 +302,10 @@ Dashboard | Expenses | AI Chat | Accounts | More
   - [x] Bank balances + net worth in first sub-tab
   - [x] General budget + per-category budgets in second sub-tab
 
-- **More tab** — sub-tabs: `Insights` | `Settings`
-  - [x] Move Insights from main nav into More
+- **More tab** — Settings only (Insights moved to AI Chat in Phase 13)
+  - [x] Move Insights from main nav into More (then later into AI Chat)
   - [x] Settings stays in More
-  - [x] Cleaner More tab with just 2 sub-tabs
+  - [x] Cleaner More tab with just Settings
 
 **10d — Category Management in Budgets** ✅ DONE
 - [x] Move full category management (add/remove) from Settings into Budgets per-category section
@@ -349,50 +349,134 @@ Dashboard | Expenses | AI Chat | Accounts | More
 - [x] AI can answer debt questions in AI Chat (total owed, next due date, payoff timeline, etc.)
 - [x] Debt summary included in AI Insights reviews (debtAnalysis field in JSON + debt summary card in UI)
 
-**11c — Payment Alerts & Notifications**
+**11c — Payment Alerts & Notifications** 🔄 PARTIAL
 - [ ] PWA push notifications for approaching due dates (3 days before, 1 day before, day of)
 - [ ] Service Worker registration for push notifications
 - [ ] Notification permission request flow (Settings toggle)
-- [ ] Missed payment detection: if due date passes without a balance update, show alert
-- [ ] In-app notification banner/badge on the Accounts tab when payments are due
+- [x] Missed payment detection: overdue alert when due date passes (red banner)
+- [x] In-app notification badge on Accounts tab (desktop sidebar + mobile nav) with due count
+- [x] Due-soon alert banners in Debts sub-tab: overdue (red), due today (gold), due within 3 days (gold) with quick Pay button
+- [x] Badge count on Debts sub-tab pill
 - [ ] Daily/weekly debt summary notification (optional, configurable in Settings)
 - [ ] Email notifications (future/lower priority): Supabase Edge Function to send reminder emails
 
-### Phase 13 — AI Chat Hub (Unified)
+**11d — Payment History & Monthly Tracking**
+- [ ] Add `start_date` (DATE) column to `debts` table — when payments began (e.g. "2023-08-01" for a mortgage started Aug 2023)
+- [ ] Add `start_date` field to debt form with helper text ("When did you start paying this debt?")
+- [ ] Manual payment history entry: add past payments with custom date + amount (not just "pay now")
+- [ ] "Add Past Payment" button in payment history section — date picker + amount input
+- [ ] Monthly payment grid/calendar view per debt: visual grid showing each month from start date to now
+  - Green = paid (payment recorded that month)
+  - Red = missed (no payment recorded)
+  - Gold = current month (upcoming/pending)
+  - Grey = future months
+- [ ] Payment summary stats per debt: months paid, months missed, total paid, payment streak
+- [ ] Bulk import: "I've paid X months already" quick-fill for historical debts (enter start date + number of months paid, auto-generates payment entries)
+- [ ] Late fee tracking: optional "extra fees" field on each payment (penalties, late charges)
+- [ ] Update `debt_payments` table: add `late_fee` (NUMERIC, default 0) column
+- [ ] Payment history list shows: date, amount, late fee (if any), running balance
+- [ ] AI context updated: include months paid vs missed, payment streak, late fees total
 
-**13a — Quick Action Chips** 🔄 IN PROGRESS
-- [ ] Pre-chat suggestion chips shown when chat has only the welcome message
-- [ ] Chips: "What did I spend this month?", "Budget check", "Top expenses", "Spending review", "Debt payoff plan", "Compare with last month"
-- [ ] Tapping a chip auto-sends the question to AI immediately
-- [ ] "Spending review" chip shows a period picker (Weekly/Monthly/Quarterly/Yearly) before generating
-- [ ] Chips disappear once user sends first message or AI responds
+### Phase 13 — AI Chat Hub (Unified) ✅ DONE
 
-**13b — Move Insights into AI Chat**
-- [ ] Remove Insights sub-tab from More (More becomes just Settings)
-- [ ] "Spending review" chip triggers the existing AI insights prompt with expense data context
-- [ ] AI returns structured JSON (overview, categoryAnalysis, patterns, tips, debtAnalysis)
-- [ ] Render rich insight cards + charts inline in the chat feed (same UI as current Insights, but inside chat)
-- [ ] Period selector appears when "Spending review" chip is tapped
+**13a — Quick Action Chips** ✅ DONE
+- [x] Pre-chat suggestion chips shown when chat has only the welcome message
+- [x] Chips: "What did I spend this month?", "Budget check", "Top expenses", "Spending review", "Debt payoff plan", "Compare with last month"
+- [x] Tapping a chip auto-sends the question to AI immediately
+- [x] "Spending review" chip shows a period picker (Weekly/Monthly/Quarterly/Yearly) before generating
+- [x] Chips disappear once user sends first message or AI responds
+
+**13b — Move Insights into AI Chat** ✅ DONE
+- [x] Remove Insights sub-tab from More (More becomes just Settings)
+- [x] "Spending review" chip triggers the existing AI insights prompt with expense data context
+- [x] AI returns structured JSON (overview, categoryAnalysis, patterns, tips, debtAnalysis)
+- [x] Render rich insight cards + charts inline in the chat feed (same UI as current Insights, but inside chat)
+- [x] Period selector appears when "Spending review" chip is tapped
 
 **13c — Chat History Persistence (optional/future)**
 - [ ] Persist chat messages to state/localStorage so conversation survives tab navigation
 - [ ] Clear chat button to reset conversation
 
-### Phase 14 — Saved Insights + PDF Export
+### Phase 14 — Saved Insights + PDF Export ✅ DONE
 
-**14a — Insights Persistence**
-- [ ] New `insights` Supabase table: id (TEXT PK), period, data (JSONB), ai_response (JSONB), household_id (FK), created_at
-- [ ] Auto-save every generated insight to the table
-- [ ] "Past Reviews" accessible from chat (chip or button)
-- [ ] List view: date, period label, total spent preview
-- [ ] Tap to view full past insight (rendered inline or modal)
-- [ ] Delete old insights
+**14a — Insights Persistence** ✅ DONE
+- [x] New `insights` Supabase table: id (TEXT PK), period, data (JSONB), ai_response (JSONB), household_id (FK), created_at
+- [x] Auto-save every generated insight to the table
+- [x] "Past Reviews" accessible from chat (chip or button)
+- [x] List view: date, period label, total spent preview
+- [x] Tap to view full past insight (rendered inline or modal)
+- [x] Delete old insights
 
-**14b — PDF Export**
-- [ ] "Download PDF" button on each insight (current + past)
-- [ ] Uses browser window.print() API targeting the insight content
-- [ ] Clean print stylesheet: white background, no nav, proper margins
-- [ ] Include header with household name, period, date generated
+**14b — PDF Export** ✅ DONE
+- [x] "Download PDF" button on each insight (current + past)
+- [x] Uses browser window.open() + window.print() API targeting the insight content
+- [x] Clean print stylesheet: white background, no nav, proper margins
+- [x] Include header with household name, period, date generated
+
+### Phase 15 — Stripe Subscription (Premium Tier)
+
+**15a — Stripe Setup & Backend**
+- [ ] Create Stripe account (stripe.com) and get API keys
+- [ ] Create products in Stripe Dashboard: Premium Monthly (P149 PH / $4.99 International)
+- [ ] Add `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` to Vercel env vars
+- [ ] Add `REACT_APP_STRIPE_PUBLISHABLE_KEY` to Vercel env vars
+- [ ] Create `api/stripe-checkout.js` — Vercel serverless function to create Stripe Checkout session
+- [ ] Create `api/stripe-webhook.js` — Vercel serverless function to handle Stripe webhook events (subscription created, cancelled, payment failed)
+- [ ] Add `subscriptions` table in Supabase: id, user_id, household_id, stripe_customer_id, stripe_subscription_id, plan, status (active/cancelled/past_due), current_period_end, created_at, updated_at
+- [ ] Add `stripe_customer_id` column to `profiles` table
+- [ ] Regional pricing: detect country via Vercel `x-vercel-ip-country` header → show PH or international price
+
+**15b — Free vs Premium Feature Gating**
+- [ ] Add `isPremium` flag to AppContext (derived from subscription status)
+- [ ] **Free tier** (all users): manual expense CRUD, dashboard, charts, budgets, accounts, debts, recurring, household sharing, CSV export
+- [ ] **Premium tier** (P149/mo PH, $4.99/mo international): AI Chat, receipt scanning, AI spending reviews, PDF export, debt payoff AI analysis
+- [ ] AI Chat tab shows upgrade prompt for free users (preview of what AI can do + Subscribe button)
+- [ ] "Spending review" chip disabled for free users with lock icon
+- [ ] PDF export button hidden for free users
+- [ ] Gate `callAI` function — return upgrade message if not premium
+
+**15c — Subscription UI**
+- [ ] "Upgrade to Premium" card in Settings (for free users) — shows features + price + Subscribe button
+- [ ] Subscribe button → Stripe Checkout (hosted payment page, handles cards + GCash)
+- [ ] "Manage Subscription" link in Settings (for premium users) → Stripe Customer Portal (cancel, update payment method)
+- [ ] Premium badge/pill next to user name in sidebar + Settings
+- [ ] Subscription status card in Settings: plan name, renewal date, status
+- [ ] Toast notification on successful subscription
+- [ ] Grace period handling: if payment fails, show warning but keep access for a few days
+
+**15d — Trial Period (optional)**
+- [ ] 7-day free trial for new users (no credit card required)
+- [ ] Trial countdown shown in AI Chat and Settings
+- [ ] After trial expires, AI features locked with "Subscribe to continue" prompt
+- [ ] Stripe trial period configuration (if using card-required trial)
+
+### Phase 16 — Branding & PWA (Logo, Favicon, Homescreen)
+
+**16a — Logo & Favicon**
+- [ ] Design new app logo (gold/amber themed, clean, modern — no emojis)
+- [ ] Create SVG logo for use in login screen, sidebar header, and about section
+- [ ] Generate favicon set: favicon.ico (16x16, 32x32), favicon-16x16.png, favicon-32x32.png
+- [ ] Replace current gold peso coin SVG favicon with new logo
+- [ ] Update `public/index.html` with new favicon links
+- [ ] Logo used in login screen hero section (replace Coins icon)
+- [ ] Logo used in desktop sidebar header (replace "ExpenseTracker" text or complement it)
+
+**16b — PWA Manifest & Homescreen Icons**
+- [ ] Create `public/manifest.json` with app name ("RXpenses"), theme color (#F5B526), background color, display: standalone
+- [ ] Generate homescreen icon set from logo: 192x192, 384x384, 512x512 (PNG)
+- [ ] Apple touch icon: 180x180 PNG in `public/`
+- [ ] Add `<link rel="apple-touch-icon">` and `<link rel="manifest">` to `public/index.html`
+- [ ] Add `<meta name="apple-mobile-web-app-capable" content="yes">`
+- [ ] Add `<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">`
+- [ ] Add `<meta name="theme-color" content="#F5B526">`
+- [ ] Test "Add to Home Screen" on iOS Safari and Android Chrome — logo appears correctly
+- [ ] Splash screen config for iOS (optional): apple-touch-startup-image
+
+**16c — App Name Update**
+- [ ] Update browser tab title from "Shared Finance" to "RXpenses" (or chosen brand name)
+- [ ] Update login screen brand text
+- [ ] Update sidebar header text
+- [ ] Update manifest.json short_name and name
 
 ### Phase 12 — Code Refactoring ✅ DONE
 
@@ -407,7 +491,7 @@ Dashboard | Expenses | AI Chat | Accounts | More
 - [x] `src/tabs/ExpensesTab.js` — includes Expense + Recurring modals, person filter
 - [x] `src/tabs/ChatTab.js` — all chat/AI logic + duplicate detection + edit mode
 - [x] `src/tabs/AccountsTab.js` — includes Account + Budget + Debt modals
-- [x] `src/tabs/MoreTab.js` — Insights + Settings + Invite modal
+- [x] `src/tabs/MoreTab.js` — Settings + Invite modal (Insights moved to ChatTab)
 - [x] `App.js` — 416 lines, auth + LoginScreen + nav shell only
 
 ---
@@ -416,50 +500,49 @@ Dashboard | Expenses | AI Chat | Accounts | More
 
 | Tier | Details | Price |
 |---|---|---|
-| **Current** | Vercel free tier + Supabase free tier + Claude API | ~$3-10/month (API usage only) |
+| **Infrastructure** | Vercel free tier + Supabase free tier + Claude API | ~$3-10/month (API usage only) |
+| **Domain** | rxpenses.com (Namecheap, 1-year) | ~$10/year |
+| **Revenue (planned)** | Stripe subscriptions: P149/mo (PH) / $4.99/mo (International) | Stripe fee: 3.5% + P15 per txn |
 
 ---
 
-## Session Notes (2026-03-05)
+## Session Notes (2026-03-07)
 
 ### What was done this session:
-1. **Email-based invite system** — replaced link/token invite with email-based. Owner enters partner's Gmail in Settings → invite stored in DB with `invited_email` → on partner's next sign-in, `handleSession` detects the invite and shows "Accept & Join" prompt automatically (no link opening required).
-2. **Phase 9d — Role-based permissions** — Clear All Data + Invite Partner hidden for members. Owner/Member badge pill added to Household card in Settings.
-3. **Phase 9e (partial) — Profile & Household UI** — Profile card in Settings (avatar, name, email from Google). Avatar + name + email in desktop sidebar. Household name editable by owner inline. Google OAuth now uses `prompt: "select_account"` to always show account picker.
-4. **Phase 11b — AI Debt Insights** — Debt context added to AI Chat SYS prompt (balance, APR, min payment, due day per debt). Debt data included in Insights review prompt. `debtAnalysis` field added to AI JSON response. Debt summary card added to Insights UI.
-5. **Refactor steps 1-4 done** — constants.js, hooks.js, db.js, AppContext.js extracted from App.js. App.js now imports from these.
+1. **Phase 14b — PDF Export** — `printInsight()` function in ChatTab.js builds a standalone HTML page with all insight data (summary stats, category breakdown, person breakdown, AI analysis, top expenses, tips, debt summary) and opens `window.print()` for saving as PDF. "Download PDF" button above each inline insight card.
+2. **Custom domain setup** — Purchased `rxpenses.com` via Namecheap. DNS configured (A record → 76.76.21.21, CNAME www → cname.vercel-dns.com). Added to Vercel, SSL provisioned.
+3. **Google Cloud Console updated** — Added `https://rxpenses.com` and `https://www.rxpenses.com` to Authorized JavaScript origins.
+4. **Supabase redirect URLs updated** — Added rxpenses.com and www.rxpenses.com redirect URLs. Site URL updated to `https://rxpenses.com`.
 
 ### Current DB state:
 - Joseph's household ID: `6ee010f1-7050-4096-b198-d3bc4fae250c`
 - Members: Joseph (owner) + Rowena (member)
-- Rowena was manually inserted via SQL; email invite system is now the correct flow going forward
 
-### Invite system — how it works now:
+### Domain & Hosting:
+- **Domain:** rxpenses.com (registered via Namecheap, 1-year)
+- **DNS:** Namecheap → A record (@ → 76.76.21.21), CNAME (www → cname.vercel-dns.com)
+- **Vercel:** Custom domain added, SSL auto-provisioned
+- **Old URL:** expense-tracker-sage-mu.vercel.app (still works)
+
+### Invite system — how it works:
 - Owner goes to Settings → Invite Partner → enters partner's Gmail → clicks Send
 - Invite record created in `invites` table with `invited_email` set
 - Partner signs in with Google → `handleSession` queries invites table for their email → shows "Accept & Join" screen
-- No link sharing, no in-app browser issues, no localStorage dependency
-- SQL: `ALTER TABLE invites ADD COLUMN IF NOT EXISTS invited_email TEXT;`
-- SQL: `CREATE POLICY "Users can view invites by email" ON invites FOR SELECT USING (invited_email = auth.email());`
-- SQL: `CREATE POLICY "Users can view households they are invited to" ON households FOR SELECT USING (id IN (SELECT household_id FROM invites WHERE invited_email = (auth.jwt() ->> 'email') AND used = false AND expires_at > now()));`
 
 ### Seph & Tres alt accounts:
 - `trespares2020@gmail.com` (Tres) and `jlacsamana122@gmail.com` (Seph) are Joseph's test accounts
-- Every sign-in creates a new household — clean up with:
-  - Delete invites first: `DELETE FROM invites WHERE created_by IN (SELECT id FROM profiles WHERE email IN ('trespares2020@gmail.com', 'jlacsamana122@gmail.com'));`
-  - Then: `DELETE FROM household_members WHERE user_id IN (SELECT id FROM profiles WHERE email IN ('trespares2020@gmail.com', 'jlacsamana122@gmail.com'));`
-  - Then: `DELETE FROM profiles WHERE email IN ('trespares2020@gmail.com', 'jlacsamana122@gmail.com');`
-  - Then delete from Supabase Auth dashboard
+- Cleanup SQL in previous session notes if needed
 
 ---
 
 ## Active Bugs / To Do Next Session
 
-- [ ] **Verify Rowena's invite flow** — test email-based invite end-to-end with Rowena's Gmail
-- [ ] **Uncommitted changes** — Phase 9d, 9e, 11b, email invite, refactor steps 1-4 are in App.js but NOT committed yet. Run: `git add -A ; git commit -m "Feat: email invite, Phase 9d/9e, Phase 11b AI debt insights, refactor step 1-4"`
-- [ ] Phase 9e remaining — addedBy uses real profile names, person filter uses real names
+- [ ] Phase 9e remaining — addedBy uses real profile names, person filter uses real names on Dashboard
 - [ ] Phase 9d remaining — list household members by name in Settings (currently shows count only)
 - [ ] Phase 11c — Payment alerts (in-app badge on Accounts tab when payments due)
+- [ ] Phase 13c — Chat history persistence (optional)
+- [ ] Test PDF export on rxpenses.com (generate spending review, click Download PDF)
+- [ ] Phase 15 — Stripe subscription (next major feature)
 
 ---
 
