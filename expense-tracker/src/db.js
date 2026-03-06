@@ -61,6 +61,7 @@ export const sb = {
   upsertDebtPayment: async (p, hid) => {
     await supabase.from("debt_payments").upsert({ id: p.id, debt_id: p.debtId, amount: p.amount, date: p.date, new_balance: p.newBalance, late_fee: p.lateFee || 0, household_id: hid, created_at: p.createdAt });
   },
+  deleteDebtPayment: async (id, hid) => { await supabase.from("debt_payments").delete().eq("id", id).eq("household_id", hid); },
   upsertDebtPayments: async (arr, hid) => {
     if (!arr.length) return;
     await supabase.from("debt_payments").upsert(arr.map(p => ({ id: p.id, debt_id: p.debtId, amount: p.amount, date: p.date, new_balance: p.newBalance, late_fee: p.lateFee || 0, household_id: hid, created_at: p.createdAt })));

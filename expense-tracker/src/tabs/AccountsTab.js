@@ -27,6 +27,10 @@ export default function AccountsTab() {
   const [payFee, setPayFee] = useState("");
   const [bulkDt, setBulkDt] = useState(null);
   const [bulkMonths, setBulkMonths] = useState("");
+  const [bulkAmt, setBulkAmt] = useState("");
+  const [editPay, setEditPay] = useState(null);
+  const [editPayForm, setEditPayForm] = useState({ amount: "", date: "", lateFee: "" });
+  const [delPayId, setDelPayId] = useState(null);
   const [viewDt, setViewDt] = useState(null);
 
   // Computed
@@ -97,6 +101,7 @@ export default function AccountsTab() {
     const debt = debts.find(d => d.id === bulkDt);
     if (!debt) return;
     const n = parseInt(bulkMonths);
+    const amt = parseFloat(bulkAmt) || debt.minPayment || 0;
     if (n <= 0 || n > 120) return;
     const start = new Date(debt.startDate || debt.createdAt);
     const newPays = [];
@@ -104,15 +109,31 @@ export default function AccountsTab() {
       const m = new Date(start.getFullYear(), start.getMonth() + i, Math.min(debt.dueDate || 15, 28));
       const dateStr = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, "0")}-${String(m.getDate()).padStart(2, "0")}`;
       if (!dPays.some(p => p.debtId === debt.id && p.date.slice(0, 7) === dateStr.slice(0, 7))) {
-        newPays.push({ id: uid(), debtId: debt.id, amount: debt.minPayment || 0, date: dateStr, newBalance: 0, lateFee: 0, createdAt: Date.now() });
+        newPays.push({ id: uid(), debtId: debt.id, amount: amt, date: dateStr, newBalance: 0, lateFee: 0, createdAt: Date.now() });
       }
     }
     if (newPays.length > 0) {
       const all = [...newPays, ...dPays];
       svDP(all, { upsertMany: newPays });
-      tst(`${newPays.length} payments imported`);
+      tst(`${newPays.length} payments imported at ${fmt(amt)} each`);
     } else { tst("No new months to import"); }
-    setBulkDt(null); setBulkMonths("");
+    setBulkDt(null); setBulkMonths(""); setBulkAmt("");
+  };
+
+  // Edit payment
+  const doEditPay = () => {
+    if (!editPay) return;
+    const amt = parseFloat(editPayForm.amount);
+    if (!amt || isNaN(amt)) return;
+    const updated = { ...editPay, amount: amt, date: editPayForm.date || editPay.date, lateFee: parseFloat(editPayForm.lateFee) || 0 };
+    svDP(dPays.map(p => p.id === editPay.id ? updated : p), { upsert: updated });
+    setEditPay(null); tst("Payment updated");
+  };
+
+  // Delete payment
+  const doDelPay = (id) => {
+    svDP(dPays.filter(p => p.id !== id), { deleteId: id });
+    setDelPayId(null); tst("Payment deleted");
   };
 
   return (
@@ -302,11 +323,17 @@ export default function AccountsTab() {
                       <span style={{ display: "flex", alignItems: "center", gap: 3 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: T.gold, display: "inline-block" }} />Current</span>
                     </div>
                     {/* Bulk import */}
-                    {!bulkDt && <button onClick={() => { setBulkDt(d.id); setBulkMonths(""); }} style={{ ...btnG, padding: "6px 12px", fontSize: 10, marginBottom: 10, display: "flex", alignItems: "center", gap: 4 }}><Plus size={10} />Import past payments</button>}
-                    {bulkDt === d.id && <div style={{ display: "flex", gap: 6, marginBottom: 10, alignItems: "center" }}>
-                      <input type="number" inputMode="numeric" placeholder="How many months paid?" value={bulkMonths} onChange={e => setBulkMonths(e.target.value)} style={{ ...inpS, flex: 1, padding: "8px 12px", fontSize: 12 }} />
-                      <button onClick={doBulkImport} style={{ ...btnP, padding: "8px 14px", fontSize: 11 }}>Import</button>
-                      <button onClick={() => setBulkDt(null)} style={{ ...btnG, padding: "8px 12px", fontSize: 11 }}>Cancel</button>
+                    {!bulkDt && <button onClick={() => { setBulkDt(d.id); setBulkMonths(""); setBulkAmt(""); }} style={{ ...btnG, padding: "6px 12px", fontSize: 10, marginBottom: 10, display: "flex", alignItems: "center", gap: 4 }}><Plus size={10} />Import past payments</button>}
+                    {bulkDt === d.id && <div style={{ marginBottom: 10 }}>
+                      <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
+                        <input type="number" inputMode="numeric" placeholder="Months" value={bulkMonths} onChange={e => setBulkMonths(e.target.value)} style={{ ...inpS, flex: 1, padding: "8px 12px", fontSize: 12 }} />
+                        <input type="number" inputMode="decimal" placeholder={`Amount (default ${fmt(d.minPayment || 0)})`} value={bulkAmt} onChange={e => setBulkAmt(e.target.value)} style={{ ...inpS, flex: 1, padding: "8px 12px", fontSize: 12 }} />
+                      </div>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button onClick={doBulkImport} style={{ ...btnP, padding: "8px 14px", fontSize: 11 }}>Import</button>
+                        <button onClick={() => setBulkDt(null)} style={{ ...btnG, padding: "8px 12px", fontSize: 11 }}>Cancel</button>
+                      </div>
+                      <div style={{ fontSize: 9, color: T.text3, marginTop: 4 }}>Imports from start date, skips months already paid. Amount defaults to min payment if blank.</div>
                     </div>}
                   </>}
                   {!d.startDate && grid.length === 0 && <div style={{ fontSize: 11, color: T.text3, marginBottom: 8, padding: "6px 0", fontStyle: "italic" }}>Set a start date to see the monthly payment grid. Edit this debt to add one.</div>}
@@ -314,8 +341,29 @@ export default function AccountsTab() {
                   <div style={{ fontSize: 11, fontWeight: 700, color: T.text2, marginBottom: 6, marginTop: grid.length > 0 ? 4 : 0 }}>Payment History</div>
                   <button onClick={() => { setSpay(d.id); setPayAmt(""); setPayDate(td()); setPayFee(""); }} style={{ ...btnG, padding: "5px 10px", fontSize: 10, marginBottom: 8, display: "flex", alignItems: "center", gap: 4 }}><Plus size={10} />Add past payment</button>
                   {pays.length === 0 && <div style={{ fontSize: 11, color: T.text3, padding: "8px 0" }}>No payments recorded yet.</div>}
-                  {pays.slice(0, 15).map(p => (<div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${T.border}` }}><div><div style={{ fontSize: 12, fontWeight: 600, color: T.ok }}>{fmt(p.amount)}{p.lateFee > 0 && <span style={{ color: T.err, fontSize: 10, marginLeft: 6 }}>+{fmt(p.lateFee)} fee</span>}</div><div style={{ fontSize: 10, color: T.text3 }}>{p.date}</div></div><div style={{ fontSize: 11, color: T.text3 }}>{p.newBalance > 0 ? `Bal: ${fmt(p.newBalance)}` : ""}</div></div>))}
-                  {pays.length > 15 && <div style={{ fontSize: 10, color: T.text3, marginTop: 6, textAlign: "center" }}>...and {pays.length - 15} more</div>}
+                  {pays.slice(0, 20).map(p => editPay?.id === p.id ? (
+                    <div key={p.id} style={{ padding: "8px 0", borderBottom: `1px solid ${T.border}` }}>
+                      <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                        <input type="number" inputMode="decimal" placeholder="Amount" value={editPayForm.amount} onChange={e => setEditPayForm(v => ({ ...v, amount: e.target.value }))} style={{ ...inpS, flex: 1, padding: "7px 10px", fontSize: 12 }} />
+                        <input type="date" value={editPayForm.date} onChange={e => setEditPayForm(v => ({ ...v, date: e.target.value }))} style={{ ...inpS, flex: 1, padding: "7px 10px", fontSize: 12 }} />
+                      </div>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <input type="number" inputMode="decimal" placeholder="Late fee (optional)" value={editPayForm.lateFee} onChange={e => setEditPayForm(v => ({ ...v, lateFee: e.target.value }))} style={{ ...inpS, flex: 1, padding: "7px 10px", fontSize: 12 }} />
+                        <button onClick={doEditPay} style={{ ...btnP, padding: "7px 12px", fontSize: 10 }}>Save</button>
+                        <button onClick={() => setEditPay(null)} style={{ ...btnG, padding: "7px 10px", fontSize: 10 }}>Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${T.border}` }}>
+                      <div><div style={{ fontSize: 12, fontWeight: 600, color: T.ok }}>{fmt(p.amount)}{p.lateFee > 0 && <span style={{ color: T.err, fontSize: 10, marginLeft: 6 }}>+{fmt(p.lateFee)} fee</span>}</div><div style={{ fontSize: 10, color: T.text3 }}>{p.date}</div></div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        {p.newBalance > 0 && <span style={{ fontSize: 11, color: T.text3, marginRight: 4 }}>Bal: {fmt(p.newBalance)}</span>}
+                        <button onClick={() => { setEditPay(p); setEditPayForm({ amount: String(p.amount), date: p.date, lateFee: String(p.lateFee || "") }); }} style={{ background: "none", border: "none", color: T.gold, cursor: "pointer", padding: 2 }}><Edit3 size={11} /></button>
+                        <button onClick={() => setDelPayId(p.id)} style={{ background: "none", border: "none", color: T.err, cursor: "pointer", padding: 2 }}><Trash2 size={11} /></button>
+                      </div>
+                    </div>
+                  ))}
+                  {pays.length > 20 && <div style={{ fontSize: 10, color: T.text3, marginTop: 6, textAlign: "center" }}>...and {pays.length - 20} more</div>}
                 </div>; })()}
               </div>); })}
           </div>
@@ -373,6 +421,9 @@ export default function AccountsTab() {
 
       {/* Delete debt modal */}
       {ddDc && <div style={mOvS}><div style={mInS}><div style={{ textAlign: "center" }}><AlertTriangle size={36} style={{ color: T.err, marginBottom: 14 }} /><div style={{ fontSize: 18, fontWeight: 700, color: T.text1, marginBottom: 6 }}>Delete debt?</div><div style={{ fontSize: 12, color: T.text3, marginBottom: 20 }}>This will also remove all payment history for this debt.</div><div style={{ display: "flex", gap: 8 }}><button onClick={() => delDebt(ddDc)} style={{ ...btnP, flex: 1, background: T.err, boxShadow: "none" }}>Delete</button><button onClick={() => setDdDc(null)} style={{ ...btnG, flex: 1 }}>Cancel</button></div></div></div></div>}
+
+      {/* Delete payment modal */}
+      {delPayId && <div style={mOvS}><div style={mInS}><div style={{ textAlign: "center" }}><AlertTriangle size={36} style={{ color: T.err, marginBottom: 14 }} /><div style={{ fontSize: 18, fontWeight: 700, color: T.text1, marginBottom: 6 }}>Delete this payment?</div><div style={{ display: "flex", gap: 8, marginTop: 20 }}><button onClick={() => doDelPay(delPayId)} style={{ ...btnP, flex: 1, background: T.err, boxShadow: "none" }}>Delete</button><button onClick={() => setDelPayId(null)} style={{ ...btnG, flex: 1 }}>Cancel</button></div></div></div></div>}
     </div>
   );
 }
