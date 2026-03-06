@@ -211,13 +211,13 @@ export default function AccountsTab() {
         {accSub === "debts" && (<>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}><div style={{ fontSize: 18, fontWeight: 800 }}>Debts</div><button onClick={() => { rstDf(); setSdf(true); }} style={{ ...btnP, padding: "10px 16px", fontSize: 12, display: "flex", alignItems: "center", gap: 5 }}><Plus size={14} />Add</button></div>
           {/* Payment alerts */}
-          {(() => { const today = new Date().getDate(); const alerts = debts.filter(d => d.currentBalance > 0 && d.dueDate).map(d => { const diff = d.dueDate - today; const overdue = diff < 0 && diff >= -7; const dueToday = diff === 0; const dueSoon = diff > 0 && diff <= 3; if (overdue || dueToday || dueSoon) return { ...d, overdue, dueToday, dueSoon, diff }; return null; }).filter(Boolean); if (!alerts.length) return null; return (
+          {(() => { const now = new Date(); const today = now.getDate(); const alerts = debts.filter(d => d.currentBalance > 0 && d.dueDate).map(d => { const diff = d.dueDate - today; const overdue = diff < 0 && diff >= -7; const dueToday = diff === 0; const dueSoon = diff > 0 && diff <= 3; if (!overdue && !dueToday && !dueSoon) return null; const overMonths = []; if (overdue && d.startDate) { const pays = dPays.filter(p => p.debtId === d.id); const paidYMs = new Set(pays.map(p => p.date.slice(0, 7))); const curYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`; if (!paidYMs.has(curYM)) overMonths.push(now.toLocaleDateString("en-PH", { month: "long", year: "numeric" })); const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1); const prevYM = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, "0")}`; if (!paidYMs.has(prevYM)) overMonths.push(prev.toLocaleDateString("en-PH", { month: "long", year: "numeric" })); } return { ...d, overdue, dueToday, dueSoon, diff, overMonths }; }).filter(Boolean); if (!alerts.length) return null; return (
             <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
               {alerts.map(a => (
                 <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 12, background: a.overdue ? (theme === "dark" ? "rgba(239,68,68,0.1)" : "rgba(239,68,68,0.06)") : (theme === "dark" ? "rgba(245,181,38,0.1)" : "rgba(245,181,38,0.06)"), border: `1px solid ${a.overdue ? "rgba(239,68,68,0.25)" : "rgba(245,181,38,0.25)"}` }}>
                   <Bell size={14} style={{ color: a.overdue ? T.err : T.gold, flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: a.overdue ? T.err : T.gold }}>{a.overdue ? "Overdue" : a.dueToday ? "Due today" : `Due in ${a.diff} day${a.diff > 1 ? "s" : ""}`}</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: a.overdue ? T.err : T.gold }}>{a.overdue ? `Overdue${a.overMonths.length ? ": " + a.overMonths.join(", ") : ""}` : a.dueToday ? "Due today" : `Due in ${a.diff} day${a.diff > 1 ? "s" : ""}`}</div>
                     <div style={{ fontSize: 11, color: T.text2 }}>{a.name} -- {fmt(a.minPayment > 0 ? a.minPayment : a.currentBalance)} {a.minPayment > 0 ? "min payment" : "balance"}</div>
                   </div>
                   <button onClick={() => { setSpay(a.id); setPayAmt(a.minPayment > 0 ? String(a.minPayment) : ""); setAccSub("debts"); }} style={{ ...btnP, padding: "6px 12px", fontSize: 10 }}>Pay</button>
@@ -260,8 +260,10 @@ export default function AccountsTab() {
                     while (cur < end) {
                       const ym = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}`;
                       const pay = pays.find(p => p.date.slice(0, 7) === ym);
-                      const isCur = cur.getFullYear() === now.getFullYear() && cur.getMonth() === now.getMonth();
-                      grid.push({ ym, label: cur.toLocaleDateString("en-PH", { month: "short", year: "2-digit" }), paid: !!pay, pay, isCur, day: Math.min(d.dueDate || 15, 28) });
+                      const isThisMonth = cur.getFullYear() === now.getFullYear() && cur.getMonth() === now.getMonth();
+                      const dueDay = d.dueDate || 15;
+                      const isCur = isThisMonth && now.getDate() <= dueDay;
+                      grid.push({ ym, label: cur.toLocaleDateString("en-PH", { month: "short", year: "2-digit" }), paid: !!pay, pay, isCur, day: Math.min(dueDay, 28) });
                       cur.setMonth(cur.getMonth() + 1);
                     }
                   }
