@@ -502,6 +502,33 @@ Dashboard | Expenses | AI Chat | Accounts | More
 - [x] Smooth scroll to sections
 - [x] No external dependencies (pure inline styles)
 
+### Phase 18 — Enhancements ✅ DONE
+
+**18a — Editable Category Names** ✅ DONE
+- [x] Category name is editable inline (click to rename instead of delete + re-add)
+- [x] Renaming updates all expenses, recurring templates, and budgets that used the old name
+- [x] "Other" category cannot be renamed
+
+**18b — Collapsible Quick Action Chips** ✅ DONE
+- [x] Quick action chips are always available (not hidden when convo exists)
+- [x] Chips section is collapsible: collapsed by default when msgs > 1, expanded when msgs === 1
+- [x] Toggle button to show/hide chips ("Shortcuts" pill with chevron)
+- [x] "Spending review" period picker and "Past reviews" button included in collapsible area
+
+**18c — Recurring Expense Notifications** ✅ DONE
+- [x] Due recurring expenses get alert banners in the Recurring sub-tab (like debt alerts)
+- [x] Badge count on Expenses tab in nav (desktop sidebar + mobile bottom nav) for due recurring count
+- [x] Badge count on Recurring sub-tab pill
+- [x] Alert banner shows: description, amount, "Due today" or "Overdue by N days"
+
+**18d — Daily PWA Push Notifications** ✅ DONE
+- [x] Service Worker (`public/sw.js`) for local push notifications
+- [x] Notification permission request flow (toggle in Settings > Enable/Disable Notifications)
+- [x] Daily check: sends debt + recurring data to SW, SW shows notifications for due/overdue items
+- [x] PWA manifest (`public/manifest.json`) for installable app
+- [x] Browser tab title updated to "RXpenses"
+- [x] Apple mobile web app meta tags added
+
 ### Phase 12 — Code Refactoring ✅ DONE
 
 **Why:** `App.js` was ~1600+ lines. Splitting into feature files makes future work touch only the relevant file.
@@ -568,7 +595,7 @@ Dashboard | Expenses | AI Chat | Accounts | More
 - [ ] Phase 9e remaining — addedBy uses real profile names, person filter uses real names on Dashboard
 - [ ] Phase 9d remaining — list household members by name in Settings (currently shows count only)
 - [ ] Phase 15 — Stripe subscription (next major feature)
-- [ ] Phase 16 — Branding & PWA (logo, favicon, homescreen icons)
+- [ ] Phase 16 — Branding & PWA (logo, favicon, homescreen icons — manifest.json + sw.js already created in Phase 18d, needs icon files)
 
 ---
 

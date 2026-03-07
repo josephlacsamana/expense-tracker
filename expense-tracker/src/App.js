@@ -12,7 +12,7 @@ import MoreTab from "./tabs/MoreTab";
 
 // ─── MAIN APP (nav shell + tab router) ───
 function MainApp({ onLogout, toggleTheme }) {
-  const { user, profile, debts, theme, isDesktop, T, ld, toast } = useApp();
+  const { user, profile, debts, rec, theme, isDesktop, T, ld, toast } = useApp();
   const [tab, setTab] = useState("dashboard");
 
   // Due-soon debts: due within 3 days or overdue this month
@@ -24,9 +24,15 @@ function MainApp({ onLogout, toggleTheme }) {
     }).length;
   })();
 
+  // Recurring expenses that are due (nextDate <= today)
+  const recDueCount = (() => {
+    const today = new Date().toISOString().slice(0, 10);
+    return rec.filter(r => r.nextDate <= today).length;
+  })();
+
   const tabs = [
     { id: "dashboard", label: "Dashboard", icon: PieChart },
-    { id: "expenses", label: "Expenses", icon: LayoutDashboard },
+    { id: "expenses", label: "Expenses", icon: LayoutDashboard, badge: recDueCount },
     { id: "chat", label: "AI Chat", icon: MessageSquare },
     { id: "accounts", label: "Accounts", icon: Wallet, badge: dueCount },
     { id: "more", label: "More", icon: Settings }

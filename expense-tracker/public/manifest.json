@@ -1,0 +1,9 @@
+{
+  "short_name": "RXpenses",
+  "name": "RXpenses - Shared Expense Tracker",
+  "icons": [],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#F5B526",
+  "background_color": "#0E0E14"
+}

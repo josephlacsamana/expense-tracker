@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { Download, AlertTriangle, UserPlus, Home, X, Check } from "lucide-react";
+import { Download, AlertTriangle, UserPlus, Home, X, Check, Bell, BellOff } from "lucide-react";
 import { supabase, sbReady } from "../supabase";
 import { sb } from "../db";
 import { useApp } from "../AppContext";
 import { DEF_CATS, DEFAULT_BUDGETS, uid } from "../constants";
 
 export default function MoreTab() {
-  const { exp, setExp, setAccts, setBudgets, setGenBudget, setCats, setRec, setDebts, setDPays, tst, user, users, householdId, householdRole, profile, household, isDesktop, T, cardS, inpS, btnP, btnG, mOvS, mInS } = useApp();
+  const { exp, setExp, setAccts, setBudgets, setGenBudget, setCats, setRec, setDebts, setDPays, tst, user, users, householdId, householdRole, profile, household, isDesktop, T, cardS, inpS, btnP, btnG, mOvS, mInS, notifEnabled, toggleNotif } = useApp();
 
   const [clr, setClr] = useState(false);
   const [inviteModal, setInviteModal] = useState(false);
@@ -99,6 +99,7 @@ export default function MoreTab() {
       )}
       <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 8 }}>
         <button onClick={exportCSV} style={{ ...cardS, width: "100%", padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}><Download size={18} style={{ color: T.gold }} /><div><div style={{ fontSize: 13, fontWeight: 600, color: T.text1 }}>Export CSV</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>Download all expenses</div></div></button>
+        <button onClick={toggleNotif} style={{ ...cardS, width: "100%", padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>{notifEnabled ? <BellOff size={18} style={{ color: T.gold }} /> : <Bell size={18} style={{ color: T.gold }} />}<div><div style={{ fontSize: 13, fontWeight: 600, color: T.text1 }}>{notifEnabled ? "Disable" : "Enable"} Notifications</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>{notifEnabled ? "Push notifications are on" : "Get reminders for due bills and debts"}</div></div></button>
         {householdRole === "owner" && <button onClick={() => setClr(true)} style={{ ...cardS, width: "100%", padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left", borderColor: `${T.err}30` }}><AlertTriangle size={18} style={{ color: T.err }} /><div><div style={{ fontSize: 13, fontWeight: 600, color: T.err }}>Clear All Data</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>Remove everything permanently</div></div></button>}
       </div>
 

@@ -17,6 +17,8 @@ export default function AccountsTab() {
   const [cgb, setCgb] = useState(false);
   const [newCat, setNewCat] = useState("");
   const [delCat, setDelCat] = useState(null);
+  const [renCat, setRenCat] = useState(null);
+  const [renVal, setRenVal] = useState("");
   const [sdf, setSdf] = useState(false);
   const [edtId, setEdtId] = useState(null);
   const [ddf, setDdf] = useState({ name: "", type: "Credit Card", totalAmount: "", currentBalance: "", dueDate: "", interestRate: "", minPayment: "", startDate: "" });
@@ -65,6 +67,23 @@ export default function AccountsTab() {
   const [viewAH, setViewAH] = useState(null);
 
   const saveBudgets = () => { svB(bf); setSbf(false); tst("Budgets saved"); };
+
+  // Rename category
+  const doRenCat = () => {
+    const oldName = renCat;
+    const newName = renVal.trim();
+    if (!newName || newName === oldName || cats.includes(newName)) { setRenCat(null); setRenVal(""); return; }
+    const newCats = cats.map(c => c === oldName ? newName : c);
+    svCats(newCats);
+    const ue = exp.map(e => e.category === oldName ? { ...e, category: newName } : e);
+    svE(ue);
+    const ur = rec.map(r => r.category === oldName ? { ...r, category: newName } : r);
+    svR(ur);
+    const nb = { ...budgets }; if (nb[oldName] !== undefined) { nb[newName] = nb[oldName]; delete nb[oldName]; } svB(nb);
+    if (bf[oldName] !== undefined) { setBf(v => { const n = { ...v }; n[newName] = n[oldName]; delete n[oldName]; return n; }); }
+    setRenCat(null); setRenVal("");
+    tst(`Category renamed to "${newName}"`);
+  };
 
   // Debt CRUD
   const doDebt = () => {
@@ -164,8 +183,15 @@ export default function AccountsTab() {
               {cats.map(c => (
                 <div key={c} style={{ display: "flex", alignItems: "center", gap: 6, background: theme === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)", borderRadius: 10, padding: "6px 10px" }}>
                   <div style={{ width: 8, height: 8, borderRadius: 3, background: catColors[c], flexShrink: 0 }} />
-                  <span style={{ fontSize: 12, fontWeight: 600 }}>{c}</span>
-                  {c !== "Other" && <button onClick={() => setDelCat(c)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", color: T.text3 }}><X size={14} /></button>}
+                  {renCat === c ? (
+                    <input autoFocus value={renVal} onChange={e => setRenVal(e.target.value)} onKeyDown={e => { if (e.key === "Enter") doRenCat(); if (e.key === "Escape") { setRenCat(null); setRenVal(""); } }} onBlur={doRenCat} style={{ fontSize: 12, fontWeight: 600, background: "transparent", border: `1px solid ${T.gold}`, borderRadius: 6, padding: "2px 6px", outline: "none", color: T.text1, width: 120 }} />
+                  ) : (
+                    <span style={{ fontSize: 12, fontWeight: 600, cursor: c !== "Other" ? "pointer" : "default" }} onClick={() => { if (c !== "Other") { setRenCat(c); setRenVal(c); } }}>{c}</span>
+                  )}
+                  {c !== "Other" && renCat !== c && <>
+                    <button onClick={() => { setRenCat(c); setRenVal(c); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", color: T.gold }}><Edit3 size={12} /></button>
+                    <button onClick={() => setDelCat(c)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", color: T.text3 }}><X size={14} /></button>
+                  </>}
                 </div>
               ))}
             </div>

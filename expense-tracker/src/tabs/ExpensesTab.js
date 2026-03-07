@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Plus, Trash2, Edit3, X, Check, Search, ChevronDown, AlertTriangle, Repeat } from "lucide-react";
+import { Plus, Trash2, Edit3, X, Check, Search, ChevronDown, AlertTriangle, Repeat, Bell } from "lucide-react";
 import { useApp } from "../AppContext";
 import { PERIODS, fmt, pld, startOf, td, uid } from "../constants";
 
 export default function ExpensesTab() {
-  const { exp, accts, cats, rec, catColors, svE, svA, svR, svAH, tst, user, users, isDesktop, T, cardS, pillS, inpS, btnP, btnG, mOvS, mInS } = useApp();
+  const { exp, accts, cats, rec, catColors, svE, svA, svR, svAH, tst, user, users, theme, isDesktop, T, cardS, pillS, inpS, btnP, btnG, mOvS, mInS } = useApp();
 
   // ─── Expense list state ───
   const [expSub, setExpSub] = useState("list");
@@ -87,7 +87,9 @@ export default function ExpensesTab() {
   return (
     <div style={{ flex: 1, maxWidth: isDesktop ? 800 : 600, margin: "0 auto", padding: isDesktop ? "28px 36px 40px" : "18px 20px 80px", width: "100%", boxSizing: "border-box", overflowY: "auto" }}>
       <div style={{ display: "flex", gap: 6, marginBottom: 18, flexWrap: "wrap" }}>
-        {["list", "recurring"].map(s => <button key={s} onClick={() => setExpSub(s)} style={pillS(expSub === s)}>{s === "list" ? "List" : "Recurring"}</button>)}
+        {["list", "recurring"].map(s => { const dueRec = s === "recurring" ? rec.filter(r => r.nextDate <= td()).length : 0; return (
+          <button key={s} onClick={() => setExpSub(s)} style={{ ...pillS(expSub === s), display: "flex", alignItems: "center", gap: 5 }}>{s === "list" ? "List" : "Recurring"}{dueRec > 0 && <span style={{ background: T.err, color: "#FFF", fontSize: 9, fontWeight: 700, borderRadius: 8, padding: "1px 5px", minWidth: 14, textAlign: "center" }}>{dueRec}</span>}</button>
+        ); })}
       </div>
 
       {expSub === "list" && (<>
@@ -122,6 +124,18 @@ export default function ExpensesTab() {
             <button onClick={() => { rstRf(); setSrf(true); }} style={{ ...btnP, padding: "10px 16px", fontSize: 12, display: "flex", alignItems: "center", gap: 5 }}><Plus size={14} />Add</button>
           </div>
         </div>
+        {/* Recurring due alerts */}
+        {(() => { const today = td(); const dueRecs = rec.filter(r => r.nextDate <= today).sort((a, b) => a.nextDate.localeCompare(b.nextDate)); if (!dueRecs.length) return null; const todayDate = new Date(today + "T00:00:00"); return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
+            {dueRecs.map(r => { const rDate = new Date(r.nextDate + "T00:00:00"); const diff = Math.floor((todayDate - rDate) / (1000 * 60 * 60 * 24)); const isOverdue = diff > 0; return (
+              <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 12, background: isOverdue ? (theme === "dark" ? "rgba(239,68,68,0.1)" : "rgba(239,68,68,0.06)") : (theme === "dark" ? "rgba(245,181,38,0.1)" : "rgba(245,181,38,0.06)"), border: `1px solid ${isOverdue ? "rgba(239,68,68,0.25)" : "rgba(245,181,38,0.25)"}` }}>
+                <Bell size={14} style={{ color: isOverdue ? T.err : T.gold, flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: isOverdue ? T.err : T.gold }}>{isOverdue ? `Overdue by ${diff} day${diff > 1 ? "s" : ""}` : "Due today"}</div>
+                  <div style={{ fontSize: 11, color: T.text2 }}>{r.description} -- {fmt(r.amount)} ({r.frequency})</div>
+                </div>
+              </div>); })}
+          </div>); })()}
         {rec.length === 0 && <div style={{ ...cardS, textAlign: "center", padding: 28, color: T.text3, fontSize: 13 }}>No recurring expenses yet. Add templates for bills you pay regularly.</div>}
         <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 8 }}>
           {rec.map(r => {

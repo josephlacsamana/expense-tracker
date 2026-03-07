@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { X, Check, Send, ImagePlus, AlertTriangle, TrendingUp, Lightbulb, Coins, PieChart, History, Trash2, Download } from "lucide-react";
+import { X, Check, Send, ImagePlus, AlertTriangle, TrendingUp, Lightbulb, Coins, PieChart, History, Trash2, Download, ChevronUp, Zap } from "lucide-react";
 import { PieChart as RPie, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
 import ChartTooltip from "../components/ChartTooltip";
 import { useApp } from "../AppContext";
@@ -103,7 +103,9 @@ For debt questions (repayment timeline, interest savings, what-if scenarios): us
     { label: "Compare with last month", msg: "Compare my spending this month vs last month." },
     ...(debts.length ? [{ label: "Debt payoff plan", msg: "Give me a debt payoff plan. Which debt should I prioritize and why?" }] : []),
   ];
-  const showChips = msgs.length === 1 && !cl && !pe;
+  const [chipsOpen, setChipsOpen] = useState(true);
+  const showChipsAlways = !cl && !pe;
+  const chipsExpanded = msgs.length === 1 ? true : chipsOpen;
 
   const loadPastReview = (ins) => {
     setShowPastRev(false);
@@ -300,21 +302,31 @@ ${ins.debtAnalysis && debtRows ? `<h2>Debt Summary</h2><table><tr><th>Debt</th><
         <div ref={cr} />
       </div>
 
-      {showChips && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
-          {CHIPS.map((c, i) => (
-            <button key={i} onClick={() => sendChip(c.msg)} style={{ padding: "7px 12px", borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: "pointer", border: `1px solid ${T.borderStrong}`, background: T.surface, color: T.gold, transition: "all 0.2s" }}>{c.label}</button>
-          ))}
-          <button onClick={() => setShowRevPer(v => !v)} style={{ padding: "7px 12px", borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: "pointer", border: `1px solid ${T.gold}`, background: T.goldMuted, color: T.gold, transition: "all 0.2s" }}>Spending review</button>
-          {insights.length > 0 && <button onClick={() => setShowPastRev(true)} style={{ padding: "7px 12px", borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: "pointer", border: `1px solid ${T.borderStrong}`, background: T.surface, color: T.text3, transition: "all 0.2s", display: "flex", alignItems: "center", gap: 4 }}><History size={12} />Past reviews ({insights.length})</button>}
-        </div>
-      )}
-      {showRevPer && showChips && (
-        <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-          {["Weekly", "Monthly", "Quarterly", "Yearly"].map(p => (
-            <button key={p} onClick={() => genReview(p)} style={pillS(false)}>{p}</button>
-          ))}
-        </div>
+      {showChipsAlways && (
+        <>
+          {msgs.length > 1 && (
+            <button onClick={() => setChipsOpen(v => !v)} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: "pointer", border: `1px solid ${T.border}`, background: "transparent", color: T.text3, marginBottom: chipsExpanded ? 6 : 8, alignSelf: "flex-start" }}>
+              <Zap size={11} />Shortcuts
+              <ChevronUp size={12} style={{ transform: chipsExpanded ? "none" : "rotate(180deg)", transition: "transform 0.2s" }} />
+            </button>
+          )}
+          {chipsExpanded && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+              {CHIPS.map((c, i) => (
+                <button key={i} onClick={() => sendChip(c.msg)} style={{ padding: "7px 12px", borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: "pointer", border: `1px solid ${T.borderStrong}`, background: T.surface, color: T.gold, transition: "all 0.2s" }}>{c.label}</button>
+              ))}
+              <button onClick={() => setShowRevPer(v => !v)} style={{ padding: "7px 12px", borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: "pointer", border: `1px solid ${T.gold}`, background: T.goldMuted, color: T.gold, transition: "all 0.2s" }}>Spending review</button>
+              {insights.length > 0 && <button onClick={() => setShowPastRev(true)} style={{ padding: "7px 12px", borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: "pointer", border: `1px solid ${T.borderStrong}`, background: T.surface, color: T.text3, transition: "all 0.2s", display: "flex", alignItems: "center", gap: 4 }}><History size={12} />Past reviews ({insights.length})</button>}
+            </div>
+          )}
+          {showRevPer && chipsExpanded && (
+            <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+              {["Weekly", "Monthly", "Quarterly", "Yearly"].map(p => (
+                <button key={p} onClick={() => genReview(p)} style={pillS(false)}>{p}</button>
+              ))}
+            </div>
+          )}
+        </>
       )}
       {att && (
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", marginBottom: 6, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12 }}>

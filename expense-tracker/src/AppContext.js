@@ -37,6 +37,7 @@ export function AppProvider({ children, user, householdId, householdRole, profil
   const [users, setUsers] = useState([user]);
   const [ld, setLd] = useState(true);
   const [toast, setToast] = useState(null);
+  const [notifEnabled, setNotifEnabled] = useState(() => { try { return localStorage.getItem("notifEnabled") === "true"; } catch { return false; } });
 
   const tst = (m) => { setToast(m); setTimeout(() => setToast(null), 2500); };
 
@@ -155,6 +156,40 @@ export function AppProvider({ children, user, householdId, householdRole, profil
     }
   };
 
+  // ─── PUSH NOTIFICATIONS (SW + daily check) ───
+  const toggleNotif = async () => {
+    if (!notifEnabled) {
+      if (!("Notification" in window) || !("serviceWorker" in navigator)) { tst("Notifications not supported in this browser"); return; }
+      const perm = await Notification.requestPermission();
+      if (perm !== "granted") { tst("Notification permission denied"); return; }
+      try { await navigator.serviceWorker.register("/sw.js"); } catch {}
+      localStorage.setItem("notifEnabled", "true");
+      setNotifEnabled(true);
+      tst("Notifications enabled");
+    } else {
+      localStorage.setItem("notifEnabled", "false");
+      setNotifEnabled(false);
+      tst("Notifications disabled");
+    }
+  };
+
+  // Daily check: send data to SW for local notifications
+  useEffect(() => {
+    if (!notifEnabled || !("serviceWorker" in navigator)) return;
+    const check = async () => {
+      const reg = await navigator.serviceWorker.ready;
+      const today = new Date().toISOString().slice(0, 10);
+      const lastCheck = localStorage.getItem("lastNotifCheck");
+      if (lastCheck === today) return;
+      localStorage.setItem("lastNotifCheck", today);
+      reg.active?.postMessage({ type: "CHECK_NOTIFICATIONS", debts, recurring: rec, today });
+    };
+    // Register SW if not already
+    navigator.serviceWorker.register("/sw.js").then(() => check()).catch(() => {});
+    const interval = setInterval(check, 1000 * 60 * 60); // hourly re-check
+    return () => clearInterval(interval);
+  }, [notifEnabled, debts, rec]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const value = {
     // Auth & identity
     user, householdId, householdRole, profile, household, theme, isDesktop, T,
@@ -170,6 +205,8 @@ export function AppProvider({ children, user, householdId, householdRole, profil
     svE, svA, svB, svCats, svGB, svR, svD, svDP, svAH, svIns, delIns,
     // AI
     callAI,
+    // Notifications
+    notifEnabled, toggleNotif,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
