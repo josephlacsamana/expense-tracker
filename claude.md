@@ -9,7 +9,7 @@ AI-powered receipt scanning, chat-based expense logging, dashboards, analytics, 
 
 | Item | Details |
 |---|---|
-| **App code** | `expense-tracker/src/App.js` (~416 lines — auth, LoginScreen, nav shell only) |
+| **App code** | `expense-tracker/src/App.js` (~300 lines — auth, nav shell only), `src/LandingPage.js` (marketing homepage + login) |
 | **Tab files** | `src/tabs/DashboardTab.js`, `src/tabs/ExpensesTab.js`, `src/tabs/ChatTab.js`, `src/tabs/AccountsTab.js`, `src/tabs/MoreTab.js` |
 | **Components** | `src/components/ChartTooltip.js` (shared recharts tooltip) |
 | **Shared modules** | `src/constants.js` (themes, consts, utils), `src/hooks.js` (useMediaQuery), `src/db.js` (Supabase helpers), `src/AppContext.js` (global state + style helpers + provider) |
@@ -57,7 +57,7 @@ On first Supabase load with empty tables, existing localStorage data is auto-mig
 
 ## Screens
 
-1. **Login** — Google OAuth (PIN fallback for local dev)
+1. **Landing Page** — Marketing homepage with hero, features, how it works, CTA + Google OAuth (PIN fallback for local dev)
 2. **Dashboard** — Summary cards, charts, period selector
 3. **Expenses** — sub-tabs: List (full list with search/filters) | Recurring (templates)
 4. **AI Chat** — Chat interface for adding expenses and asking questions
@@ -487,6 +487,21 @@ Dashboard | Expenses | AI Chat | Accounts | More
 - [ ] Update sidebar header text
 - [ ] Update manifest.json short_name and name
 
+### Phase 17 — Landing Page (Public Homepage)
+
+**17a — Landing Page Build** ✅ DONE
+- [x] Replace bare LoginScreen with full marketing landing page
+- [x] Hero section: brand name, tagline, description, "Get Started" CTA
+- [x] Features section: 6 feature cards with Lucide icons (AI chat, shared tracking, debt management, budgets, analytics, receipt scanning)
+- [x] How It Works section: 3-step flow (Sign up, Track, Get insights)
+- [x] Footer with app name + credits
+- [x] Fully responsive (desktop: multi-column, mobile: stacked)
+- [x] Gold theme consistent with app design system
+- [x] Sign in with Google button in hero + header nav
+- [x] Dark/light theme toggle on landing page
+- [x] Smooth scroll to sections
+- [x] No external dependencies (pure inline styles)
+
 ### Phase 12 — Code Refactoring ✅ DONE
 
 **Why:** `App.js` was ~1600+ lines. Splitting into feature files makes future work touch only the relevant file.
@@ -524,6 +539,8 @@ Dashboard | Expenses | AI Chat | Accounts | More
 4. **Phase 11c — Payment Alerts** — Due-soon badge on Accounts nav tab (desktop + mobile). Alert banners in Debts sub-tab (overdue red, due today/soon gold) with quick Pay button. Overdue detection uses due day (day 5 passed on 7th → overdue).
 5. **Phase 11d — Payment History & Monthly Tracking** — Interactive clickable payment grid (toggle paid/unpaid), "Mark all paid" bulk fill, start_date on debts, late_fee on payments, inline edit/delete per payment, payment stats (paid/missed/streak/total).
 6. **Overdue grid fix** — Current month turns red (missed) if today > due date, not gold.
+7. **Phase 11e — Payment Grid UX** — Collapsible year rows (current year expanded, past collapsed with summary). Payment history shows last 5 with "Show all" button.
+8. **Phase 17 — Landing Page** — Full marketing homepage replacing bare LoginScreen. Hero, features (6 cards), how it works (3 steps), CTA, footer. Brand renamed to "RXpenses" in nav + sidebar. `LandingPage.js` extracted as separate file.
 
 ### Current DB state:
 - Joseph's household ID: `6ee010f1-7050-4096-b198-d3bc4fae250c`

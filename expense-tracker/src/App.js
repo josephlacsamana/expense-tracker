@@ -1,146 +1,14 @@
 import { useState, useEffect } from "react";
-import { Check, LogOut, Sun, Moon, PieChart, LayoutDashboard, MessageSquare, Wallet, Settings, Home, Coins, Lock } from "lucide-react";
+import { Check, LogOut, Sun, Moon, PieChart, LayoutDashboard, MessageSquare, Wallet, Settings, Home } from "lucide-react";
 import { supabase, sbReady } from "./supabase";
-import { themes, LOCAL_USERS, DEFAULT_PINS, localStore } from "./constants";
-import { useMediaQuery } from "./hooks";
+import { themes } from "./constants";
 import { AppProvider, useApp } from "./AppContext";
+import LandingPage from "./LandingPage";
 import DashboardTab from "./tabs/DashboardTab";
 import ExpensesTab from "./tabs/ExpensesTab";
 import ChatTab from "./tabs/ChatTab";
 import AccountsTab from "./tabs/AccountsTab";
 import MoreTab from "./tabs/MoreTab";
-
-// ─── LOGIN ───
-const GoogleIcon = () => (<svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>);
-
-function LoginScreen({ onLogin, theme, toggleTheme, authError, localMode }) {
-  const T = themes[theme];
-  const isDesktop = useMediaQuery("(min-width: 1024px)");
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [pin, setPin] = useState("");
-  const [err, setErr] = useState("");
-  const [pins, setPins] = useState(DEFAULT_PINS);
-  const [signingIn, setSigningIn] = useState(false);
-  const [linkCopied, setLinkCopied] = useState(false);
-
-  useEffect(() => {
-    if (localMode) { (async () => { try { const r = await localStore.get("pins"); if (r?.value) setPins(JSON.parse(r.value)); } catch {} })(); }
-  }, [localMode]);
-
-  const doLocalLogin = () => { if (pins[selectedUser] === pin) onLogin(selectedUser); else { setErr("Wrong PIN. Try again."); setPin(""); } };
-
-  const doGoogleLogin = async () => {
-    setSigningIn(true); setErr("");
-    try {
-      const redirectTo = window.location.origin;
-      const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo, queryParams: { prompt: "select_account" } } });
-      if (error) { setErr(error.message); setSigningIn(false); }
-    } catch { setErr("Failed to start sign in."); setSigningIn(false); }
-  };
-
-  const ua = navigator.userAgent || "";
-  const isInAppBrowser = /FBAN|FBAV|FB_IAB|Instagram|Messenger/i.test(ua);
-  const brandText = "Shared Finance";
-
-  return (
-    <div style={{ minHeight: "100vh", background: T.gradBg, display: "flex", flexDirection: isDesktop ? "row" : "column", justifyContent: "center", alignItems: isDesktop ? "stretch" : "center", padding: isDesktop ? 0 : 24, position: "relative" }}>
-      {!isDesktop && (
-        <button onClick={toggleTheme} style={{ position: "absolute", top: 20, right: 20, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: 10, cursor: "pointer", color: T.text2, display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 600 }}>
-          {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-          {theme === "dark" ? "Light" : "Dark"}
-        </button>
-      )}
-      {isDesktop && (
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: 60 }}>
-          <div style={{ width: 72, height: 72, borderRadius: 20, background: T.grad, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 12px 40px rgba(245,181,38,0.25)", marginBottom: 24 }}>
-            <Coins size={36} style={{ color: theme === "dark" ? "#0C0C12" : "#FFF" }} />
-          </div>
-          <h1 style={{ fontSize: 44, fontWeight: 800, margin: 0, color: T.text1, letterSpacing: -1 }}>Expense<span style={{ color: T.gold }}>Tracker</span></h1>
-          <p style={{ color: T.text3, fontSize: 15, margin: "10px 0 0", letterSpacing: 2, textTransform: "uppercase" }}>{brandText}</p>
-          <p style={{ color: T.text3, fontSize: 13, marginTop: 8 }}>Personal finance, simplified.</p>
-          <button onClick={toggleTheme} style={{ marginTop: 32, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: "10px 18px", cursor: "pointer", color: T.text2, display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600 }}>
-            {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-            {theme === "dark" ? "Light Mode" : "Dark Mode"}
-          </button>
-        </div>
-      )}
-      <div style={{ width: isDesktop ? 480 : "100%", maxWidth: isDesktop ? 480 : 380, ...(isDesktop ? { background: T.surface, borderLeft: `1px solid ${T.border}`, display: "flex", flexDirection: "column", justifyContent: "center", padding: "48px 56px", flexShrink: 0 } : {}) }}>
-        {!isDesktop && (
-          <div style={{ textAlign: "center", marginBottom: 40 }}>
-            <div style={{ width: 56, height: 56, borderRadius: 16, background: T.grad, margin: "0 auto 16px", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 8px 32px rgba(245,181,38,0.25)" }}>
-              <Coins size={28} style={{ color: theme === "dark" ? "#0C0C12" : "#FFF" }} />
-            </div>
-            <h1 style={{ fontSize: 30, fontWeight: 800, margin: 0, color: T.text1, letterSpacing: -0.5 }}>Expense Tracker</h1>
-            <p style={{ color: T.text3, fontSize: 13, margin: "6px 0 0", letterSpacing: 2, textTransform: "uppercase" }}>{brandText}</p>
-          </div>
-        )}
-        {isDesktop && (
-          <div style={{ marginBottom: 36 }}>
-            <h2 style={{ fontSize: 24, fontWeight: 800, margin: 0, color: T.text1 }}>Welcome back</h2>
-            <p style={{ color: T.text3, fontSize: 13, margin: "6px 0 0" }}>{localMode ? "Select your profile and enter your PIN" : "Sign in to continue"}</p>
-          </div>
-        )}
-        {localMode ? (
-          !selectedUser ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <p style={{ color: T.text2, fontSize: 13, textAlign: isDesktop ? "left" : "center", marginBottom: 4 }}>Who's logging in?</p>
-              {LOCAL_USERS.map(u => (
-                <button key={u} onClick={() => setSelectedUser(u)} style={{ padding: "18px 20px", borderRadius: 18, border: `1px solid ${T.border}`, background: T.surface, color: T.text1, fontSize: 16, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 14, transition: "all 0.2s", boxShadow: T.cardShadow }}>
-                  <div style={{ width: 46, height: 46, borderRadius: 14, background: T.grad, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 800, color: theme === "dark" ? "#0C0C12" : "#FFF", boxShadow: "0 4px 12px rgba(245,181,38,0.2)" }}>{u[0]}</div>
-                  {u}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <>
-              <div style={{ textAlign: isDesktop ? "left" : "center", marginBottom: 28 }}>
-                <div style={{ width: 72, height: 72, borderRadius: 22, background: T.grad, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, fontWeight: 800, color: theme === "dark" ? "#0C0C12" : "#FFF", margin: isDesktop ? "0 0 14px" : "0 auto 14px", boxShadow: "0 8px 32px rgba(245,181,38,0.25)" }}>{selectedUser[0]}</div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: T.text1 }}>Welcome, {selectedUser}</div>
-                <button onClick={() => { setSelectedUser(null); setPin(""); setErr(""); }} style={{ background: "none", border: "none", color: T.gold, fontSize: 12, cursor: "pointer", marginTop: 4 }}>Not you?</button>
-              </div>
-              <div style={{ marginBottom: 18 }}>
-                <label style={{ fontSize: 11, color: T.text3, fontWeight: 600, display: "block", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Enter PIN</label>
-                <div style={{ position: "relative" }}>
-                  <Lock size={16} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: T.text3 }} />
-                  <input type="password" inputMode="numeric" maxLength={4} value={pin} onChange={e => { setPin(e.target.value.replace(/\D/g, "")); setErr(""); }} onKeyDown={e => { if (e.key === "Enter") doLocalLogin(); }} placeholder="----" autoFocus style={{ width: "100%", padding: "14px 14px 14px 42px", borderRadius: 12, border: `1px solid ${T.inputBorder}`, background: T.inputBg, color: T.text1, fontSize: 22, letterSpacing: 12, textAlign: "center", outline: "none", boxSizing: "border-box" }} />
-                </div>
-                {err && <div style={{ color: T.err, fontSize: 12, marginTop: 8, textAlign: isDesktop ? "left" : "center" }}>{err}</div>}
-              </div>
-              <button onClick={doLocalLogin} disabled={pin.length < 4} style={{ width: "100%", padding: 16, borderRadius: 14, border: "none", cursor: pin.length >= 4 ? "pointer" : "default", background: T.grad, color: theme === "dark" ? "#0C0C12" : "#FFF", fontSize: 14, fontWeight: 700, opacity: pin.length >= 4 ? 1 : 0.3, boxShadow: "0 4px 16px rgba(245,181,38,0.2)" }}>Log In</button>
-              <p style={{ color: T.text3, fontSize: 10, textAlign: isDesktop ? "left" : "center", marginTop: 14 }}>Default: Joseph=1234, Rowena=5678</p>
-            </>
-          )
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            {!isDesktop && (
-              <div style={{ marginBottom: 8 }}>
-                <h2 style={{ fontSize: 22, fontWeight: 800, margin: 0, color: T.text1, textAlign: "center" }}>Welcome back</h2>
-                <p style={{ color: T.text3, fontSize: 13, margin: "6px 0 0", textAlign: "center" }}>Sign in to continue</p>
-              </div>
-            )}
-            {isInAppBrowser && (
-              <div style={{ background: theme === "dark" ? "rgba(245,181,38,0.08)" : "rgba(245,181,38,0.12)", border: "1px solid rgba(245,181,38,0.35)", borderRadius: 14, padding: "16px 18px" }}>
-                <p style={{ color: T.text1, fontSize: 13, fontWeight: 700, margin: "0 0 6px" }}>Cannot sign in here</p>
-                <p style={{ color: T.text2, fontSize: 12, margin: "0 0 14px", lineHeight: 1.6 }}>Google sign-in does not work inside Messenger. Copy the link below and open it in Chrome or Safari.</p>
-                <button onClick={() => { try { navigator.clipboard.writeText(window.location.href).then(() => { setLinkCopied(true); setTimeout(() => setLinkCopied(false), 3000); }); } catch { setLinkCopied(true); setTimeout(() => setLinkCopied(false), 3000); } }} style={{ width: "100%", padding: "13px 16px", borderRadius: 12, border: "none", background: T.grad, color: theme === "dark" ? "#0C0C12" : "#FFF", fontSize: 13, fontWeight: 700, cursor: "pointer", marginBottom: 12 }}>
-                  {linkCopied ? "Link Copied!" : "Copy Link"}
-                </button>
-                <p style={{ color: T.text3, fontSize: 11, margin: 0, textAlign: "center", lineHeight: 1.6 }}>Then open Chrome or Safari, paste the link, and sign in from there.</p>
-              </div>
-            )}
-            <button onClick={doGoogleLogin} disabled={signingIn || isInAppBrowser} style={{ width: "100%", padding: "16px 20px", borderRadius: 14, border: `1px solid ${T.border}`, background: T.surface, color: T.text1, fontSize: 15, fontWeight: 600, cursor: (signingIn || isInAppBrowser) ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 12, opacity: (signingIn || isInAppBrowser) ? 0.3 : 1, transition: "all 0.2s", boxShadow: T.cardShadow }}>
-              <GoogleIcon />
-              {signingIn ? "Signing in..." : "Sign in with Google"}
-            </button>
-            {(err || authError) && (<div style={{ color: T.err, fontSize: 12, textAlign: "center" }}>{authError || err}</div>)}
-            <p style={{ color: T.text3, fontSize: 11, textAlign: "center", margin: 0 }}>Your Google account is used for login only.</p>
-          </div>
-        )}
-      </div>
-      <style>{`input::placeholder{color:${T.text3}} input:focus{border-color:${T.gold}!important;box-shadow:0 0 0 3px rgba(245,181,38,0.12)!important} button:active{transform:scale(0.97)}`}</style>
-    </div>
-  );
-}
 
 // ─── MAIN APP (nav shell + tab router) ───
 function MainApp({ onLogout, toggleTheme }) {
@@ -174,7 +42,7 @@ function MainApp({ onLogout, toggleTheme }) {
       {isDesktop && (
         <div style={{ width: 250, height: "100vh", background: T.surface, borderRight: `1px solid ${T.border}`, padding: "28px 0", display: "flex", flexDirection: "column", flexShrink: 0, position: "sticky", top: 0, alignSelf: "flex-start", boxSizing: "border-box" }}>
           <div style={{ padding: "0 24px", marginBottom: 36 }}>
-            <h1 style={{ fontSize: 22, fontWeight: 800, margin: "0 0 14px", color: T.text1, letterSpacing: -0.5 }}>Expense<span style={{ color: T.gold }}>Tracker</span></h1>
+            <h1 style={{ fontSize: 22, fontWeight: 800, margin: "0 0 14px", color: T.text1, letterSpacing: -0.5 }}>R<span style={{ color: T.gold }}>X</span>penses</h1>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               {profile?.avatar_url ? <img src={profile.avatar_url} alt="" style={{ width: 34, height: 34, borderRadius: "50%", objectFit: "cover", border: `2px solid ${T.gold}`, flexShrink: 0 }} /> : <div style={{ width: 34, height: 34, borderRadius: "50%", background: T.goldMuted, border: `2px solid ${T.gold}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: T.gold, flexShrink: 0 }}>{(user || "?")[0].toUpperCase()}</div>}
               <div><div style={{ fontSize: 13, fontWeight: 600, color: T.text1 }}>{user}</div><div style={{ fontSize: 10, color: T.text3, marginTop: 1 }}>{profile?.email || ""}</div></div>
@@ -209,7 +77,7 @@ function MainApp({ onLogout, toggleTheme }) {
         {!isDesktop && (
           <div style={{ padding: "18px 20px 0", maxWidth: 600, margin: "0 auto", width: "100%", boxSizing: "border-box", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
-              <h1 style={{ fontSize: 24, fontWeight: 800, margin: 0, color: T.text1, letterSpacing: -0.5 }}>Expense<span style={{ color: T.gold }}>Tracker</span></h1>
+              <h1 style={{ fontSize: 24, fontWeight: 800, margin: 0, color: T.text1, letterSpacing: -0.5 }}>R<span style={{ color: T.gold }}>X</span>penses</h1>
               <p style={{ color: T.text3, fontSize: 11, margin: "2px 0 0" }}>Logged in as <span style={{ color: T.gold }}>{user}</span></p>
             </div>
             <div style={{ display: "flex", gap: 6 }}>
@@ -414,7 +282,7 @@ export default function App() {
         </AppProvider>
       );
     }
-    return <LoginScreen theme={theme} toggleTheme={toggle} authError={authError} />;
+    return <LandingPage theme={theme} toggleTheme={toggle} authError={authError} />;
   }
 
   return localUser
@@ -423,5 +291,5 @@ export default function App() {
         <MainApp onLogout={() => setLocalUser(null)} toggleTheme={toggle} />
       </AppProvider>
     )
-    : <LoginScreen onLogin={setLocalUser} theme={theme} toggleTheme={toggle} localMode={true} />;
+    : <LandingPage onLogin={setLocalUser} theme={theme} toggleTheme={toggle} localMode={true} />;
 }
