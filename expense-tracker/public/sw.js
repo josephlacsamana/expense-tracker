@@ -37,14 +37,17 @@ self.addEventListener("message", (event) => {
     }
 
     // Send notifications (max 5 to avoid spam)
-    notifications.slice(0, 5).forEach((n) => {
-      self.registration.showNotification(n.title, {
-        body: n.body,
-        icon: "/favicon.svg",
-        badge: "/favicon.svg",
-        tag: n.title + n.body,
-        renotify: false,
-      });
+    notifications.slice(0, 5).forEach((n, i) => {
+      // Small delay between notifications so OS doesn't collapse them
+      setTimeout(() => {
+        self.registration.showNotification(n.title, {
+          body: n.body,
+          icon: "/favicon.svg",
+          badge: "/favicon.svg",
+          tag: `rxpenses-${today}-${i}`,
+          renotify: true,
+        });
+      }, i * 300);
     });
   }
 });

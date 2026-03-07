@@ -162,7 +162,14 @@ export function AppProvider({ children, user, householdId, householdRole, profil
       if (!("Notification" in window) || !("serviceWorker" in navigator)) { tst("Notifications not supported in this browser"); return; }
       const perm = await Notification.requestPermission();
       if (perm !== "granted") { tst("Notification permission denied"); return; }
-      try { await navigator.serviceWorker.register("/sw.js"); } catch {}
+      try {
+        await navigator.serviceWorker.register("/sw.js");
+        const reg = await navigator.serviceWorker.ready;
+        // Clear daily gate so notifications trigger immediately
+        localStorage.removeItem("lastNotifCheck");
+        // Send immediate check with current data
+        reg.active?.postMessage({ type: "CHECK_NOTIFICATIONS", debts, recurring: rec, today: new Date().toISOString().slice(0, 10) });
+      } catch {}
       localStorage.setItem("notifEnabled", "true");
       setNotifEnabled(true);
       tst("Notifications enabled");
@@ -176,17 +183,35 @@ export function AppProvider({ children, user, householdId, householdRole, profil
   // Daily check: send data to SW for local notifications
   useEffect(() => {
     if (!notifEnabled || !("serviceWorker" in navigator)) return;
-    const check = async () => {
-      const reg = await navigator.serviceWorker.ready;
+    // Wait until we have actual data loaded before checking
+    if (!debts.length && !rec.length) return;
+    const sendToSW = async () => {
+      try {
+        await navigator.serviceWorker.register("/sw.js");
+        const reg = await navigator.serviceWorker.ready;
+        // Wait for SW to be active (handles first install)
+        const sw = reg.active || reg.installing || reg.waiting;
+        if (!sw) return;
+        if (sw.state !== "activated") {
+          await new Promise(resolve => {
+            sw.addEventListener("statechange", () => { if (sw.state === "activated") resolve(); });
+            setTimeout(resolve, 3000); // timeout fallback
+          });
+        }
+        const today = new Date().toISOString().slice(0, 10);
+        const lastCheck = localStorage.getItem("lastNotifCheck");
+        if (lastCheck === today) return;
+        localStorage.setItem("lastNotifCheck", today);
+        reg.active?.postMessage({ type: "CHECK_NOTIFICATIONS", debts, recurring: rec, today });
+      } catch {}
+    };
+    sendToSW();
+    const interval = setInterval(() => {
+      // Reset the daily gate each interval check (allows re-check if day changed)
       const today = new Date().toISOString().slice(0, 10);
       const lastCheck = localStorage.getItem("lastNotifCheck");
-      if (lastCheck === today) return;
-      localStorage.setItem("lastNotifCheck", today);
-      reg.active?.postMessage({ type: "CHECK_NOTIFICATIONS", debts, recurring: rec, today });
-    };
-    // Register SW if not already
-    navigator.serviceWorker.register("/sw.js").then(() => check()).catch(() => {});
-    const interval = setInterval(check, 1000 * 60 * 60); // hourly re-check
+      if (lastCheck !== today) sendToSW();
+    }, 1000 * 60 * 60); // hourly re-check
     return () => clearInterval(interval);
   }, [notifEnabled, debts, rec]); // eslint-disable-line react-hooks/exhaustive-deps
 
