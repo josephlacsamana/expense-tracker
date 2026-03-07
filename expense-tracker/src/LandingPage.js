@@ -1,10 +1,8 @@
 import { useState, useEffect } from "react";
-import { Sun, Moon, Coins, Lock, MessageSquare, CreditCard, BarChart3, Camera, ArrowRight, ChevronDown, Users, Shield, Zap } from "lucide-react";
+import { Sun, Moon, Coins, Lock, MessageSquare, CreditCard, BarChart3, Camera, ArrowRight, ChevronDown, Users, Shield, Zap, LogIn } from "lucide-react";
 import { supabase } from "./supabase";
 import { themes, LOCAL_USERS, DEFAULT_PINS, localStore } from "./constants";
 import { useMediaQuery } from "./hooks";
-
-const GoogleIcon = () => (<svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>);
 
 export default function LandingPage({ onLogin, theme, toggleTheme, authError, localMode }) {
   const T = themes[theme];
@@ -80,9 +78,9 @@ export default function LandingPage({ onLogin, theme, toggleTheme, authError, lo
               {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
             </button>
             {!localMode && (
-              <button onClick={doGoogleLogin} disabled={signingIn || isInAppBrowser} style={{ padding: "8px 16px", borderRadius: 10, border: "none", background: T.grad, color: theme === "dark" ? "#0C0C12" : "#FFF", fontSize: 12, fontWeight: 700, cursor: (signingIn || isInAppBrowser) ? "default" : "pointer", display: "flex", alignItems: "center", gap: 8, opacity: (signingIn || isInAppBrowser) ? 0.4 : 1 }}>
-                <GoogleIcon />
-                <span style={{ display: isDesktop ? "inline" : "none" }}>{signingIn ? "Signing in..." : "Sign In"}</span>
+              <button onClick={doGoogleLogin} disabled={signingIn || isInAppBrowser} style={{ padding: "8px 16px", borderRadius: 10, border: "none", background: T.grad, color: theme === "dark" ? "#0C0C12" : "#FFF", fontSize: 12, fontWeight: 700, cursor: (signingIn || isInAppBrowser) ? "default" : "pointer", display: "flex", alignItems: "center", gap: 6, opacity: (signingIn || isInAppBrowser) ? 0.4 : 1 }}>
+                <LogIn size={14} />
+                {signingIn ? "Launching..." : "Launch App"}
               </button>
             )}
           </div>
@@ -106,7 +104,7 @@ export default function LandingPage({ onLogin, theme, toggleTheme, authError, lo
           </h1>
 
           <p style={{ fontSize: isDesktop ? 18 : 15, color: T.text2, maxWidth: 560, margin: "0 auto 36px", lineHeight: 1.7 }}>
-            Track shared expenses with AI. Snap receipts, chat to log spending, manage debts, and get smart insights — all in one place.
+            Track shared expenses with AI. Snap receipts, chat to log spending, manage debts, and get smart insights. All in one place.
           </p>
 
           <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
@@ -117,8 +115,7 @@ export default function LandingPage({ onLogin, theme, toggleTheme, authError, lo
             ) : (
               <>
                 <button onClick={doGoogleLogin} disabled={signingIn || isInAppBrowser} style={{ ...goldBtn, opacity: (signingIn || isInAppBrowser) ? 0.4 : 1 }}>
-                  <GoogleIcon />
-                  {signingIn ? "Signing in..." : "Get Started Free"}
+                  {signingIn ? "Launching..." : "Launch App Free"} <ArrowRight size={18} />
                 </button>
                 <button onClick={() => scrollTo("features")} style={ghostBtn}>
                   Learn More <ChevronDown size={16} />
@@ -148,7 +145,7 @@ export default function LandingPage({ onLogin, theme, toggleTheme, authError, lo
         <div style={sectionPad}>
           <div style={{ textAlign: "center", marginBottom: isDesktop ? 56 : 40 }}>
             <h2 style={{ fontSize: isDesktop ? 36 : 26, fontWeight: 800, margin: "0 0 12px", color: T.text1, letterSpacing: -0.5 }}>Everything you need</h2>
-            <p style={{ fontSize: isDesktop ? 16 : 14, color: T.text2, maxWidth: 480, margin: "0 auto" }}>From daily coffee to monthly mortgages — track it all with ease.</p>
+            <p style={{ fontSize: isDesktop ? 16 : 14, color: T.text2, maxWidth: 480, margin: "0 auto" }}>From daily coffee to monthly mortgages. Track it all with ease.</p>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr 1fr" : "1fr", gap: isDesktop ? 20 : 14 }}>
@@ -204,8 +201,7 @@ export default function LandingPage({ onLogin, theme, toggleTheme, authError, lo
             </button>
           ) : (
             <button onClick={doGoogleLogin} disabled={signingIn || isInAppBrowser} style={{ ...goldBtn, opacity: (signingIn || isInAppBrowser) ? 0.4 : 1 }}>
-              <GoogleIcon />
-              {signingIn ? "Signing in..." : "Sign Up Free with Google"}
+              {signingIn ? "Launching..." : "Launch App Free"} <ArrowRight size={18} />
             </button>
           )}
         </div>
