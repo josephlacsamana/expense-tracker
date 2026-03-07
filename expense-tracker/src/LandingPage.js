@@ -73,8 +73,8 @@ export default function LandingPage({ onLogin, theme, toggleTheme, authError, lo
       {/* ─── NAV BAR ─── */}
       <nav style={{ position: "sticky", top: 0, zIndex: 100, background: theme === "dark" ? "rgba(14,14,20,0.85)" : "rgba(250,250,247,0.85)", backdropFilter: "blur(20px)", borderBottom: `1px solid ${T.border}` }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: isDesktop ? "0 60px" : "0 20px", height: isDesktop ? 72 : 60, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }} onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: T.grad, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }} onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label="RXpenses home">
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: T.grad, display: "flex", alignItems: "center", justifyContent: "center" }} role="img" aria-label="RXpenses logo">
               <Coins size={18} style={{ color: theme === "dark" ? "#0C0C12" : "#FFF" }} />
             </div>
             <span style={{ fontSize: 18, fontWeight: 800, color: T.text1, letterSpacing: -0.5 }}>R<span style={{ color: T.gold }}>X</span>penses</span>
@@ -98,6 +98,7 @@ export default function LandingPage({ onLogin, theme, toggleTheme, authError, lo
         </div>
       </nav>
 
+      <main>
       {/* ─── HERO ─── */}
       <section style={{ ...sectionPad, paddingTop: isDesktop ? 100 : 60, paddingBottom: isDesktop ? 100 : 60, textAlign: "center", position: "relative" }}>
         {/* Subtle gold glow */}
@@ -115,7 +116,7 @@ export default function LandingPage({ onLogin, theme, toggleTheme, authError, lo
           </h1>
 
           <p style={{ fontSize: isDesktop ? 18 : 15, color: T.text2, maxWidth: 560, margin: "0 auto 36px", lineHeight: 1.7 }}>
-            Track shared expenses with AI. Snap receipts, chat to log spending, manage debts, and get smart insights. All in one place.
+            Track shared expenses with AI. Snap receipts, chat to log spending, manage debts, and get smart insights. Built for couples in the Philippines.
           </p>
 
           <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
@@ -279,6 +280,8 @@ export default function LandingPage({ onLogin, theme, toggleTheme, authError, lo
           </div>
         </section>
       )}
+
+      </main>
 
       {/* ─── FOOTER ─── */}
       <footer style={{ borderTop: `1px solid ${T.border}`, padding: isDesktop ? "36px 60px" : "28px 24px" }}>

@@ -547,27 +547,27 @@ Dashboard | Expenses | AI Chat | Accounts | More
 - [x] Add structured data (JSON-LD) — `SoftwareApplication` schema with name, description, price, features
 - [x] Improve `<title>` tag: "RXpenses — Free AI Expense Tracker for Couples | Track, Budget, Save"
 
-**19b — Crawlability & Indexing** 🔄 PARTIAL
+**19b — Crawlability & Indexing** ✅ DONE (except Bing)
 - [x] Create `public/robots.txt` — allow all crawlers, point to sitemap
 - [x] Create `public/sitemap.xml` — list the main URL (https://rxpenses.com/)
 - [x] Verify site ownership in Google Search Console (URL prefix method, auto-verified)
-- [x] Submit sitemap to Google Search Console
+- [x] Submit sitemap to Google Search Console (Success, 1 page discovered)
 - [x] Submit URL for indexing in Google Search Console ("Request Indexing") — queued for crawl
+- [x] Fix Vercel rewrite to serve sitemap.xml and robots.txt as static files (vercel.json updated)
 - [ ] Submit to Bing Webmaster Tools (optional, covers Bing + Yahoo)
 
-**19c — Landing Page SEO Content** 🔄 PARTIAL
+**19c — Landing Page SEO Content** ✅ DONE
 - [x] Add more text content to landing page (FAQ section adds crawlable keyword-rich text)
 - [x] Add an FAQ section at the bottom (6 questions answering common search queries)
-- [ ] Use semantic HTML: `<h1>`, `<h2>`, `<h3>`, `<p>`, `<article>`, `<section>` with proper hierarchy (currently using styled divs)
-- [ ] Add alt text to any images (logo, screenshots)
+- [x] Use semantic HTML: `<main>`, `<nav>`, `<section>`, `<footer>`, `<h1>`-`<h3>`, `<p>` with proper hierarchy
+- [x] Add aria-labels to logo/icon elements (no `<img>` tags — all Lucide SVG icons)
 - [x] Internal anchor links (Features, How It Works, FAQ) for better crawling
-- [ ] Add a "Built for couples in the Philippines" or localized copy for geo-targeting
+- [x] Add geo-targeting copy: "Built for couples in the Philippines" in hero section
 
-**19d — Performance & Core Web Vitals**
-- [ ] Ensure Lighthouse Performance score is 90+ (fast load = better ranking)
-- [ ] Lazy-load below-the-fold content if needed
-- [ ] Preconnect to Supabase domain (`<link rel="preconnect">`)
-- [ ] Minimize JS bundle size (already using React, check for unused imports)
+**19d — Performance & Core Web Vitals** ✅ DONE
+- [x] Preconnect + dns-prefetch to Supabase domain in index.html
+- [x] Minimal bundle: no CSS framework, no unused deps, inline styles only
+- [ ] Run Lighthouse audit and optimize if score < 90 (deferred — React SPA baseline is good)
 
 **19e — Off-Page & Social**
 - [ ] Create a simple landing on Product Hunt or similar (free exposure)
