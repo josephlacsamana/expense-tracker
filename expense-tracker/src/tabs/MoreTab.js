@@ -66,56 +66,48 @@ export default function MoreTab() {
       </div>
 
       {sbReady && householdId && (
-        <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 8, marginBottom: 16, alignItems: "start" }}>
-          {householdRole === "owner" && <button onClick={() => { setInviteEmail(""); setInviteEmailSent(false); setInviteModal(true); }} style={{ ...cardS, width: "100%", padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>
-            <UserPlus size={18} style={{ color: T.gold }} />
-            <div><div style={{ fontSize: 13, fontWeight: 600, color: T.text1 }}>Invite Partner</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>Invite by Gmail address</div></div>
-          </button>}
-          <div style={{ ...cardS, padding: "16px 18px", display: "flex", alignItems: "flex-start", gap: 12 }}>
-            <Home size={18} style={{ color: T.gold, flexShrink: 0, marginTop: 2 }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                {editHhName ? (
-                  <input value={hhName} onChange={e => setHhName(e.target.value)} onKeyDown={e => { if (e.key === "Enter") saveHhName(); if (e.key === "Escape") setEditHhName(false); }} style={{ ...inpS, padding: "4px 8px", fontSize: 12, flex: 1 }} autoFocus />
-                ) : (
-                  <div style={{ fontSize: 13, fontWeight: 600, color: T.text1, flex: 1 }}>{hhName}</div>
-                )}
-                <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: householdRole === "owner" ? "rgba(245,181,38,0.15)" : "rgba(138,128,120,0.15)", color: householdRole === "owner" ? T.gold : T.text3, textTransform: "capitalize", flexShrink: 0 }}>{householdRole}</span>
-              </div>
-              {memberProfiles.length > 0 && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 6 }}>
-                  {memberProfiles.map(m => (
-                    <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      {m.avatar_url ? <img src={m.avatar_url} alt="" style={{ width: 22, height: 22, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} /> : <div style={{ width: 22, height: 22, borderRadius: "50%", background: T.goldMuted, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: T.gold, flexShrink: 0 }}>{(m.display_name || "?")[0].toUpperCase()}</div>}
-                      <span style={{ fontSize: 11, color: T.text2, flex: 1 }}>{m.display_name}</span>
-                      <span style={{ fontSize: 9, fontWeight: 600, color: m.role === "owner" ? T.gold : T.text3, textTransform: "capitalize" }}>{m.role}</span>
-                    </div>
-                  ))}
-                </div>
+        <div style={{ ...cardS, padding: "16px 18px", marginBottom: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: memberProfiles.length > 0 ? 12 : 0 }}>
+            <Home size={18} style={{ color: T.gold, flexShrink: 0 }} />
+            <div style={{ flex: 1 }}>
+              {editHhName ? (
+                <input value={hhName} onChange={e => setHhName(e.target.value)} onKeyDown={e => { if (e.key === "Enter") saveHhName(); if (e.key === "Escape") setEditHhName(false); }} style={{ ...inpS, padding: "4px 8px", fontSize: 12 }} autoFocus />
+              ) : (
+                <div style={{ fontSize: 13, fontWeight: 600, color: T.text1 }}>{hhName}</div>
               )}
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ fontSize: 10, color: T.text3, flex: 1 }}>{users.length} member{users.length !== 1 ? "s" : ""}</div>
-                {householdRole === "owner" && (editHhName ? (
-                  <div style={{ display: "flex", gap: 4 }}>
-                    <button onClick={saveHhName} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 6, border: "none", background: T.gold, color: "#0C0C12", fontWeight: 700, cursor: "pointer" }}>Save</button>
-                    <button onClick={() => { setEditHhName(false); setHhName(household?.name || "My Household"); }} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 6, border: `1px solid ${T.border}`, background: "transparent", color: T.text3, cursor: "pointer" }}>Cancel</button>
-                  </div>
-                ) : (
-                  <button onClick={() => setEditHhName(true)} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 6, border: `1px solid ${T.border}`, background: "transparent", color: T.text3, cursor: "pointer" }}>Rename</button>
-                ))}
-              </div>
             </div>
+            <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: householdRole === "owner" ? "rgba(245,181,38,0.15)" : "rgba(138,128,120,0.15)", color: householdRole === "owner" ? T.gold : T.text3, textTransform: "capitalize", flexShrink: 0 }}>{householdRole}</span>
+            {householdRole === "owner" && !editHhName && <button onClick={() => setEditHhName(true)} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 6, border: `1px solid ${T.border}`, background: "transparent", color: T.text3, cursor: "pointer", flexShrink: 0 }}>Rename</button>}
+            {householdRole === "owner" && editHhName && <>
+              <button onClick={saveHhName} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 6, border: "none", background: T.gold, color: "#0C0C12", fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>Save</button>
+              <button onClick={() => { setEditHhName(false); setHhName(household?.name || "My Household"); }} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 6, border: `1px solid ${T.border}`, background: "transparent", color: T.text3, cursor: "pointer", flexShrink: 0 }}>Cancel</button>
+            </>}
           </div>
+          {memberProfiles.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: isDesktop ? 16 : 10 }}>
+              {memberProfiles.map(m => (
+                <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  {m.avatar_url ? <img src={m.avatar_url} alt="" style={{ width: 22, height: 22, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} /> : <div style={{ width: 22, height: 22, borderRadius: "50%", background: T.goldMuted, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: T.gold, flexShrink: 0 }}>{(m.display_name || "?")[0].toUpperCase()}</div>}
+                  <span style={{ fontSize: 11, color: T.text2 }}>{m.display_name}</span>
+                  <span style={{ fontSize: 9, fontWeight: 600, color: m.role === "owner" ? T.gold : T.text3 }}>{m.role}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
-      <div style={{ ...cardS, padding: "16px 18px", display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
-        <Bell size={18} style={{ color: T.gold, flexShrink: 0 }} />
-        <div style={{ flex: 1 }}><div style={{ fontSize: 13, fontWeight: 600, color: T.text1 }}>Notifications</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>{notifEnabled ? "Push notifications are on" : "Get reminders for due bills and debts"}</div></div>
-        <div onClick={toggleNotif} style={{ width: 44, height: 24, borderRadius: 12, background: notifEnabled ? T.gold : (T.border || "#3a3a4a"), cursor: "pointer", position: "relative", transition: "background 0.2s", flexShrink: 0 }}>
-          <div style={{ width: 20, height: 20, borderRadius: 10, background: "#FFF", position: "absolute", top: 2, left: notifEnabled ? 22 : 2, transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+      <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 8, marginBottom: 12 }}>
+        {sbReady && householdId && householdRole === "owner" && <button onClick={() => { setInviteEmail(""); setInviteEmailSent(false); setInviteModal(true); }} style={{ ...cardS, width: "100%", padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>
+          <UserPlus size={18} style={{ color: T.gold }} />
+          <div><div style={{ fontSize: 13, fontWeight: 600, color: T.text1 }}>Invite Partner</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>Invite by Gmail address</div></div>
+        </button>}
+        <div style={{ ...cardS, padding: "16px 18px", display: "flex", alignItems: "center", gap: 12 }}>
+          <Bell size={18} style={{ color: T.gold, flexShrink: 0 }} />
+          <div style={{ flex: 1 }}><div style={{ fontSize: 13, fontWeight: 600, color: T.text1 }}>Notifications</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>{notifEnabled ? "Push notifications are on" : "Get reminders for due bills"}</div></div>
+          <div onClick={toggleNotif} style={{ width: 44, height: 24, borderRadius: 12, background: notifEnabled ? T.gold : (T.border || "#3a3a4a"), cursor: "pointer", position: "relative", transition: "background 0.2s", flexShrink: 0 }}>
+            <div style={{ width: 20, height: 20, borderRadius: 10, background: "#FFF", position: "absolute", top: 2, left: notifEnabled ? 22 : 2, transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+          </div>
         </div>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 8 }}>
         <button onClick={exportCSV} style={{ ...cardS, width: "100%", padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}><Download size={18} style={{ color: T.gold }} /><div><div style={{ fontSize: 13, fontWeight: 600, color: T.text1 }}>Export CSV</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>Download all expenses</div></div></button>
         {householdRole === "owner" && <button onClick={() => setClr(true)} style={{ ...cardS, width: "100%", padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left", borderColor: `${T.err}30` }}><AlertTriangle size={18} style={{ color: T.err }} /><div><div style={{ fontSize: 13, fontWeight: 600, color: T.err }}>Clear All Data</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>Remove everything permanently</div></div></button>}
       </div>
