@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Download, AlertTriangle, UserPlus, Home, X, Check, Bell, BellOff } from "lucide-react";
+import { Download, AlertTriangle, UserPlus, Home, X, Check, Bell } from "lucide-react";
 import { supabase, sbReady } from "../supabase";
 import { sb } from "../db";
 import { useApp } from "../AppContext";
@@ -99,7 +99,13 @@ export default function MoreTab() {
       )}
       <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 8 }}>
         <button onClick={exportCSV} style={{ ...cardS, width: "100%", padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}><Download size={18} style={{ color: T.gold }} /><div><div style={{ fontSize: 13, fontWeight: 600, color: T.text1 }}>Export CSV</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>Download all expenses</div></div></button>
-        <button onClick={toggleNotif} style={{ ...cardS, width: "100%", padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>{notifEnabled ? <BellOff size={18} style={{ color: T.gold }} /> : <Bell size={18} style={{ color: T.gold }} />}<div><div style={{ fontSize: 13, fontWeight: 600, color: T.text1 }}>{notifEnabled ? "Disable" : "Enable"} Notifications</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>{notifEnabled ? "Push notifications are on" : "Get reminders for due bills and debts"}</div></div></button>
+        <div style={{ ...cardS, width: "100%", padding: "16px 18px", display: "flex", alignItems: "center", gap: 12 }}>
+          <Bell size={18} style={{ color: T.gold, flexShrink: 0 }} />
+          <div style={{ flex: 1 }}><div style={{ fontSize: 13, fontWeight: 600, color: T.text1 }}>Notifications</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>{notifEnabled ? "Push notifications are on" : "Get reminders for due bills and debts"}</div></div>
+          <div onClick={toggleNotif} style={{ width: 44, height: 24, borderRadius: 12, background: notifEnabled ? T.gold : (T.border || "#3a3a4a"), cursor: "pointer", position: "relative", transition: "background 0.2s", flexShrink: 0 }}>
+            <div style={{ width: 20, height: 20, borderRadius: 10, background: "#FFF", position: "absolute", top: 2, left: notifEnabled ? 22 : 2, transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+          </div>
+        </div>
         {householdRole === "owner" && <button onClick={() => setClr(true)} style={{ ...cardS, width: "100%", padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left", borderColor: `${T.err}30` }}><AlertTriangle size={18} style={{ color: T.err }} /><div><div style={{ fontSize: 13, fontWeight: 600, color: T.err }}>Clear All Data</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>Remove everything permanently</div></div></button>}
       </div>
 

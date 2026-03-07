@@ -159,7 +159,15 @@ export function AppProvider({ children, user, householdId, householdRole, profil
   // ─── PUSH NOTIFICATIONS (SW + daily check) ───
   const toggleNotif = async () => {
     if (!notifEnabled) {
-      if (!("Notification" in window) || !("serviceWorker" in navigator)) { tst("Notifications not supported in this browser"); return; }
+      if (!("Notification" in window) || !("serviceWorker" in navigator)) {
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        const isStandalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+        const isInApp = /GSA\/|FBAN|FBAV|Instagram|Twitter|Line\//i.test(navigator.userAgent);
+        if (isInApp) { tst("Open rxpenses.com in Safari or Chrome, not in-app browser"); }
+        else if (isIOS && !isStandalone) { tst("Open in Safari > Add to Home Screen > then enable notifications"); }
+        else { tst("Notifications not supported in this browser"); }
+        return;
+      }
       const perm = await Notification.requestPermission();
       if (perm !== "granted") { tst("Notification permission denied"); return; }
       try {
