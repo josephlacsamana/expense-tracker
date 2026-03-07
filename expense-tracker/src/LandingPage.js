@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Sun, Moon, Coins, Lock, MessageSquare, CreditCard, BarChart3, Camera, ArrowRight, ChevronDown, Users, Shield, Zap, LogIn } from "lucide-react";
+import { Sun, Moon, Coins, Lock, MessageSquare, CreditCard, BarChart3, Camera, ArrowRight, ChevronDown, ChevronUp, Users, Shield, Zap, LogIn } from "lucide-react";
 import { supabase } from "./supabase";
 import { themes, LOCAL_USERS, DEFAULT_PINS, localStore } from "./constants";
 import { useMediaQuery } from "./hooks";
@@ -13,6 +13,7 @@ export default function LandingPage({ onLogin, theme, toggleTheme, authError, lo
   const [pins, setPins] = useState(DEFAULT_PINS);
   const [signingIn, setSigningIn] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [openFaq, setOpenFaq] = useState(null);
 
   useEffect(() => {
     if (localMode) { (async () => { try { const r = await localStore.get("pins"); if (r?.value) setPins(JSON.parse(r.value)); } catch {} })(); }
@@ -52,6 +53,15 @@ export default function LandingPage({ onLogin, theme, toggleTheme, authError, lo
     { num: "3", title: "Get Insights", desc: "AI reviews your spending, finds patterns, and gives actionable tips to save more." },
   ];
 
+  const faqs = [
+    { q: "How do I track shared expenses with my partner?", a: "Sign in with Google, then invite your partner via their Gmail address in Settings. You both share one household -- every expense, budget, and debt is visible to both of you in real time." },
+    { q: "Is RXpenses really free?", a: "Yes. All core features are free: expense tracking, AI chat, receipt scanning, budgets, debt management, dashboards, and CSV export. No credit card required." },
+    { q: "Can I scan receipts with AI?", a: "Absolutely. Open the AI Chat tab, attach a photo of your receipt, and the AI will extract items, amounts, dates, and categories automatically. You can review and edit before saving." },
+    { q: "How does debt tracking work?", a: "Add your debts (credit cards, loans, mortgages) in the Accounts tab. Set due dates, interest rates, and minimum payments. The interactive payment grid tracks your history month by month, and AI can calculate payoff timelines." },
+    { q: "What is the best free expense tracker app for couples in the Philippines?", a: "RXpenses is built specifically for Filipino couples. All amounts are in PHP, and features like shared households, AI chat in plain language, and debt tracking are designed for real-world use." },
+    { q: "Does it work on my phone?", a: "Yes. RXpenses is a Progressive Web App (PWA). Open rxpenses.com in your browser, add it to your home screen, and it works like a native app -- with push notifications for due bills and debts." },
+  ];
+
   // Shared styles
   const sectionPad = { padding: isDesktop ? "80px 60px" : "56px 24px", maxWidth: 1100, margin: "0 auto", width: "100%", boxSizing: "border-box" };
   const goldBtn = { padding: isDesktop ? "16px 36px" : "14px 28px", borderRadius: 14, border: "none", background: T.grad, color: theme === "dark" ? "#0C0C12" : "#FFF", fontSize: isDesktop ? 16 : 14, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 20px rgba(245,181,38,0.25)", display: "inline-flex", alignItems: "center", gap: 10, transition: "all 0.2s" };
@@ -73,6 +83,7 @@ export default function LandingPage({ onLogin, theme, toggleTheme, authError, lo
             {isDesktop && <>
               <button onClick={() => scrollTo("features")} style={{ background: "none", border: "none", color: T.text2, fontSize: 13, fontWeight: 600, cursor: "pointer", padding: "8px 12px" }}>Features</button>
               <button onClick={() => scrollTo("how-it-works")} style={{ background: "none", border: "none", color: T.text2, fontSize: 13, fontWeight: 600, cursor: "pointer", padding: "8px 12px" }}>How It Works</button>
+              <button onClick={() => scrollTo("faq")} style={{ background: "none", border: "none", color: T.text2, fontSize: 13, fontWeight: 600, cursor: "pointer", padding: "8px 12px" }}>FAQ</button>
             </>}
             <button onClick={toggleTheme} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: 8, cursor: "pointer", color: T.text2, display: "flex", alignItems: "center" }}>
               {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
@@ -204,6 +215,29 @@ export default function LandingPage({ onLogin, theme, toggleTheme, authError, lo
               {signingIn ? "Launching..." : "Launch App Free"} <ArrowRight size={18} />
             </button>
           )}
+        </div>
+      </section>
+
+      {/* ─── FAQ ─── */}
+      <section id="faq">
+        <div style={sectionPad}>
+          <div style={{ textAlign: "center", marginBottom: isDesktop ? 56 : 40 }}>
+            <h2 style={{ fontSize: isDesktop ? 36 : 26, fontWeight: 800, margin: "0 0 12px", color: T.text1, letterSpacing: -0.5 }}>Frequently Asked Questions</h2>
+            <p style={{ fontSize: isDesktop ? 16 : 14, color: T.text2, maxWidth: 480, margin: "0 auto" }}>Everything you need to know about RXpenses.</p>
+          </div>
+          <div style={{ maxWidth: 700, margin: "0 auto", display: "flex", flexDirection: "column", gap: 8 }}>
+            {faqs.map((f, i) => (
+              <div key={i} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 16, overflow: "hidden", transition: "all 0.2s" }}>
+                <button onClick={() => setOpenFaq(openFaq === i ? null : i)} style={{ width: "100%", padding: "18px 20px", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, textAlign: "left" }}>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: T.text1, flex: 1 }}>{f.q}</span>
+                  {openFaq === i ? <ChevronUp size={18} style={{ color: T.gold, flexShrink: 0 }} /> : <ChevronDown size={18} style={{ color: T.text3, flexShrink: 0 }} />}
+                </button>
+                {openFaq === i && (
+                  <div style={{ padding: "0 20px 18px", fontSize: 13, color: T.text2, lineHeight: 1.7 }}>{f.a}</div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 

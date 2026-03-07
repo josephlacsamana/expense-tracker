@@ -533,6 +533,61 @@ Dashboard | Expenses | AI Chat | Accounts | More
 - [x] Added CSS reset (margin:0, padding:0) on html/body in index.html
 - [x] Set body background to #0E0E14 (dark theme base) to eliminate white border/flash in PWA and browser
 
+### Phase 19 — SEO & Discoverability (Lower Priority)
+
+**Why:** rxpenses.com is not indexed by Google yet. Searching "rxpenses.com" shows unrelated results. Need proper SEO so it ranks for "expense tracker", "shared expense tracker", "AI expense tracker Philippines", etc.
+
+**19a — Technical SEO (On-Page Basics)** 🔄 PARTIAL
+- [x] Add `<meta name="description">` with keyword-rich copy
+- [x] Add `<meta name="keywords">` with target terms: expense tracker, shared expenses, AI receipt scanner, budget tracker, debt tracker, Philippines, PHP
+- [x] Add Open Graph meta tags (`og:title`, `og:description`, `og:site_name`, `og:url`, `og:type`) for social sharing previews
+- [x] Add Twitter Card meta tags (`twitter:card`, `twitter:title`, `twitter:description`)
+- [ ] Create a social share preview image (1200x630 OG image) — gold-themed with app name + tagline (needed for `og:image` and `twitter:image`)
+- [x] Add `<link rel="canonical" href="https://rxpenses.com/">` to prevent duplicate content
+- [x] Add structured data (JSON-LD) — `SoftwareApplication` schema with name, description, price, features
+- [x] Improve `<title>` tag: "RXpenses — Free AI Expense Tracker for Couples | Track, Budget, Save"
+
+**19b — Crawlability & Indexing** 🔄 PARTIAL
+- [x] Create `public/robots.txt` — allow all crawlers, point to sitemap
+- [x] Create `public/sitemap.xml` — list the main URL (https://rxpenses.com/)
+- [x] Verify site ownership in Google Search Console (URL prefix method, auto-verified)
+- [x] Submit sitemap to Google Search Console
+- [x] Submit URL for indexing in Google Search Console ("Request Indexing") — queued for crawl
+- [ ] Submit to Bing Webmaster Tools (optional, covers Bing + Yahoo)
+
+**19c — Landing Page SEO Content** 🔄 PARTIAL
+- [x] Add more text content to landing page (FAQ section adds crawlable keyword-rich text)
+- [x] Add an FAQ section at the bottom (6 questions answering common search queries)
+- [ ] Use semantic HTML: `<h1>`, `<h2>`, `<h3>`, `<p>`, `<article>`, `<section>` with proper hierarchy (currently using styled divs)
+- [ ] Add alt text to any images (logo, screenshots)
+- [x] Internal anchor links (Features, How It Works, FAQ) for better crawling
+- [ ] Add a "Built for couples in the Philippines" or localized copy for geo-targeting
+
+**19d — Performance & Core Web Vitals**
+- [ ] Ensure Lighthouse Performance score is 90+ (fast load = better ranking)
+- [ ] Lazy-load below-the-fold content if needed
+- [ ] Preconnect to Supabase domain (`<link rel="preconnect">`)
+- [ ] Minimize JS bundle size (already using React, check for unused imports)
+
+**19e — Off-Page & Social**
+- [ ] Create a simple landing on Product Hunt or similar (free exposure)
+- [ ] Add the site to free web directories (startuplist, saashub, etc.)
+- [ ] Share on Reddit (r/budgetph, r/phinvest, r/webdev) for backlinks
+- [ ] Set up Google Analytics or Vercel Analytics (track visitors)
+
+**19f — Blog / Content Marketing**
+- [ ] Create a simple blog section on the landing page or separate `/blog` route
+- [ ] Write 3-5 SEO-targeted articles:
+  - "How to Track Shared Expenses as a Couple in 2026"
+  - "Best Free AI Expense Tracker Apps for Filipinos"
+  - "How to Manage Debt Payments and Stay on Track"
+  - "5 Budgeting Tips for Couples Living Together"
+  - "How AI Receipt Scanning Saves You Time on Expense Tracking"
+- [ ] Each post targets long-tail keywords for organic search traffic
+- [ ] Blog posts include internal links back to app features + CTA to sign up
+- [ ] Add blog index to sitemap.xml for crawling
+- [ ] Consider using markdown files or Supabase table for blog content storage
+
 ### Phase 12 — Code Refactoring ✅ DONE
 
 **Why:** `App.js` was ~1600+ lines. Splitting into feature files makes future work touch only the relevant file.
@@ -600,6 +655,7 @@ Dashboard | Expenses | AI Chat | Accounts | More
 - [ ] Phase 9d remaining — list household members by name in Settings (currently shows count only)
 - [ ] Phase 15 — Stripe subscription (next major feature)
 - [ ] Phase 16 — Branding & PWA (logo, favicon, homescreen icons — manifest.json + sw.js already created in Phase 18d, needs icon files)
+- [ ] Phase 19 — SEO (lower priority, outlined below)
 
 ---
 
