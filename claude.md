@@ -37,8 +37,8 @@ AI-powered receipt scanning, chat-based expense logging, dashboards, analytics, 
 | `households` | id (UUID PK), name, created_at | Household groups |
 | `household_members` | id (UUID PK), household_id, user_id, role, joined_at | Membership + roles |
 | `invites` | id (UUID PK), household_id, created_by, token, used, used_by, created_at, expires_at, invited_email | Email-based invite — matches on sign-in |
-| `debts` | id (TEXT PK), name, type, total_amount, current_balance, due_date, interest_rate, min_payment, added_by, household_id (FK), created_at, updated_at | Debt tracking, scoped to household |
-| `debt_payments` | id (TEXT PK), debt_id (FK), amount, date, new_balance, household_id (FK), created_at | Payment history, scoped to household |
+| `debts` | id (TEXT PK), name, type, total_amount, current_balance, due_date, interest_rate, min_payment, start_date, added_by, household_id (FK), created_at, updated_at | Debt tracking, scoped to household |
+| `debt_payments` | id (TEXT PK), debt_id (FK), amount, date, new_balance, late_fee, household_id (FK), created_at | Payment history, scoped to household |
 | `account_history` | id (TEXT PK), account_id, old_balance, new_balance, change_amount, reason, description, household_id (FK), created_at | Balance change log per account |
 | `insights` | id (TEXT PK), period, data (JSONB), ai_response (JSONB), household_id (FK), created_at | Saved AI spending reviews (Phase 14) |
 
@@ -61,7 +61,7 @@ On first Supabase load with empty tables, existing localStorage data is auto-mig
 2. **Dashboard** — Summary cards, charts, period selector
 3. **Expenses** — sub-tabs: List (full list with search/filters) | Recurring (templates)
 4. **AI Chat** — Chat interface for adding expenses and asking questions
-5. **Accounts** — sub-tabs: Accounts (manual bank balances) | Budgets (general + per-category)
+5. **Accounts** — sub-tabs: Accounts (manual bank balances) | Budgets (general + per-category) | Debts (debt tracking + payment grid)
 6. **More** — Settings (categories, invite, export)
 
 ---
@@ -353,29 +353,37 @@ Dashboard | Expenses | AI Chat | Accounts | More
 - [ ] PWA push notifications for approaching due dates (3 days before, 1 day before, day of)
 - [ ] Service Worker registration for push notifications
 - [ ] Notification permission request flow (Settings toggle)
-- [x] Missed payment detection: overdue alert when due date passes (red banner)
+- [x] Missed payment detection: overdue alert when due date passes (red banner with month names)
 - [x] In-app notification badge on Accounts tab (desktop sidebar + mobile nav) with due count
 - [x] Due-soon alert banners in Debts sub-tab: overdue (red), due today (gold), due within 3 days (gold) with quick Pay button
 - [x] Badge count on Debts sub-tab pill
+- [x] Overdue detection accounts for due day (e.g. due day 5, today is 7th → March is overdue, not "current")
 - [ ] Daily/weekly debt summary notification (optional, configurable in Settings)
 - [ ] Email notifications (future/lower priority): Supabase Edge Function to send reminder emails
 
-**11d — Payment History & Monthly Tracking**
-- [ ] Add `start_date` (DATE) column to `debts` table — when payments began (e.g. "2023-08-01" for a mortgage started Aug 2023)
-- [ ] Add `start_date` field to debt form with helper text ("When did you start paying this debt?")
-- [ ] Manual payment history entry: add past payments with custom date + amount (not just "pay now")
-- [ ] "Add Past Payment" button in payment history section — date picker + amount input
-- [ ] Monthly payment grid/calendar view per debt: visual grid showing each month from start date to now
-  - Green = paid (payment recorded that month)
-  - Red = missed (no payment recorded)
-  - Gold = current month (upcoming/pending)
-  - Grey = future months
-- [ ] Payment summary stats per debt: months paid, months missed, total paid, payment streak
-- [ ] Bulk import: "I've paid X months already" quick-fill for historical debts (enter start date + number of months paid, auto-generates payment entries)
-- [ ] Late fee tracking: optional "extra fees" field on each payment (penalties, late charges)
-- [ ] Update `debt_payments` table: add `late_fee` (NUMERIC, default 0) column
-- [ ] Payment history list shows: date, amount, late fee (if any), running balance
-- [ ] AI context updated: include months paid vs missed, payment streak, late fees total
+**11d — Payment History & Monthly Tracking** ✅ DONE
+- [x] Add `start_date` (DATE) column to `debts` table — when payments began
+- [x] Add `start_date` field to debt form with helper text ("When did you start paying this debt?")
+- [x] Interactive monthly payment grid per debt: clickable cells from start date to now
+  - Green = paid (payment recorded that month), tap to remove
+  - Red = missed (no payment recorded), tap to mark paid
+  - Gold = current month (only if due date hasn't passed yet)
+- [x] Payment summary stats per debt: months paid, months missed, total paid, payment streak
+- [x] "Mark all paid" button — fills all unpaid months at specified amount (for bulk historical entry)
+- [x] Late fee tracking: `late_fee` (NUMERIC, default 0) column on `debt_payments`
+- [x] Record Payment modal: amount, date, late fee (optional)
+- [x] Payment history list with inline edit (amount, date, late fee) and delete per entry
+- [x] Delete payment confirmation modal
+- [x] Manual "+ Add" button in payment history for adding past payments
+- [x] Grid correctly marks current month as missed if today > due day
+
+**11e — Payment Grid & History UX Improvements** ✅ DONE
+- [x] Collapsible year rows in monthly grid: current year expanded, past years collapsed
+- [x] Collapsed year shows summary: "2024 — 10/12 paid (2 missed)"
+- [x] Tap year header to expand/collapse its month cells (ChevronDown/ChevronRight)
+- [x] Auto-expand current year + when only 1-2 years exist
+- [x] Payment history: show last 5 by default with "Show all (N)" button to expand
+- [x] "Show less" button to re-collapse after expanding
 
 ### Phase 13 — AI Chat Hub (Unified) ✅ DONE
 
@@ -393,9 +401,10 @@ Dashboard | Expenses | AI Chat | Accounts | More
 - [x] Render rich insight cards + charts inline in the chat feed (same UI as current Insights, but inside chat)
 - [x] Period selector appears when "Spending review" chip is tapped
 
-**13c — Chat History Persistence (optional/future)**
-- [ ] Persist chat messages to state/localStorage so conversation survives tab navigation
-- [ ] Clear chat button to reset conversation
+**13c — Chat History Persistence** ✅ DONE
+- [x] Persist chat messages to localStorage so conversation survives tab navigation and page refreshes
+- [x] Clear chat button (visible when msgs > 1) to reset conversation back to welcome message
+- [x] Zero-cost implementation — localStorage only, no Supabase needed
 
 ### Phase 14 — Saved Insights + PDF Export ✅ DONE
 
@@ -509,10 +518,12 @@ Dashboard | Expenses | AI Chat | Accounts | More
 ## Session Notes (2026-03-07)
 
 ### What was done this session:
-1. **Phase 14b — PDF Export** — `printInsight()` function in ChatTab.js builds a standalone HTML page with all insight data (summary stats, category breakdown, person breakdown, AI analysis, top expenses, tips, debt summary) and opens `window.print()` for saving as PDF. "Download PDF" button above each inline insight card.
-2. **Custom domain setup** — Purchased `rxpenses.com` via Namecheap. DNS configured (A record → 76.76.21.21, CNAME www → cname.vercel-dns.com). Added to Vercel, SSL provisioned.
-3. **Google Cloud Console updated** — Added `https://rxpenses.com` and `https://www.rxpenses.com` to Authorized JavaScript origins.
-4. **Supabase redirect URLs updated** — Added rxpenses.com and www.rxpenses.com redirect URLs. Site URL updated to `https://rxpenses.com`.
+1. **Phase 14b — PDF Export** — `printInsight()` in ChatTab.js opens print dialog for saving insights as PDF.
+2. **Custom domain setup** — `rxpenses.com` via Namecheap, DNS → Vercel, SSL provisioned. Google Cloud Console + Supabase redirect URLs updated.
+3. **Phase 13c — Chat History Persistence** — Messages saved to localStorage, survive tab navigation + refreshes. Clear chat button added.
+4. **Phase 11c — Payment Alerts** — Due-soon badge on Accounts nav tab (desktop + mobile). Alert banners in Debts sub-tab (overdue red, due today/soon gold) with quick Pay button. Overdue detection uses due day (day 5 passed on 7th → overdue).
+5. **Phase 11d — Payment History & Monthly Tracking** — Interactive clickable payment grid (toggle paid/unpaid), "Mark all paid" bulk fill, start_date on debts, late_fee on payments, inline edit/delete per payment, payment stats (paid/missed/streak/total).
+6. **Overdue grid fix** — Current month turns red (missed) if today > due date, not gold.
 
 ### Current DB state:
 - Joseph's household ID: `6ee010f1-7050-4096-b198-d3bc4fae250c`
@@ -539,10 +550,8 @@ Dashboard | Expenses | AI Chat | Accounts | More
 
 - [ ] Phase 9e remaining — addedBy uses real profile names, person filter uses real names on Dashboard
 - [ ] Phase 9d remaining — list household members by name in Settings (currently shows count only)
-- [ ] Phase 11c — Payment alerts (in-app badge on Accounts tab when payments due)
-- [ ] Phase 13c — Chat history persistence (optional)
-- [ ] Test PDF export on rxpenses.com (generate spending review, click Download PDF)
 - [ ] Phase 15 — Stripe subscription (next major feature)
+- [ ] Phase 16 — Branding & PWA (logo, favicon, homescreen icons)
 
 ---
 

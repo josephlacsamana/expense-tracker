@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, Edit3, X, ChevronDown, AlertTriangle, Wallet, Coins, Clock, Bell } from "lucide-react";
+import { Plus, Trash2, Edit3, X, ChevronDown, ChevronRight, AlertTriangle, Wallet, Coins, Clock, Bell } from "lucide-react";
 import { useApp } from "../AppContext";
 import { aIcons, dIcons, DEBT_TYPES, fmt, fmtS, td, uid, pld } from "../constants";
 
@@ -30,6 +30,8 @@ export default function AccountsTab() {
   const [editPayForm, setEditPayForm] = useState({ amount: "", date: "", lateFee: "" });
   const [delPayId, setDelPayId] = useState(null);
   const [viewDt, setViewDt] = useState(null);
+  const [expYears, setExpYears] = useState({});
+  const [showAllPays, setShowAllPays] = useState({});
 
   // Computed
   const totA = accts.reduce((s, a) => s + a.balance, 0);
@@ -311,61 +313,93 @@ export default function AccountsTab() {
                     </div>
                     {totalFees > 0 && <div style={{ fontSize: 10, color: T.err, marginBottom: 8 }}>Total late fees: {fmt(totalFees)}</div>}
 
-                    {/* Interactive monthly grid */}
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: T.text2 }}>Monthly Payments <span style={{ fontWeight: 400, color: T.text3 }}>(tap to toggle)</span></div>
-                    </div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 8 }}>
-                      {grid.map(g => (
-                        <div key={g.ym} onClick={() => toggleMonth(g)} title={`${g.label}: ${g.paid ? `Paid ${fmt(g.pay?.amount || 0)}` : g.isCur ? "Current month" : "Missed — tap to mark paid"}`} style={{ width: 32, height: 32, borderRadius: 6, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontSize: 7, fontWeight: 700, cursor: g.isCur ? "default" : "pointer", userSelect: "none", background: g.paid ? (theme === "dark" ? "rgba(16,185,129,0.2)" : "rgba(16,185,129,0.15)") : g.isCur ? (theme === "dark" ? "rgba(245,181,38,0.2)" : "rgba(245,181,38,0.15)") : (theme === "dark" ? "rgba(239,68,68,0.15)" : "rgba(239,68,68,0.1)"), color: g.paid ? T.ok : g.isCur ? T.gold : T.err, border: `1px solid ${g.paid ? "rgba(16,185,129,0.3)" : g.isCur ? "rgba(245,181,38,0.3)" : "rgba(239,68,68,0.2)"}`, transition: "all 0.15s" }}>
-                          <span>{g.label.split(" ")[0]}</span>
-                          <span style={{ fontSize: 6, opacity: 0.7 }}>{g.label.split(" ")[1]}</span>
+                    {/* Interactive monthly grid — grouped by year */}
+                    {(() => {
+                      const years = {};
+                      grid.forEach(g => { const y = g.ym.slice(0, 4); if (!years[y]) years[y] = []; years[y].push(g); });
+                      const yearKeys = Object.keys(years).sort();
+                      const curYear = String(new Date().getFullYear());
+                      return <>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: T.text2 }}>Monthly Payments <span style={{ fontWeight: 400, color: T.text3 }}>(tap to toggle)</span></div>
                         </div>
-                      ))}
-                    </div>
-                    <div style={{ display: "flex", gap: 10, marginBottom: 10, fontSize: 9, color: T.text3 }}>
-                      <span style={{ display: "flex", alignItems: "center", gap: 3 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: T.ok, display: "inline-block" }} />Paid</span>
-                      <span style={{ display: "flex", alignItems: "center", gap: 3 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: T.err, display: "inline-block" }} />Missed</span>
-                      <span style={{ display: "flex", alignItems: "center", gap: 3 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: T.gold, display: "inline-block" }} />Current</span>
-                    </div>
+                        {yearKeys.map(y => {
+                          const yg = years[y];
+                          const yPaid = yg.filter(g => g.paid).length;
+                          const yMissed = yg.filter(g => !g.paid && !g.isCur).length;
+                          const isOpen = expYears[`${d.id}-${y}`] !== undefined ? expYears[`${d.id}-${y}`] : (y === curYear || (yearKeys.length <= 2));
+                          const toggleYear = () => setExpYears(v => ({ ...v, [`${d.id}-${y}`]: !isOpen }));
+                          return <div key={y} style={{ marginBottom: 4 }}>
+                            <div onClick={toggleYear} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 0", cursor: "pointer", userSelect: "none" }}>
+                              {isOpen ? <ChevronDown size={12} style={{ color: T.text3 }} /> : <ChevronRight size={12} style={{ color: T.text3 }} />}
+                              <span style={{ fontSize: 11, fontWeight: 700, color: T.text2 }}>{y}</span>
+                              {!isOpen && <span style={{ fontSize: 10, color: yMissed > 0 ? T.err : T.ok, fontWeight: 600 }}>
+                                {yPaid}/{yg.length} paid{yMissed > 0 ? ` (${yMissed} missed)` : ""}
+                              </span>}
+                            </div>
+                            {isOpen && <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 4, paddingLeft: 18 }}>
+                              {yg.map(g => (
+                                <div key={g.ym} onClick={() => toggleMonth(g)} title={`${g.label}: ${g.paid ? `Paid ${fmt(g.pay?.amount || 0)}` : g.isCur ? "Current month" : "Missed — tap to mark paid"}`} style={{ width: 32, height: 32, borderRadius: 6, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontSize: 7, fontWeight: 700, cursor: g.isCur ? "default" : "pointer", userSelect: "none", background: g.paid ? (theme === "dark" ? "rgba(16,185,129,0.2)" : "rgba(16,185,129,0.15)") : g.isCur ? (theme === "dark" ? "rgba(245,181,38,0.2)" : "rgba(245,181,38,0.15)") : (theme === "dark" ? "rgba(239,68,68,0.15)" : "rgba(239,68,68,0.1)"), color: g.paid ? T.ok : g.isCur ? T.gold : T.err, border: `1px solid ${g.paid ? "rgba(16,185,129,0.3)" : g.isCur ? "rgba(245,181,38,0.3)" : "rgba(239,68,68,0.2)"}`, transition: "all 0.15s" }}>
+                                  <span>{g.label.split(" ")[0]}</span>
+                                  <span style={{ fontSize: 6, opacity: 0.7 }}>{g.label.split(" ")[1]}</span>
+                                </div>
+                              ))}
+                            </div>}
+                          </div>;
+                        })}
+                        <div style={{ display: "flex", gap: 10, marginBottom: 10, fontSize: 9, color: T.text3 }}>
+                          <span style={{ display: "flex", alignItems: "center", gap: 3 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: T.ok, display: "inline-block" }} />Paid</span>
+                          <span style={{ display: "flex", alignItems: "center", gap: 3 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: T.err, display: "inline-block" }} />Missed</span>
+                          <span style={{ display: "flex", alignItems: "center", gap: 3 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: T.gold, display: "inline-block" }} />Current</span>
+                        </div>
 
-                    {/* Mark all paid */}
-                    <div style={{ display: "flex", gap: 6, marginBottom: 10, alignItems: "center" }}>
-                      <input type="number" inputMode="decimal" placeholder={`Amount per month (default ${fmt(d.minPayment || 0)})`} value={bulkAmt} onChange={e => setBulkAmt(e.target.value)} style={{ ...inpS, flex: 1, padding: "8px 12px", fontSize: 11 }} />
-                      <button onClick={markAllPaid} style={{ ...btnP, padding: "8px 14px", fontSize: 10, whiteSpace: "nowrap" }}>Mark all paid</button>
-                    </div>
+                        {/* Mark all paid */}
+                        <div style={{ display: "flex", gap: 6, marginBottom: 10, alignItems: "center" }}>
+                          <input type="number" inputMode="decimal" placeholder={`Amount per month (default ${fmt(d.minPayment || 0)})`} value={bulkAmt} onChange={e => setBulkAmt(e.target.value)} style={{ ...inpS, flex: 1, padding: "8px 12px", fontSize: 11 }} />
+                          <button onClick={markAllPaid} style={{ ...btnP, padding: "8px 14px", fontSize: 10, whiteSpace: "nowrap" }}>Mark all paid</button>
+                        </div>
+                      </>;
+                    })()}
                   </>}
                   {!d.startDate && grid.length === 0 && <div style={{ fontSize: 11, color: T.text3, marginBottom: 8, padding: "6px 0", fontStyle: "italic" }}>Set a start date to see the monthly payment grid. Edit this debt to add one.</div>}
 
                   {/* Payment history list */}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, marginTop: grid.length > 0 ? 4 : 0 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: T.text2 }}>Payment History</div>
-                    <button onClick={() => { setSpay(d.id); setPayAmt(""); setPayDate(td()); setPayFee(""); }} style={{ ...btnG, padding: "4px 10px", fontSize: 10, display: "flex", alignItems: "center", gap: 3 }}><Plus size={10} />Add</button>
-                  </div>
-                  {pays.length === 0 && <div style={{ fontSize: 11, color: T.text3, padding: "8px 0" }}>No payments recorded yet.</div>}
-                  {pays.slice(0, 20).map(p => editPay?.id === p.id ? (
-                    <div key={p.id} style={{ padding: "8px 0", borderBottom: `1px solid ${T.border}` }}>
-                      <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                        <input type="number" inputMode="decimal" placeholder="Amount" value={editPayForm.amount} onChange={e => setEditPayForm(v => ({ ...v, amount: e.target.value }))} style={{ ...inpS, flex: 1, padding: "7px 10px", fontSize: 12 }} />
-                        <input type="date" value={editPayForm.date} onChange={e => setEditPayForm(v => ({ ...v, date: e.target.value }))} style={{ ...inpS, flex: 1, padding: "7px 10px", fontSize: 12 }} />
+                  {(() => {
+                    const showAll = showAllPays[d.id];
+                    const limit = showAll ? pays.length : 5;
+                    const visible = pays.slice(0, limit);
+                    return <>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, marginTop: grid.length > 0 ? 4 : 0 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: T.text2 }}>Payment History {pays.length > 0 && <span style={{ fontWeight: 400, color: T.text3 }}>({pays.length})</span>}</div>
+                        <button onClick={() => { setSpay(d.id); setPayAmt(""); setPayDate(td()); setPayFee(""); }} style={{ ...btnG, padding: "4px 10px", fontSize: 10, display: "flex", alignItems: "center", gap: 3 }}><Plus size={10} />Add</button>
                       </div>
-                      <div style={{ display: "flex", gap: 6 }}>
-                        <input type="number" inputMode="decimal" placeholder="Late fee (optional)" value={editPayForm.lateFee} onChange={e => setEditPayForm(v => ({ ...v, lateFee: e.target.value }))} style={{ ...inpS, flex: 1, padding: "7px 10px", fontSize: 12 }} />
-                        <button onClick={doEditPay} style={{ ...btnP, padding: "7px 12px", fontSize: 10 }}>Save</button>
-                        <button onClick={() => setEditPay(null)} style={{ ...btnG, padding: "7px 10px", fontSize: 10 }}>Cancel</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${T.border}` }}>
-                      <div><div style={{ fontSize: 12, fontWeight: 600, color: T.ok }}>{fmt(p.amount)}{p.lateFee > 0 && <span style={{ color: T.err, fontSize: 10, marginLeft: 6 }}>+{fmt(p.lateFee)} fee</span>}</div><div style={{ fontSize: 10, color: T.text3 }}>{p.date}</div></div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                        {p.newBalance > 0 && <span style={{ fontSize: 11, color: T.text3, marginRight: 4 }}>Bal: {fmt(p.newBalance)}</span>}
-                        <button onClick={() => { setEditPay(p); setEditPayForm({ amount: String(p.amount), date: p.date, lateFee: String(p.lateFee || "") }); }} style={{ background: "none", border: "none", color: T.gold, cursor: "pointer", padding: 2 }}><Edit3 size={11} /></button>
-                        <button onClick={() => setDelPayId(p.id)} style={{ background: "none", border: "none", color: T.err, cursor: "pointer", padding: 2 }}><Trash2 size={11} /></button>
-                      </div>
-                    </div>
-                  ))}
-                  {pays.length > 20 && <div style={{ fontSize: 10, color: T.text3, marginTop: 6, textAlign: "center" }}>...and {pays.length - 20} more</div>}
+                      {pays.length === 0 && <div style={{ fontSize: 11, color: T.text3, padding: "8px 0" }}>No payments recorded yet.</div>}
+                      {visible.map(p => editPay?.id === p.id ? (
+                        <div key={p.id} style={{ padding: "8px 0", borderBottom: `1px solid ${T.border}` }}>
+                          <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                            <input type="number" inputMode="decimal" placeholder="Amount" value={editPayForm.amount} onChange={e => setEditPayForm(v => ({ ...v, amount: e.target.value }))} style={{ ...inpS, flex: 1, padding: "7px 10px", fontSize: 12 }} />
+                            <input type="date" value={editPayForm.date} onChange={e => setEditPayForm(v => ({ ...v, date: e.target.value }))} style={{ ...inpS, flex: 1, padding: "7px 10px", fontSize: 12 }} />
+                          </div>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <input type="number" inputMode="decimal" placeholder="Late fee (optional)" value={editPayForm.lateFee} onChange={e => setEditPayForm(v => ({ ...v, lateFee: e.target.value }))} style={{ ...inpS, flex: 1, padding: "7px 10px", fontSize: 12 }} />
+                            <button onClick={doEditPay} style={{ ...btnP, padding: "7px 12px", fontSize: 10 }}>Save</button>
+                            <button onClick={() => setEditPay(null)} style={{ ...btnG, padding: "7px 10px", fontSize: 10 }}>Cancel</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${T.border}` }}>
+                          <div><div style={{ fontSize: 12, fontWeight: 600, color: T.ok }}>{fmt(p.amount)}{p.lateFee > 0 && <span style={{ color: T.err, fontSize: 10, marginLeft: 6 }}>+{fmt(p.lateFee)} fee</span>}</div><div style={{ fontSize: 10, color: T.text3 }}>{p.date}</div></div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            {p.newBalance > 0 && <span style={{ fontSize: 11, color: T.text3, marginRight: 4 }}>Bal: {fmt(p.newBalance)}</span>}
+                            <button onClick={() => { setEditPay(p); setEditPayForm({ amount: String(p.amount), date: p.date, lateFee: String(p.lateFee || "") }); }} style={{ background: "none", border: "none", color: T.gold, cursor: "pointer", padding: 2 }}><Edit3 size={11} /></button>
+                            <button onClick={() => setDelPayId(p.id)} style={{ background: "none", border: "none", color: T.err, cursor: "pointer", padding: 2 }}><Trash2 size={11} /></button>
+                          </div>
+                        </div>
+                      ))}
+                      {pays.length > 5 && !showAll && <button onClick={() => setShowAllPays(v => ({ ...v, [d.id]: true }))} style={{ background: "none", border: "none", color: T.gold, cursor: "pointer", fontSize: 11, fontWeight: 600, padding: "8px 0", width: "100%", textAlign: "center" }}>Show all {pays.length} payments</button>}
+                      {showAll && pays.length > 5 && <button onClick={() => setShowAllPays(v => ({ ...v, [d.id]: false }))} style={{ background: "none", border: "none", color: T.text3, cursor: "pointer", fontSize: 11, fontWeight: 600, padding: "8px 0", width: "100%", textAlign: "center" }}>Show less</button>}
+                    </>;
+                  })()}
                 </div>; })()}
               </div>); })}
           </div>
