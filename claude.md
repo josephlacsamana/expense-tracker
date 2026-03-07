@@ -349,16 +349,16 @@ Dashboard | Expenses | AI Chat | Accounts | More
 - [x] AI can answer debt questions in AI Chat (total owed, next due date, payoff timeline, etc.)
 - [x] Debt summary included in AI Insights reviews (debtAnalysis field in JSON + debt summary card in UI)
 
-**11c — Payment Alerts & Notifications** 🔄 PARTIAL
-- [ ] PWA push notifications for approaching due dates (3 days before, 1 day before, day of)
-- [ ] Service Worker registration for push notifications
-- [ ] Notification permission request flow (Settings toggle)
+**11c — Payment Alerts & Notifications** ✅ DONE (except email)
+- [x] PWA push notifications for approaching due dates (3 days before, 1 day before, day of) — via Phase 18d SW
+- [x] Service Worker registration for push notifications — via Phase 18d
+- [x] Notification permission request flow (Settings toggle) — via Phase 18d
 - [x] Missed payment detection: overdue alert when due date passes (red banner with month names)
 - [x] In-app notification badge on Accounts tab (desktop sidebar + mobile nav) with due count
 - [x] Due-soon alert banners in Debts sub-tab: overdue (red), due today (gold), due within 3 days (gold) with quick Pay button
 - [x] Badge count on Debts sub-tab pill
 - [x] Overdue detection accounts for due day (e.g. due day 5, today is 7th → March is overdue, not "current")
-- [ ] Daily/weekly debt summary notification (optional, configurable in Settings)
+- [x] Daily debt/recurring check via SW — sends notifications once per day for due items
 - [ ] Email notifications (future/lower priority): Supabase Edge Function to send reminder emails
 
 **11d — Payment History & Monthly Tracking** ✅ DONE
@@ -481,11 +481,11 @@ Dashboard | Expenses | AI Chat | Accounts | More
 - [ ] Test "Add to Home Screen" on iOS Safari and Android Chrome — logo appears correctly
 - [ ] Splash screen config for iOS (optional): apple-touch-startup-image
 
-**16c — App Name Update**
-- [ ] Update browser tab title from "Shared Finance" to "RXpenses" (or chosen brand name)
-- [ ] Update login screen brand text
-- [ ] Update sidebar header text
-- [ ] Update manifest.json short_name and name
+**16c — App Name Update** ✅ DONE
+- [x] Update browser tab title from "Shared Finance" to "RXpenses"
+- [x] Update login screen brand text (LandingPage shows "RXpenses")
+- [x] Update sidebar header text (shows "RXpenses" in sidebar + mobile header)
+- [x] Update manifest.json short_name and name
 
 ### Phase 17 — Landing Page (Public Homepage)
 
@@ -528,6 +528,10 @@ Dashboard | Expenses | AI Chat | Accounts | More
 - [x] PWA manifest (`public/manifest.json`) for installable app
 - [x] Browser tab title updated to "RXpenses"
 - [x] Apple mobile web app meta tags added
+
+**18e — Dark Mode White Border Fix** ✅ DONE
+- [x] Added CSS reset (margin:0, padding:0) on html/body in index.html
+- [x] Set body background to #0E0E14 (dark theme base) to eliminate white border/flash in PWA and browser
 
 ### Phase 12 — Code Refactoring ✅ DONE
 
@@ -604,5 +608,5 @@ Dashboard | Expenses | AI Chat | Accounts | More
 - No real bank integration — balances are manual entry only
 - Image processing — receipt images sent to Claude API as base64
 - Session-based auth — PIN checked on load, stored in React state
-- No push notifications yet — planned in Phase 11c (PWA push + optional email)
+- Local push notifications via SW (Phase 18d) — server-side push + email not yet implemented
 - Supabase free tier: 500MB database, 1GB file storage, 50K monthly active users
