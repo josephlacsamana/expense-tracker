@@ -66,13 +66,13 @@ export default function MoreTab() {
       </div>
 
       {sbReady && householdId && (
-        <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 8, marginBottom: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 8, marginBottom: 16, alignItems: "start" }}>
           {householdRole === "owner" && <button onClick={() => { setInviteEmail(""); setInviteEmailSent(false); setInviteModal(true); }} style={{ ...cardS, width: "100%", padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>
             <UserPlus size={18} style={{ color: T.gold }} />
             <div><div style={{ fontSize: 13, fontWeight: 600, color: T.text1 }}>Invite Partner</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>Invite by Gmail address</div></div>
           </button>}
-          <div style={{ ...cardS, padding: "16px 18px", display: "flex", alignItems: "center", gap: 12 }}>
-            <Home size={18} style={{ color: T.gold, flexShrink: 0 }} />
+          <div style={{ ...cardS, padding: "16px 18px", display: "flex", alignItems: "flex-start", gap: 12 }}>
+            <Home size={18} style={{ color: T.gold, flexShrink: 0, marginTop: 2 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                 {editHhName ? (
