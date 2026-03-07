@@ -6,11 +6,12 @@ import { PERIODS, fmt, fmtS, pld, startOf, prevRange } from "../constants";
 import ChartTooltip from "../components/ChartTooltip";
 
 export default function DashboardTab() {
-  const { exp, accts, budgets, genBudget, cats, catColors, theme, isDesktop, T, cardS, pillS } = useApp();
+  const { exp, accts, budgets, genBudget, cats, catColors, users, theme, isDesktop, T, cardS, pillS, inpS } = useApp();
   const [per, setPer] = useState("Monthly");
+  const [pf, setPf] = useState("All");
 
   const ps = startOf(per);
-  const filt = exp.filter(e => per === "All" || pld(e.date) >= ps);
+  const filt = exp.filter(e => per === "All" || pld(e.date) >= ps).filter(e => pf === "All" || e.addedBy === pf);
   const totF = filt.reduce((s, e) => s + e.amount, 0);
   const byCat = filt.reduce((a, e) => { a[e.category] = (a[e.category] || 0) + e.amount; return a; }, {});
   const [prS, prE] = prevRange(per);
@@ -38,7 +39,10 @@ export default function DashboardTab() {
           <Wallet size={26} style={{ color: "rgba(245,181,38,0.25)" }} />
         </div>
       )}
-      <div style={{ display: "flex", gap: 6, marginBottom: 18, flexWrap: "wrap" }}>{PERIODS.filter(p => p !== "All").map(p => <button key={p} onClick={() => setPer(p)} style={pillS(per === p)}>{p}</button>)}</div>
+      <div style={{ display: "flex", gap: 6, marginBottom: 18, flexWrap: "wrap", alignItems: "center" }}>
+        {PERIODS.filter(p => p !== "All").map(p => <button key={p} onClick={() => setPer(p)} style={pillS(per === p)}>{p}</button>)}
+        {users.length > 1 && <select value={pf} onChange={e => setPf(e.target.value)} style={{ ...inpS, width: "auto", fontSize: 11, minWidth: 80, padding: "7px 32px 7px 10px", marginLeft: "auto" }}><option value="All">All</option>{users.map(u => <option key={u} value={u}>{u}</option>)}</select>}
+      </div>
 
       <div style={{ background: `linear-gradient(135deg,${T.goldMuted},transparent)`, border: `1px solid ${T.borderStrong}`, borderRadius: 22, padding: 24, marginBottom: 18, position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", top: -30, right: -30, width: 120, height: 120, borderRadius: "50%", background: "rgba(245,181,38,0.06)" }} />

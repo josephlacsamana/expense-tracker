@@ -6,7 +6,7 @@ import { useApp } from "../AppContext";
 import { DEF_CATS, DEFAULT_BUDGETS, uid } from "../constants";
 
 export default function MoreTab() {
-  const { exp, setExp, setAccts, setBudgets, setGenBudget, setCats, setRec, setDebts, setDPays, tst, user, users, householdId, householdRole, profile, household, isDesktop, T, cardS, inpS, btnP, btnG, mOvS, mInS, notifEnabled, toggleNotif } = useApp();
+  const { exp, setExp, setAccts, setBudgets, setGenBudget, setCats, setRec, setDebts, setDPays, tst, user, users, memberProfiles, householdId, householdRole, profile, household, isDesktop, T, cardS, inpS, btnP, btnG, mOvS, mInS, notifEnabled, toggleNotif } = useApp();
 
   const [clr, setClr] = useState(false);
   const [inviteModal, setInviteModal] = useState(false);
@@ -82,6 +82,17 @@ export default function MoreTab() {
                 )}
                 <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: householdRole === "owner" ? "rgba(245,181,38,0.15)" : "rgba(138,128,120,0.15)", color: householdRole === "owner" ? T.gold : T.text3, textTransform: "capitalize", flexShrink: 0 }}>{householdRole}</span>
               </div>
+              {memberProfiles.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 6 }}>
+                  {memberProfiles.map(m => (
+                    <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      {m.avatar_url ? <img src={m.avatar_url} alt="" style={{ width: 22, height: 22, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} /> : <div style={{ width: 22, height: 22, borderRadius: "50%", background: T.goldMuted, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: T.gold, flexShrink: 0 }}>{(m.display_name || "?")[0].toUpperCase()}</div>}
+                      <span style={{ fontSize: 11, color: T.text2, flex: 1 }}>{m.display_name}</span>
+                      <span style={{ fontSize: 9, fontWeight: 600, color: m.role === "owner" ? T.gold : T.text3, textTransform: "capitalize" }}>{m.role}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <div style={{ fontSize: 10, color: T.text3, flex: 1 }}>{users.length} member{users.length !== 1 ? "s" : ""}</div>
                 {householdRole === "owner" && (editHhName ? (

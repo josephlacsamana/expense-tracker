@@ -118,15 +118,21 @@ export function AppProvider({ children, user, householdId, householdRole, profil
     })();
   }, [householdId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const [memberProfiles, setMemberProfiles] = useState([]);
+
   // ─── LOAD HOUSEHOLD MEMBERS ───
   useEffect(() => {
     if (sbReady && householdId) {
-      supabase.from("household_members").select("user_id").eq("household_id", householdId)
+      supabase.from("household_members").select("user_id, role").eq("household_id", householdId)
         .then(async ({ data: members }) => {
           if (!members?.length) return;
           const ids = members.map(m => m.user_id);
-          const { data: profiles } = await supabase.from("profiles").select("display_name").in("id", ids);
-          if (profiles?.length) setUsers(profiles.map(p => p.display_name).filter(Boolean));
+          const { data: profiles } = await supabase.from("profiles").select("id, display_name, email, avatar_url").in("id", ids);
+          if (profiles?.length) {
+            const merged = profiles.map(p => ({ ...p, role: members.find(m => m.user_id === p.id)?.role || "member" }));
+            setMemberProfiles(merged);
+            setUsers(profiles.map(p => p.display_name).filter(Boolean));
+          }
         });
     }
   }, [householdId]);
@@ -229,7 +235,7 @@ export function AppProvider({ children, user, householdId, householdRole, profil
     // Styles
     pillS, cardS, inpS, btnP, btnG, mOvS, mInS,
     // Data
-    exp, accts, budgets, genBudget, cats, rec, debts, dPays, acctHist, insights, users, ld, toast,
+    exp, accts, budgets, genBudget, cats, rec, debts, dPays, acctHist, insights, users, memberProfiles, ld, toast,
     // Setters (for local use by tabs)
     setExp, setAccts, setBudgets, setGenBudget, setCats, setRec, setDebts, setDPays, setAcctHist,
     // Actions

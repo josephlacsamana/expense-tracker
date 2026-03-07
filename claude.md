@@ -265,16 +265,17 @@ On first Supabase load with empty tables, existing localStorage data is auto-mig
 - [x] Hide "Clear All Data" button for members
 - [x] Hide "Invite Partner" button for members
 - [x] Show role badge in Settings (Owner / Member) — gold pill for owner, grey for member
-- [ ] Owner can see list of household members by name in Settings (currently shows count only)
+- [x] Household member list in Settings: avatar, name, role per member (not just count)
 
-**9e — Profile & Household UI** 🔄 PARTIAL
+**9e — Profile & Household UI** ✅ DONE
 - [x] Profile card in Settings: avatar, display name, email (from Google)
 - [x] Avatar + name + email shown in desktop sidebar
 - [x] Household name display (editable by owner via inline Rename)
 - [x] Google OAuth forces account picker (`prompt: "select_account"`) — no more auto-login
-- [ ] "addedBy" field uses actual user names from profiles (not hardcoded)
-- [ ] Person filter on Dashboard/Expenses uses real household member names
-- [ ] Summary cards show per-person breakdown using real names
+- [x] "addedBy" field uses profile display_name (set from Google profile on login)
+- [x] Person filter on Dashboard uses real household member names (dropdown, same as Expenses)
+- [x] Summary cards show per-person breakdown using real names (byP groups by addedBy from data)
+- [x] Full member profiles (avatar, name, role) loaded in AppContext and exposed as `memberProfiles`
 
 ### Phase 10 — Navigation & Tab Restructure
 
