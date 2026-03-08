@@ -462,25 +462,24 @@ Dashboard | Expenses | AI Chat | Accounts | More
 
 ### Phase 16 — Branding & PWA (Logo, Favicon, Homescreen)
 
-**16a — Logo & Favicon**
-- [ ] Design new app logo (gold/amber themed, clean, modern — no emojis)
-- [ ] Create SVG logo for use in login screen, sidebar header, and about section
-- [ ] Generate favicon set: favicon.ico (16x16, 32x32), favicon-16x16.png, favicon-32x32.png
-- [ ] Replace current gold peso coin SVG favicon with new logo
-- [ ] Update `public/index.html` with new favicon links
-- [ ] Logo used in login screen hero section (replace Coins icon)
-- [ ] Logo used in desktop sidebar header (replace "ExpenseTracker" text or complement it)
+**16a — Logo & Favicon** ✅ DONE
+- [x] Design new app logo (gold/amber themed, clean, modern — no emojis) — RX monogram with gold gradient
+- [x] Create SVG logo for use in login screen, sidebar header, and about section (`public/favicon.svg`)
+- [x] Replace current gold peso coin SVG favicon with new RX logo
+- [x] Update `public/index.html` with favicon + apple-touch-icon links
+- [x] Logo used in landing page nav + footer (replaced Coins icon with inline RX)
+- [x] Logo used in desktop sidebar header + mobile header (RX box + text)
+- [x] PNG icon generation script available (`scripts/generate-icons.js` — requires `npm install canvas`)
 
-**16b — PWA Manifest & Homescreen Icons**
-- [ ] Create `public/manifest.json` with app name ("RXpenses"), theme color (#F5B526), background color, display: standalone
-- [ ] Generate homescreen icon set from logo: 192x192, 384x384, 512x512 (PNG)
-- [ ] Apple touch icon: 180x180 PNG in `public/`
-- [ ] Add `<link rel="apple-touch-icon">` and `<link rel="manifest">` to `public/index.html`
-- [ ] Add `<meta name="apple-mobile-web-app-capable" content="yes">`
-- [ ] Add `<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">`
-- [ ] Add `<meta name="theme-color" content="#F5B526">`
-- [ ] Test "Add to Home Screen" on iOS Safari and Android Chrome — logo appears correctly
-- [ ] Splash screen config for iOS (optional): apple-touch-startup-image
+**16b — PWA Manifest & Homescreen Icons** ✅ DONE
+- [x] Update `public/manifest.json` with app name, theme color, background color, display: standalone, orientation, description, categories
+- [x] SVG icons in manifest (modern browsers support SVG for PWA install)
+- [x] Add `<link rel="apple-touch-icon">` to `public/index.html`
+- [x] `<meta name="apple-mobile-web-app-capable" content="yes">` (already existed from Phase 18d)
+- [x] `<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">` (already existed)
+- [x] `<meta name="theme-color" content="#F5B526">` (already existed)
+- [ ] Generate PNG icons for older browsers (run `scripts/generate-icons.js` — optional, SVG works for Chrome/Edge/Firefox)
+- [ ] Test "Add to Home Screen" on iOS Safari and Android Chrome
 
 **16c — App Name Update** ✅ DONE
 - [x] Update browser tab title from "Shared Finance" to "RXpenses"

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Sun, Moon, Coins, Lock, MessageSquare, CreditCard, BarChart3, Camera, ArrowRight, ChevronDown, ChevronUp, Users, Shield, Zap, LogIn } from "lucide-react";
+import { Sun, Moon, Lock, MessageSquare, CreditCard, BarChart3, Camera, ArrowRight, ChevronDown, ChevronUp, Users, Shield, Zap, LogIn } from "lucide-react";
 import { supabase } from "./supabase";
 import { themes, LOCAL_USERS, DEFAULT_PINS, localStore } from "./constants";
 import { useMediaQuery } from "./hooks";
@@ -74,8 +74,8 @@ export default function LandingPage({ onLogin, theme, toggleTheme, authError, lo
       <nav style={{ position: "sticky", top: 0, zIndex: 100, background: theme === "dark" ? "rgba(14,14,20,0.85)" : "rgba(250,250,247,0.85)", backdropFilter: "blur(20px)", borderBottom: `1px solid ${T.border}` }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: isDesktop ? "0 60px" : "0 20px", height: isDesktop ? 72 : 60, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }} onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label="RXpenses home">
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: T.grad, display: "flex", alignItems: "center", justifyContent: "center" }} role="img" aria-label="RXpenses logo">
-              <Coins size={18} style={{ color: theme === "dark" ? "#0C0C12" : "#FFF" }} />
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: T.grad, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 16, color: theme === "dark" ? "#0C0C12" : "#FFF", letterSpacing: -1, fontFamily: "system-ui,-apple-system,sans-serif" }} role="img" aria-label="RXpenses logo">
+              RX
             </div>
             <span style={{ fontSize: 18, fontWeight: 800, color: T.text1, letterSpacing: -0.5 }}>R<span style={{ color: T.gold }}>X</span>penses</span>
           </div>
@@ -287,8 +287,8 @@ export default function LandingPage({ onLogin, theme, toggleTheme, authError, lo
       <footer style={{ borderTop: `1px solid ${T.border}`, padding: isDesktop ? "36px 60px" : "28px 24px" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", flexDirection: isDesktop ? "row" : "column", justifyContent: "space-between", alignItems: isDesktop ? "center" : "flex-start", gap: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 28, height: 28, borderRadius: 8, background: T.grad, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Coins size={14} style={{ color: theme === "dark" ? "#0C0C12" : "#FFF" }} />
+            <div style={{ width: 28, height: 28, borderRadius: 8, background: T.grad, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 12, color: theme === "dark" ? "#0C0C12" : "#FFF", letterSpacing: -1, fontFamily: "system-ui,-apple-system,sans-serif" }}>
+              RX
             </div>
             <span style={{ fontSize: 14, fontWeight: 700, color: T.text2 }}>R<span style={{ color: T.gold }}>X</span>penses</span>
           </div>

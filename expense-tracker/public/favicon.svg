@@ -1,9 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <circle cx="32" cy="32" r="30" fill="#F5B526"/>
-  <circle cx="32" cy="32" r="25" fill="none" stroke="#D4960E" stroke-width="2"/>
-  <g fill="#1A1A2E">
-    <rect x="18" y="22" width="28" height="3.5" rx="1.5"/>
-    <rect x="18" y="28" width="28" height="3.5" rx="1.5"/>
-    <path d="M28 14h8c6 0 10 4 10 10v2c0 6-4 10-10 10h-4v12h-4V14zm4 4v14h4c3.3 0 6-2.7 6-6v-2c0-3.3-2.7-6-6-6h-4z"/>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F5B526"/>
+      <stop offset="100%" stop-color="#D4960E"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#g)"/>
+  <text x="256" y="280" text-anchor="middle" dominant-baseline="central" font-family="system-ui,-apple-system,sans-serif" font-size="260" font-weight="800" fill="#1A1A2E" letter-spacing="-12">RX</text>
 </svg>

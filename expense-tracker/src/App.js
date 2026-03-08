@@ -48,7 +48,10 @@ function MainApp({ onLogout, toggleTheme }) {
       {isDesktop && (
         <div style={{ width: 250, height: "100vh", background: T.surface, borderRight: `1px solid ${T.border}`, padding: "28px 0", display: "flex", flexDirection: "column", flexShrink: 0, position: "sticky", top: 0, alignSelf: "flex-start", boxSizing: "border-box" }}>
           <div style={{ padding: "0 24px", marginBottom: 36 }}>
-            <h1 style={{ fontSize: 22, fontWeight: 800, margin: "0 0 14px", color: T.text1, letterSpacing: -0.5 }}>R<span style={{ color: T.gold }}>X</span>penses</h1>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+              <div style={{ width: 32, height: 32, borderRadius: 9, background: T.grad, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 14, color: theme === "dark" ? "#0C0C12" : "#FFF", letterSpacing: -1, fontFamily: "system-ui,-apple-system,sans-serif", flexShrink: 0 }}>RX</div>
+              <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, color: T.text1, letterSpacing: -0.5 }}>R<span style={{ color: T.gold }}>X</span>penses</h1>
+            </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               {profile?.avatar_url ? <img src={profile.avatar_url} alt="" style={{ width: 34, height: 34, borderRadius: "50%", objectFit: "cover", border: `2px solid ${T.gold}`, flexShrink: 0 }} /> : <div style={{ width: 34, height: 34, borderRadius: "50%", background: T.goldMuted, border: `2px solid ${T.gold}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: T.gold, flexShrink: 0 }}>{(user || "?")[0].toUpperCase()}</div>}
               <div><div style={{ fontSize: 13, fontWeight: 600, color: T.text1 }}>{user}</div><div style={{ fontSize: 10, color: T.text3, marginTop: 1 }}>{profile?.email || ""}</div></div>
@@ -82,9 +85,12 @@ function MainApp({ onLogout, toggleTheme }) {
         {/* Mobile Header */}
         {!isDesktop && (
           <div style={{ padding: "18px 20px 0", maxWidth: 600, margin: "0 auto", width: "100%", boxSizing: "border-box", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <h1 style={{ fontSize: 24, fontWeight: 800, margin: 0, color: T.text1, letterSpacing: -0.5 }}>R<span style={{ color: T.gold }}>X</span>penses</h1>
-              <p style={{ color: T.text3, fontSize: 11, margin: "2px 0 0" }}>Logged in as <span style={{ color: T.gold }}>{user}</span></p>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 32, height: 32, borderRadius: 9, background: T.grad, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 14, color: theme === "dark" ? "#0C0C12" : "#FFF", letterSpacing: -1, fontFamily: "system-ui,-apple-system,sans-serif", flexShrink: 0 }}>RX</div>
+              <div>
+                <h1 style={{ fontSize: 24, fontWeight: 800, margin: 0, color: T.text1, letterSpacing: -0.5 }}>R<span style={{ color: T.gold }}>X</span>penses</h1>
+                <p style={{ color: T.text3, fontSize: 11, margin: "2px 0 0" }}>Logged in as <span style={{ color: T.gold }}>{user}</span></p>
+              </div>
             </div>
             <div style={{ display: "flex", gap: 6 }}>
               <button onClick={toggleTheme} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: 8, color: T.text2, cursor: "pointer", display: "flex", alignItems: "center" }}>

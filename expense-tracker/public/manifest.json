@@ -1,9 +1,26 @@
 {
   "short_name": "RXpenses",
   "name": "RXpenses - Shared Expense Tracker",
-  "icons": [],
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
   "start_url": ".",
   "display": "standalone",
   "theme_color": "#F5B526",
-  "background_color": "#0E0E14"
+  "background_color": "#0E0E14",
+  "orientation": "portrait",
+  "scope": "/",
+  "description": "Free AI-powered shared expense tracker for couples. Track expenses, scan receipts, manage debts, and get smart spending insights.",
+  "categories": ["finance", "productivity"]
 }

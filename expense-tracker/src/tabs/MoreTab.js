@@ -6,7 +6,7 @@ import { useApp } from "../AppContext";
 import { DEF_CATS, DEFAULT_BUDGETS, uid } from "../constants";
 
 export default function MoreTab() {
-  const { exp, setExp, setAccts, setBudgets, setGenBudget, setCats, setRec, setDebts, setDPays, tst, user, users, memberProfiles, householdId, householdRole, profile, household, isDesktop, T, cardS, inpS, btnP, btnG, mOvS, mInS, notifEnabled, toggleNotif } = useApp();
+  const { exp, setExp, setAccts, setBudgets, setGenBudget, setCats, setRec, setDebts, setDPays, tst, user, memberProfiles, householdId, householdRole, profile, household, isDesktop, T, cardS, inpS, btnP, btnG, mOvS, mInS, notifEnabled, toggleNotif } = useApp();
 
   const [clr, setClr] = useState(false);
   const [inviteModal, setInviteModal] = useState(false);
