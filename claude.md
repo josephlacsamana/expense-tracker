@@ -31,7 +31,7 @@ AI-powered receipt scanning, chat-based expense logging, dashboards, analytics, 
 | `expenses` | id (TEXT PK), amount, category, description, date, added_by, account_id, household_id (FK), created_at | Main data, scoped to household |
 | `accounts` | id (TEXT PK), name, balance, type, household_id (FK), updated_at | Manual bank balances, scoped to household |
 | `recurring` | id (TEXT PK), amount, category, description, frequency, next_date, added_by, household_id (FK), created_at | Templates, scoped to household |
-| `categories` | name + household_id (composite PK), sort_order (INT) | Dynamic, max 15, scoped to household |
+| `categories` | name + household_id (composite PK), sort_order (INT) | Dynamic, no limit, scoped to household |
 | `settings` | key + household_id (composite PK), value (JSONB) | Stores: `budgets`, `genBudget`, `pins`, scoped to household |
 | `profiles` | id (UUID PK), email, display_name, avatar_url, created_at | Google Auth profiles |
 | `households` | id (UUID PK), name, created_at | Household groups |

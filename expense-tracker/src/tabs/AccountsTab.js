@@ -196,10 +196,9 @@ export default function AccountsTab() {
               ))}
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <input type="text" placeholder="New category name" value={newCat} onChange={e => setNewCat(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { const n = newCat.trim(); if (!n || cats.includes(n) || cats.length >= 15) return; svCats([...cats.slice(0, -1), n, "Other"]); svB({ ...budgets, [n]: 0 }); setNewCat(""); tst(`Category "${n}" added`); } }} style={{ ...inpS, flex: 1 }} />
-              <button onClick={() => { const n = newCat.trim(); if (!n || cats.includes(n) || cats.length >= 15) return; svCats([...cats.slice(0, -1), n, "Other"]); svB({ ...budgets, [n]: 0 }); setNewCat(""); tst(`Category "${n}" added`); }} style={{ ...btnP, padding: "12px 20px", whiteSpace: "nowrap" }}>Add</button>
+              <input type="text" placeholder="New category name" value={newCat} onChange={e => setNewCat(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { const n = newCat.trim(); if (!n || cats.includes(n)) return; svCats([...cats.slice(0, -1), n, "Other"]); svB({ ...budgets, [n]: 0 }); setNewCat(""); tst(`Category "${n}" added`); } }} style={{ ...inpS, flex: 1 }} />
+              <button onClick={() => { const n = newCat.trim(); if (!n || cats.includes(n)) return; svCats([...cats.slice(0, -1), n, "Other"]); svB({ ...budgets, [n]: 0 }); setNewCat(""); tst(`Category "${n}" added`); }} style={{ ...btnP, padding: "12px 20px", whiteSpace: "nowrap" }}>Add</button>
             </div>
-            {cats.length >= 15 && <div style={{ fontSize: 10, color: T.text3, marginTop: 6 }}>Maximum 15 categories reached</div>}
           </div>
           {!sbf ? (<>
             <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 8 }}>
