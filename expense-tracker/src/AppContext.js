@@ -34,6 +34,7 @@ export function AppProvider({ children, user, householdId, householdRole, profil
   const [dPays, setDPays] = useState([]);
   const [acctHist, setAcctHist] = useState([]);
   const [insights, setInsights] = useState([]);
+  const [savGoals, setSavGoals] = useState([]);
   const [users, setUsers] = useState([user]);
   const [ld, setLd] = useState(true);
   const [toast, setToast] = useState(null);

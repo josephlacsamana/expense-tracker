@@ -98,6 +98,16 @@ export const sb = {
   },
   deleteInsight: async (id, hid) => { await supabase.from("insights").delete().eq("id", id).eq("household_id", hid); },
   deleteAllInsights: async (hid) => { await supabase.from("insights").delete().eq("household_id", hid); },
+  // Savings Goals
+  loadSavingsGoals: async (hid) => {
+    const { data } = await supabase.from("savings_goals").select("*").eq("household_id", hid).order("created_at", { ascending: false });
+    return data?.map(r => ({ id: r.id, name: r.name, targetAmount: Number(r.target_amount), currentAmount: Number(r.current_amount || 0), targetDate: r.target_date || null, addedBy: r.added_by, createdAt: r.created_at, updatedAt: r.updated_at })) || [];
+  },
+  upsertSavingsGoal: async (g, hid) => {
+    await supabase.from("savings_goals").upsert({ id: g.id, name: g.name, target_amount: g.targetAmount, current_amount: g.currentAmount, target_date: g.targetDate || null, added_by: g.addedBy, household_id: hid, created_at: g.createdAt, updated_at: g.updatedAt });
+  },
+  deleteSavingsGoal: async (id, hid) => { await supabase.from("savings_goals").delete().eq("id", id).eq("household_id", hid); },
+  deleteAllSavingsGoals: async (hid) => { await supabase.from("savings_goals").delete().eq("household_id", hid); },
   // Migrate localStorage → Supabase (one-time)
   migrate: async (expenses, accounts, recurring, categories, budgets, genBudget, pins, hid) => {
     const ops = [];

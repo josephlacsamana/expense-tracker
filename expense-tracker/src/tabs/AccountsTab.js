@@ -29,6 +29,7 @@ export default function AccountsTab() {
   const [payFee, setPayFee] = useState("");
   const [bulkAmt, setBulkAmt] = useState("");
   const [editPay, setEditPay] = useState(null);
+  const [showNoLimit, setShowNoLimit] = useState(false);
   const [editPayForm, setEditPayForm] = useState({ amount: "", date: "", lateFee: "" });
   const [delPayId, setDelPayId] = useState(null);
   const [viewDt, setViewDt] = useState(null);
@@ -207,12 +208,23 @@ export default function AccountsTab() {
             </div>}
             {overView && <div style={{ fontSize: 11, color: T.err, fontWeight: 600, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}><AlertTriangle size={14} />Category totals exceed your general monthly budget. You can still save, but consider adjusting.</div>}
             {genBudget > 0 && <div style={{ fontSize: 12, fontWeight: 600, color: T.text2, marginBottom: 10 }}>Total spent this month: <span style={{ color: mTot > genBudget ? T.err : T.gold, fontWeight: 800 }}>{fmt(mTot)}</span> of {fmt(genBudget)} ({gbPct.toFixed(0)}%)</div>}
-            <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 8 }}>
-              {cats.map(c => (<div key={c} style={{ ...cardS, padding: "14px 16px" }}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 8, height: 8, borderRadius: 3, background: catColors[c] }} /><span style={{ fontSize: 13, fontWeight: 600 }}>{c}</span></div><span style={{ fontSize: 14, fontWeight: 800 }}>{fmt(budgets[c] || 0)}</span></div>
-                {budgets[c] > 0 && <><div style={{ marginTop: 8, height: 5, borderRadius: 3, background: theme === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.06)", overflow: "hidden" }}><div style={{ height: "100%", borderRadius: 3, width: `${Math.min(100, ((mByCat[c] || 0) / (budgets[c] || 1)) * 100)}%`, background: (mByCat[c] || 0) > (budgets[c] || 0) ? T.err : (mByCat[c] || 0) > (budgets[c] || 0) * 0.8 ? T.goldLight : T.ok, transition: "width 0.3s" }} /></div>
-                <div style={{ fontSize: 10, color: T.text3, marginTop: 5 }}>Spent: {fmt(mByCat[c] || 0)} / {fmt(budgets[c] || 0)}</div></>}
-                {budgets[c] === 0 && <div style={{ fontSize: 10, color: T.text3, marginTop: 5 }}>No limit set{(mByCat[c] || 0) > 0 ? ` — Spent: ${fmt(mByCat[c])}` : ""}</div>}</div>))}
-            </div>
+            {(() => { const withB = cats.filter(c => (budgets[c] || 0) > 0); const noB = cats.filter(c => !(budgets[c] > 0)); return (<>
+              {withB.length > 0 && <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 8 }}>
+                {withB.map(c => (<div key={c} style={{ ...cardS, padding: "14px 16px" }}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 8, height: 8, borderRadius: 3, background: catColors[c] }} /><span style={{ fontSize: 13, fontWeight: 600 }}>{c}</span></div><span style={{ fontSize: 14, fontWeight: 800 }}>{fmt(budgets[c] || 0)}</span></div>
+                  <div style={{ marginTop: 8, height: 5, borderRadius: 3, background: theme === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.06)", overflow: "hidden" }}><div style={{ height: "100%", borderRadius: 3, width: `${Math.min(100, ((mByCat[c] || 0) / (budgets[c] || 1)) * 100)}%`, background: (mByCat[c] || 0) > (budgets[c] || 0) ? T.err : (mByCat[c] || 0) > (budgets[c] || 0) * 0.8 ? T.goldLight : T.ok, transition: "width 0.3s" }} /></div>
+                  <div style={{ fontSize: 10, color: T.text3, marginTop: 5 }}>Spent: {fmt(mByCat[c] || 0)} / {fmt(budgets[c] || 0)}</div></div>))}
+              </div>}
+              {noB.length > 0 && <div style={{ marginTop: withB.length > 0 ? 12 : 0 }}>
+                <button onClick={() => setShowNoLimit(p => !p)} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, padding: "6px 0", color: T.text3, fontSize: 12, fontWeight: 600 }}>
+                  {showNoLimit ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  {noB.length} {noB.length === 1 ? "category" : "categories"} with no budget limit
+                </button>
+                {showNoLimit && <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 8, marginTop: 6 }}>
+                  {noB.map(c => (<div key={c} style={{ ...cardS, padding: "14px 16px" }}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 8, height: 8, borderRadius: 3, background: catColors[c] }} /><span style={{ fontSize: 13, fontWeight: 600 }}>{c}</span></div><span style={{ fontSize: 14, fontWeight: 800, color: T.text3 }}>{fmt(0)}</span></div>
+                    <div style={{ fontSize: 10, color: T.text3, marginTop: 5 }}>No limit set{(mByCat[c] || 0) > 0 ? ` — Spent: ${fmt(mByCat[c])}` : ""}</div></div>))}
+                </div>}
+              </div>}
+            </>); })()}
             <button onClick={() => { setBf({ ...budgets }); setSbf(true); }} style={{ ...btnG, width: "100%", marginTop: 8, borderColor: T.borderStrong, color: T.gold }}>Edit Budgets</button>
           </>); })() : (() => { const catTotal = cats.reduce((s, c) => s + (bf[c] || 0), 0); const remaining = genBudget > 0 ? genBudget - catTotal : null; const overAllocated = remaining !== null && remaining < 0; return (<>
             {genBudget > 0 && <div style={{ ...cardS, padding: "12px 16px", marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>

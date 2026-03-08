@@ -537,12 +537,13 @@ Dashboard | Expenses | AI Chat | Accounts | More
 
 **Why:** rxpenses.com is not indexed by Google yet. Searching "rxpenses.com" shows unrelated results. Need proper SEO so it ranks for "expense tracker", "shared expense tracker", "AI expense tracker Philippines", etc.
 
-**19a — Technical SEO (On-Page Basics)** 🔄 PARTIAL
+**19a — Technical SEO (On-Page Basics)** ✅ DONE
 - [x] Add `<meta name="description">` with keyword-rich copy
 - [x] Add `<meta name="keywords">` with target terms: expense tracker, shared expenses, AI receipt scanner, budget tracker, debt tracker, Philippines, PHP
 - [x] Add Open Graph meta tags (`og:title`, `og:description`, `og:site_name`, `og:url`, `og:type`) for social sharing previews
 - [x] Add Twitter Card meta tags (`twitter:card`, `twitter:title`, `twitter:description`)
-- [ ] Create a social share preview image (1200x630 OG image) — gold-themed with app name + tagline (needed for `og:image` and `twitter:image`)
+- [x] Create OG image via Vercel Edge function (`api/og.js` using `@vercel/og`) — 1200x630, gold-themed with app name, tagline, feature pills
+- [x] Add `og:image` and `twitter:image` meta tags pointing to `/api/og`
 - [x] Add `<link rel="canonical" href="https://rxpenses.com/">` to prevent duplicate content
 - [x] Add structured data (JSON-LD) — `SoftwareApplication` schema with name, description, price, features
 - [x] Improve `<title>` tag: "RXpenses — Free AI Expense Tracker for Couples | Track, Budget, Save"
@@ -587,6 +588,60 @@ Dashboard | Expenses | AI Chat | Accounts | More
 - [ ] Blog posts include internal links back to app features + CTA to sign up
 - [ ] Add blog index to sitemap.xml for crawling
 - [ ] Consider using markdown files or Supabase table for blog content storage
+
+### Phase 20 — Savings Goals
+
+**20a — Savings Goal Data Model & UI**
+- [ ] Create `savings_goals` Supabase table: id (TEXT PK), name, target_amount, current_amount, target_date, icon, household_id (FK), created_at, updated_at
+- [ ] Add/edit/delete savings goals with form (name, target amount, target date, optional icon)
+- [ ] Goal card: name, progress bar, current vs target amount, percentage, days remaining
+- [ ] "Add Funds" button per goal — record contribution with amount and date
+- [ ] Goal history: list of contributions (date, amount)
+- [ ] Summary card: total saved across all goals, number of active goals
+- [ ] Where it lives: new sub-tab under Accounts (`Accounts | Budgets | Debts | Savings`)
+- [ ] Celebration state when goal is reached (100% filled, green highlight)
+- [ ] Supabase CRUD helpers + localStorage fallback
+- [ ] Clear All Data includes savings goals
+
+### Phase 21 — Multi-Currency Support
+
+**21a — Currency Data & Conversion**
+- [ ] Add `currency` field to expense form (default PHP, optional override)
+- [ ] Currency selector dropdown with common currencies (PHP, USD, EUR, JPY, SGD, AED, KRW, THB)
+- [ ] Free exchange rate API (e.g. frankfurter.app or exchangerate-api.com) — fetch daily rates
+- [ ] Auto-convert foreign currency expenses to PHP equivalent on save
+- [ ] Store both original amount + currency AND converted PHP amount on each expense
+- [ ] Dashboard/charts always show PHP totals (converted)
+- [ ] Expense list shows original currency + PHP equivalent: "¥2,500 (P850.00)"
+- [ ] Cache exchange rates in localStorage (refresh once per day)
+
+### Phase 22 — UI/UX Polish
+
+**22a — Budget Cards Grouping**
+- [ ] Group budget category cards: categories with budget set (top), categories with no limit (collapsed section below)
+- [ ] Collapsed "No limit set" section shows count: "8 categories with no budget limit" — tap to expand
+- [ ] Categories with budget set show progress bar + spending (as current)
+- [ ] Reduces visual clutter when many categories exist
+
+**22b — Mobile Navigation Redesign**
+- [ ] Icons-only bottom nav on mobile (remove text labels)
+- [ ] Larger icons (20-22px instead of 16px)
+- [ ] Active tab: gold dot indicator below icon (instead of text highlight)
+- [ ] Slightly taller nav bar for easier tap targets
+- [ ] Keep desktop sidebar as-is (text labels work well with sidebar width)
+
+**22c — Loading Animation**
+- [ ] Replace "Loading..." text with animated coin/money illustration
+- [ ] CSS-only animation: spinning coin or falling coins effect
+- [ ] Gold-themed, consistent with design system
+- [ ] Used on initial app load and data fetching states
+
+**22d — Pull-to-Refresh (Mobile PWA)**
+- [ ] Detect pull-down gesture on mobile when scrolled to top
+- [ ] Show refresh indicator (spinning coin or gold spinner)
+- [ ] Re-fetch all data from Supabase on release (expenses, accounts, recurring, debts, categories, settings)
+- [ ] Toast confirmation: "Data refreshed"
+- [ ] Only active on mobile (not desktop)
 
 ### Phase 12 — Code Refactoring ✅ DONE
 
