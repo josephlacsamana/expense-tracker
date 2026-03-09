@@ -37,6 +37,7 @@ export default function AccountsTab() {
   const [sgDel, setSgDel] = useState(null);
   const [sgAdd, setSgAdd] = useState(null);
   const [sgAddAmt, setSgAddAmt] = useState("");
+  const [sgSavedIn, setSgSavedIn] = useState("native"); // "native" = enter in BTC/ETH/etc, "usd" = enter in USD (auto-convert)
   const [editPayForm, setEditPayForm] = useState({ amount: "", date: "", lateFee: "" });
   const [delPayId, setDelPayId] = useState(null);
   const [viewDt, setViewDt] = useState(null);
@@ -458,7 +459,7 @@ export default function AccountsTab() {
         {accSub === "savings" && (<>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
             <div style={{ fontSize: 18, fontWeight: 800 }}>Savings Goals</div>
-            <button onClick={() => { setSgf({ name: "", targetAmount: "", targetDate: "", currentAmount: "", currency: "PHP" }); setSgEdit(null); setSgForm(true); }} style={{ ...btnP, padding: "10px 16px", fontSize: 12, display: "flex", alignItems: "center", gap: 5 }}><Plus size={14} />Add Goal</button>
+            <button onClick={() => { setSgf({ name: "", targetAmount: "", targetDate: "", currentAmount: "", currency: "PHP" }); setSgEdit(null); setSgSavedIn("native"); setSgForm(true); }} style={{ ...btnP, padding: "10px 16px", fontSize: 12, display: "flex", alignItems: "center", gap: 5 }}><Plus size={14} />Add Goal</button>
           </div>
 
           {/* Summary card */}
@@ -499,7 +500,7 @@ export default function AccountsTab() {
                     {isCrypto && cp && cp.change24h !== 0 && <div style={{ fontSize: 10, color: cp.change24h >= 0 ? T.ok : T.err, marginTop: 2 }}>{cp.change24h >= 0 ? "+" : ""}{cp.change24h.toFixed(2)}% (24h)</div>}
                   </div>
                   <div style={{ display: "flex", gap: 4 }}>
-                    <button onClick={() => { setSgEdit(g.id); setSgf({ name: g.name, targetAmount: String(g.targetAmount), targetDate: g.targetDate || "", currentAmount: String(g.currentAmount), currency: cur }); setSgForm(true); }} style={{ background: "none", border: "none", color: T.gold, cursor: "pointer", padding: 4 }}><Edit3 size={14} /></button>
+                    <button onClick={() => { setSgEdit(g.id); setSgf({ name: g.name, targetAmount: String(g.targetAmount), targetDate: g.targetDate || "", currentAmount: String(g.currentAmount), currency: cur }); setSgSavedIn("native"); setSgForm(true); }} style={{ background: "none", border: "none", color: T.gold, cursor: "pointer", padding: 4 }}><Edit3 size={14} /></button>
                     <button onClick={() => setSgDel(g.id)} style={{ background: "none", border: "none", color: T.err, cursor: "pointer", padding: 4 }}><Trash2 size={14} /></button>
                   </div>
                 </div>
@@ -527,66 +528,99 @@ export default function AccountsTab() {
           <div style={{ fontSize: 18, fontWeight: 800, color: T.text1 }}>{sgEdit ? "Edit" : "Add"} Savings Goal</div>
           <button onClick={() => setSgForm(false)} style={{ background: "none", border: "none", color: T.text3, cursor: "pointer" }}><X size={22} /></button>
         </div>
+        {(() => { const fc = sgf.currency; const isPhp = fc === "PHP"; const isUsd = fc === "USD"; const isCr = !isPhp && !isUsd; const cp = cryptoPrices[fc]; const usdRate = cryptoPrices["USD"]?.php || 56; return (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div><input placeholder="Goal name (e.g. Vacation Fund, Bitcoin Stack)" value={sgf.name} onChange={e => setSgf(v => ({ ...v, name: e.target.value }))} style={inpS} /><div style={{ fontSize: 10, color: T.text3, marginTop: 4 }}>What are you saving for?</div></div>
           <div>
-            <select value={sgf.currency} onChange={e => setSgf(v => ({ ...v, currency: e.target.value }))} style={inpS}>
+            <select value={fc} onChange={e => { setSgf(v => ({ ...v, currency: e.target.value })); setSgSavedIn("native"); }} style={inpS}>
               <option value="PHP">PHP -- Philippine Peso</option>
               <option value="USD">USD -- US Dollar</option>
               <optgroup label="Crypto">
                 {CRYPTO_COINS.map(c => <option key={c.symbol} value={c.symbol}>{c.symbol} -- {c.name}{cryptoPrices[c.symbol] ? ` (${fmt(cryptoPrices[c.symbol].php)})` : ""}</option>)}
               </optgroup>
             </select>
-            <div style={{ fontSize: 10, color: T.text3, marginTop: 4 }}>Currency or crypto coin for this goal.</div>
+            <div style={{ fontSize: 10, color: T.text3, marginTop: 4 }}>{isCr && cp ? `1 ${fc} = ${fmt(cp.php)} / $${cp.usd.toLocaleString()}` : "Currency or crypto coin for this goal."}</div>
           </div>
-          <div><input placeholder={sgf.currency === "PHP" ? "Target amount" : sgf.currency === "USD" ? "Target in USD (e.g. 1000)" : `Target in ${sgf.currency} (e.g. 0.5)`} type="number" inputMode="decimal" step="any" value={sgf.targetAmount} onChange={e => setSgf(v => ({ ...v, targetAmount: e.target.value }))} style={inpS} />
-            <div style={{ fontSize: 10, color: T.text3, marginTop: 4 }}>
-              {sgf.currency !== "PHP" && sgf.targetAmount && cryptoPrices[sgf.currency] ? `~${fmt(parseFloat(sgf.targetAmount) * cryptoPrices[sgf.currency].php)} PHP` : "How much do you want to save?"}
-            </div>
+          {/* Target amount */}
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: T.text2, marginBottom: 4 }}>Target amount{!isPhp ? ` (in ${fc})` : ""}</div>
+            <input placeholder={isPhp ? "e.g. 50000" : isUsd ? "e.g. 1000" : `e.g. ${fc === "BTC" ? "0.5" : fc === "ETH" ? "5" : "100"}`} type="number" inputMode="decimal" step="any" value={sgf.targetAmount} onChange={e => setSgf(v => ({ ...v, targetAmount: e.target.value }))} style={inpS} />
+            {!isPhp && sgf.targetAmount && cp && <div style={{ fontSize: 10, color: T.gold, marginTop: 4 }}>Worth ~{fmt(parseFloat(sgf.targetAmount) * cp.php)} in PHP</div>}
           </div>
-          <div><input placeholder={sgf.currency === "PHP" ? "Already saved (optional)" : sgf.currency === "USD" ? "Already saved in USD (optional)" : `Already saved in ${sgf.currency} (optional)`} type="number" inputMode="decimal" step="any" value={sgf.currentAmount} onChange={e => setSgf(v => ({ ...v, currentAmount: e.target.value }))} style={inpS} />
-            <div style={{ fontSize: 10, color: T.text3, marginTop: 4 }}>
-              {sgf.currency !== "PHP" && sgf.currentAmount && cryptoPrices[sgf.currency] ? `~${fmt(parseFloat(sgf.currentAmount) * cryptoPrices[sgf.currency].php)} PHP` : "How much have you already saved toward this goal?"}
+          {/* Already saved */}
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: T.text2 }}>Already saved (optional)</div>
+              {isCr && cp && <div style={{ display: "flex", gap: 4 }}>
+                <button onClick={() => setSgSavedIn("native")} style={{ ...pillS(sgSavedIn === "native"), padding: "3px 8px", fontSize: 9 }}>{fc}</button>
+                <button onClick={() => setSgSavedIn("usd")} style={{ ...pillS(sgSavedIn === "usd"), padding: "3px 8px", fontSize: 9 }}>USD</button>
+              </div>}
             </div>
+            <input placeholder={isCr ? (sgSavedIn === "usd" ? "Enter amount in USD" : `Enter amount in ${fc}`) : isUsd ? "Enter amount in USD" : "Enter amount in PHP"} type="number" inputMode="decimal" step="any" value={sgf.currentAmount} onChange={e => setSgf(v => ({ ...v, currentAmount: e.target.value }))} style={inpS} />
+            {isCr && sgf.currentAmount && cp && (() => {
+              const val = parseFloat(sgf.currentAmount);
+              if (sgSavedIn === "usd") {
+                const inCrypto = val / cp.usd;
+                return <div style={{ fontSize: 10, color: T.gold, marginTop: 4 }}>${val.toLocaleString()} = {inCrypto < 1 ? inCrypto.toFixed(6) : inCrypto.toFixed(4)} {fc} (worth ~{fmt(inCrypto * cp.php)} PHP)</div>;
+              }
+              return <div style={{ fontSize: 10, color: T.gold, marginTop: 4 }}>{val} {fc} = worth ~{fmt(val * cp.php)} PHP / ~${(val * cp.usd).toLocaleString()}</div>;
+            })()}
+            {isUsd && sgf.currentAmount && <div style={{ fontSize: 10, color: T.gold, marginTop: 4 }}>${parseFloat(sgf.currentAmount).toLocaleString()} = ~{fmt(parseFloat(sgf.currentAmount) * usdRate)} PHP</div>}
           </div>
           <div><input type="date" value={sgf.targetDate} onChange={e => setSgf(v => ({ ...v, targetDate: e.target.value }))} style={inpS} /><div style={{ fontSize: 10, color: T.text3, marginTop: 4 }}>Target date (optional). When do you want to reach this goal?</div></div>
           <button onClick={() => {
             if (!sgf.name.trim() || !sgf.targetAmount || parseFloat(sgf.targetAmount) <= 0) return;
-            const notPhp = sgf.currency !== "PHP";
             const tgt = parseFloat(sgf.targetAmount);
-            const cur = parseFloat(sgf.currentAmount || 0);
-            const entry = { id: sgEdit || uid(), name: sgf.name.trim(), targetAmount: notPhp ? tgt : parseFloat(tgt.toFixed(2)), currentAmount: notPhp ? cur : parseFloat(cur.toFixed(2)), targetDate: sgf.targetDate || null, currency: sgf.currency, addedBy: user, createdAt: sgEdit ? (savGoals.find(g => g.id === sgEdit)?.createdAt || new Date().toISOString()) : new Date().toISOString(), updatedAt: new Date().toISOString() };
+            let cur = parseFloat(sgf.currentAmount || 0);
+            // If crypto goal with "saved in USD" toggle, convert USD to crypto amount
+            if (isCr && sgSavedIn === "usd" && cp && cur > 0) cur = cur / cp.usd;
+            const entry = { id: sgEdit || uid(), name: sgf.name.trim(), targetAmount: isPhp ? parseFloat(tgt.toFixed(2)) : tgt, currentAmount: isPhp ? parseFloat(cur.toFixed(2)) : cur, targetDate: sgf.targetDate || null, currency: fc, addedBy: user, createdAt: sgEdit ? (savGoals.find(g => g.id === sgEdit)?.createdAt || new Date().toISOString()) : new Date().toISOString(), updatedAt: new Date().toISOString() };
             const updated = sgEdit ? savGoals.map(g => g.id === sgEdit ? entry : g) : [...savGoals, entry];
             svSG(updated, { upsert: entry });
             setSgForm(false);
             tst(sgEdit ? "Goal updated" : "Goal added");
           }} style={{ ...btnP, width: "100%" }}>{sgEdit ? "Update Goal" : "Add Goal"}</button>
         </div>
+        ); })()}
       </div></div>}
 
       {/* Add funds modal */}
-      {sgAdd && (() => { const addGoal = savGoals.find(g => g.id === sgAdd); const addCur = addGoal?.currency || "PHP"; const addIsForeign = addCur !== "PHP"; return <div style={mOvS}><div style={mInS}>
+      {sgAdd && (() => { const addGoal = savGoals.find(g => g.id === sgAdd); const addCur = addGoal?.currency || "PHP"; const addIsPhp = addCur === "PHP"; const addIsUsd = addCur === "USD"; const addIsCr = !addIsPhp && !addIsUsd; const addCp = cryptoPrices[addCur]; return <div style={mOvS}><div style={mInS}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <div style={{ fontSize: 18, fontWeight: 800, color: T.text1 }}>Add {addIsForeign ? addCur : "Funds"}</div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: T.text1 }}>Add Funds</div>
           <button onClick={() => setSgAdd(null)} style={{ background: "none", border: "none", color: T.text3, cursor: "pointer" }}><X size={22} /></button>
         </div>
-        <div style={{ fontSize: 13, color: T.text2, marginBottom: 14 }}>Adding to: <strong>{addGoal?.name}</strong>{addIsForeign && <span style={{ color: T.gold, marginLeft: 4 }}>({addCur})</span>}</div>
+        <div style={{ fontSize: 13, color: T.text2, marginBottom: 10 }}>Adding to: <strong>{addGoal?.name}</strong>{!addIsPhp && <span style={{ color: T.gold, marginLeft: 4 }}>({addCur})</span>}</div>
+        {addIsCr && addCp && <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+          <button onClick={() => setSgSavedIn("native")} style={{ ...pillS(sgSavedIn === "native"), padding: "5px 12px", fontSize: 11 }}>Enter in {addCur}</button>
+          <button onClick={() => setSgSavedIn("usd")} style={{ ...pillS(sgSavedIn === "usd"), padding: "5px 12px", fontSize: 11 }}>Enter in USD</button>
+        </div>}
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <input type="number" inputMode="decimal" step="any" placeholder={addIsForeign ? `Amount in ${addCur}` : "Amount"} value={sgAddAmt} onChange={e => setSgAddAmt(e.target.value)} onKeyDown={e => { if (e.key === "Enter") document.getElementById("sgAddBtn")?.click(); }} style={{ ...inpS, flex: 1 }} autoFocus />
+          <input type="number" inputMode="decimal" step="any" placeholder={addIsCr ? (sgSavedIn === "usd" ? "Amount in USD" : `Amount in ${addCur}`) : addIsUsd ? "Amount in USD" : "Amount in PHP"} value={sgAddAmt} onChange={e => setSgAddAmt(e.target.value)} onKeyDown={e => { if (e.key === "Enter") document.getElementById("sgAddBtn")?.click(); }} style={{ ...inpS, flex: 1 }} autoFocus />
           <button id="sgAddBtn" onClick={() => {
-            const amt = parseFloat(sgAddAmt);
+            let amt = parseFloat(sgAddAmt);
             if (!amt || amt <= 0) return;
             const g = savGoals.find(g => g.id === sgAdd);
             if (!g) return;
+            // If entering in USD for a crypto goal, convert to crypto amount
+            if (addIsCr && sgSavedIn === "usd" && addCp) amt = amt / addCp.usd;
             const isFgn = g.currency && g.currency !== "PHP";
             const updated = savGoals.map(x => x.id === sgAdd ? { ...x, currentAmount: isFgn ? x.currentAmount + amt : parseFloat((x.currentAmount + amt).toFixed(2)), updatedAt: new Date().toISOString() } : x);
             const upsertEntry = updated.find(x => x.id === sgAdd);
             svSG(updated, { upsert: upsertEntry });
-            setSgAdd(null);
-            tst(`Added ${isFgn ? (g.currency === "USD" ? "$" + amt : amt + " " + g.currency) : fmt(amt)} to ${g.name}`);
+            setSgAdd(null); setSgSavedIn("native");
+            tst(`Added ${isFgn ? (g.currency === "USD" ? "$" + parseFloat(sgAddAmt) : (sgSavedIn === "usd" ? "$" + parseFloat(sgAddAmt) + " (" + amt.toFixed(6) + " " + g.currency + ")" : amt + " " + g.currency)) : fmt(amt)} to ${g.name}`);
           }} style={{ ...btnP, padding: "12px 20px", whiteSpace: "nowrap" }}>Add</button>
         </div>
-        {addIsForeign && sgAddAmt && cryptoPrices[addCur] && <div style={{ fontSize: 11, color: T.text3, marginTop: 8 }}>~{fmt(parseFloat(sgAddAmt) * cryptoPrices[addCur].php)} PHP</div>}
+        {sgAddAmt && (() => {
+          const val = parseFloat(sgAddAmt);
+          if (addIsCr && addCp) {
+            if (sgSavedIn === "usd") { const inCr = val / addCp.usd; return <div style={{ fontSize: 10, color: T.gold, marginTop: 8 }}>${val.toLocaleString()} = {inCr < 1 ? inCr.toFixed(6) : inCr.toFixed(4)} {addCur} (worth ~{fmt(inCr * addCp.php)} PHP)</div>; }
+            return <div style={{ fontSize: 10, color: T.gold, marginTop: 8 }}>{val} {addCur} = ~{fmt(val * addCp.php)} PHP / ~${(val * addCp.usd).toLocaleString()}</div>;
+          }
+          if (addIsUsd && cryptoPrices["USD"]) return <div style={{ fontSize: 10, color: T.gold, marginTop: 8 }}>${val.toLocaleString()} = ~{fmt(val * cryptoPrices["USD"].php)} PHP</div>;
+          return null;
+        })()}
       </div></div>; })()}
 
       {/* Delete savings goal modal */}
