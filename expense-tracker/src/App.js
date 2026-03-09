@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Check, LogOut, Sun, Moon, PieChart, LayoutDashboard, MessageSquare, Wallet, Settings, Home } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Check, LogOut, Sun, Moon, PieChart, LayoutDashboard, MessageSquare, Wallet, Settings, Home, RefreshCw } from "lucide-react";
 import { supabase, sbReady } from "./supabase";
 import { themes } from "./constants";
 import { AppProvider, useApp } from "./AppContext";
@@ -12,8 +12,40 @@ import MoreTab from "./tabs/MoreTab";
 
 // ─── MAIN APP (nav shell + tab router) ───
 function MainApp({ onLogout, toggleTheme }) {
-  const { user, profile, debts, rec, theme, isDesktop, T, ld, toast } = useApp();
+  const { user, profile, debts, rec, theme, isDesktop, T, ld, toast, refreshData } = useApp();
   const [tab, setTab] = useState("dashboard");
+
+  // ─── PULL-TO-REFRESH (mobile only) ───
+  const [ptrPull, setPtrPull] = useState(0);
+  const [ptrRefreshing, setPtrRefreshing] = useState(false);
+  const ptrStart = useRef(null);
+  const ptrThreshold = 80;
+
+  const onTouchStart = useCallback((e) => {
+    if (isDesktop || ptrRefreshing) return;
+    const scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+    if (scrollTop <= 0) ptrStart.current = e.touches[0].clientY;
+    else ptrStart.current = null;
+  }, [isDesktop, ptrRefreshing]);
+
+  const onTouchMove = useCallback((e) => {
+    if (ptrStart.current === null || isDesktop || ptrRefreshing) return;
+    const diff = e.touches[0].clientY - ptrStart.current;
+    if (diff > 0) setPtrPull(Math.min(diff * 0.5, 120));
+    else setPtrPull(0);
+  }, [isDesktop, ptrRefreshing]);
+
+  const onTouchEnd = useCallback(async () => {
+    if (ptrStart.current === null || isDesktop) return;
+    if (ptrPull >= ptrThreshold && !ptrRefreshing) {
+      setPtrRefreshing(true);
+      setPtrPull(ptrThreshold);
+      await refreshData();
+      setPtrRefreshing(false);
+    }
+    setPtrPull(0);
+    ptrStart.current = null;
+  }, [isDesktop, ptrPull, ptrRefreshing, refreshData, ptrThreshold]);
 
   // Due-soon debts: due within 3 days or overdue this month
   const dueCount = (() => {
@@ -41,7 +73,15 @@ function MainApp({ onLogout, toggleTheme }) {
   if (ld) return <div style={{ minHeight: "100vh", background: T.gradBg, display: "flex", justifyContent: "center", alignItems: "center", color: T.gold }}>Loading...</div>;
 
   return (
-    <div style={{ minHeight: "100vh", background: T.gradBg, color: T.text1, display: "flex", flexDirection: isDesktop ? "row" : "column", fontFamily: "'Inter',-apple-system,BlinkMacSystemFont,sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: T.gradBg, color: T.text1, display: "flex", flexDirection: isDesktop ? "row" : "column", fontFamily: "'Inter',-apple-system,BlinkMacSystemFont,sans-serif" }} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
+      {/* Pull-to-refresh indicator (mobile only) */}
+      {!isDesktop && (ptrPull > 0 || ptrRefreshing) && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, display: "flex", justifyContent: "center", zIndex: 9998, paddingTop: Math.min(ptrPull, ptrThreshold) - 40, transition: ptrRefreshing ? "none" : "padding-top 0.1s", pointerEvents: "none" }}>
+          <div style={{ width: 36, height: 36, borderRadius: "50%", background: T.surface, border: `2px solid ${T.gold}`, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 16px rgba(0,0,0,0.2)", opacity: Math.min(ptrPull / ptrThreshold, 1), transform: `rotate(${ptrRefreshing ? 0 : ptrPull * 3}deg)` }}>
+            <RefreshCw size={18} style={{ color: T.gold }} className={ptrRefreshing ? "spin" : ""} />
+          </div>
+        </div>
+      )}
       {toast && <div style={{ position: "fixed", top: 20, left: isDesktop ? "calc(50% + 120px)" : "50%", transform: "translateX(-50%)", background: T.toastBg, border: `1px solid ${T.toastBorder}`, color: T.gold, padding: "12px 24px", borderRadius: 14, fontSize: 13, fontWeight: 600, zIndex: 9999, boxShadow: "0 8px 32px rgba(245,181,38,0.15)", display: "flex", alignItems: "center", gap: 8 }}><Check size={16} />{toast}</div>}
 
       {/* Desktop Sidebar */}

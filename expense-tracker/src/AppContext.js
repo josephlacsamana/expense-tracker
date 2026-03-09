@@ -233,6 +233,27 @@ export function AppProvider({ children, user, householdId, householdRole, profil
     return () => clearInterval(interval);
   }, [notifEnabled, debts, rec]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ─── REFRESH ALL DATA (pull-to-refresh) ───
+  const refreshData = async () => {
+    try {
+      if (sbReady) {
+        const d = await sb.loadAll(householdId);
+        setExp(d.expenses);
+        setAccts(d.accounts);
+        if (d.budgets) setBudgets(d.budgets);
+        if (d.genBudget !== null) setGenBudget(d.genBudget);
+        setRec(d.recurring);
+        setDebts(d.debts);
+        setDPays(d.debtPayments);
+        if (d.categories) setCats(d.categories);
+        try { const ah = await sb.loadAccountHistory(householdId); setAcctHist(ah); } catch {}
+        try { const ins = await sb.loadInsights(householdId); setInsights(ins); } catch {}
+        try { const sg = await sb.loadSavingsGoals(householdId); setSavGoals(sg); } catch {}
+      }
+      tst("Data refreshed");
+    } catch (e) { console.error("[refresh]", e); tst("Refresh failed"); }
+  };
+
   const value = {
     // Auth & identity
     user, householdId, householdRole, profile, household, theme, isDesktop, T,
@@ -250,6 +271,8 @@ export function AppProvider({ children, user, householdId, householdRole, profil
     callAI,
     // Notifications
     notifEnabled, toggleNotif,
+    // Refresh
+    refreshData,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
