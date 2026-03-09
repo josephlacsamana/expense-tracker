@@ -565,7 +565,7 @@ export default function AccountsTab() {
       </div></div>}
 
       {/* Add funds modal */}
-      {sgAdd && (() => { const addGoal = savGoals.find(g => g.id === sgAdd); const addCur = addGoal?.currency || "PHP"; const addIsForeign = addCur !== "PHP"; const addIsCrypto = addIsForeign && addCur !== "USD"; return <div style={mOvS}><div style={mInS}>
+      {sgAdd && (() => { const addGoal = savGoals.find(g => g.id === sgAdd); const addCur = addGoal?.currency || "PHP"; const addIsForeign = addCur !== "PHP"; return <div style={mOvS}><div style={mInS}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
           <div style={{ fontSize: 18, fontWeight: 800, color: T.text1 }}>Add {addIsForeign ? addCur : "Funds"}</div>
           <button onClick={() => setSgAdd(null)} style={{ background: "none", border: "none", color: T.text3, cursor: "pointer" }}><X size={22} /></button>
