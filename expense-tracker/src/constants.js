@@ -44,8 +44,34 @@ export const EXTRA_COLORS = ["#A78BFA","#F97316","#06B6D4","#84CC16","#E879F9","
 export const PERIODS = ["Daily","Weekly","Monthly","Quarterly","Yearly","All"];
 export const LOCAL_USERS = ["Joseph","Rowena"];
 export const DEBT_TYPES = ["Credit Card", "Mortgage", "Personal Loan", "Car Loan", "Other"];
+export const CRYPTO_COINS = [
+  { id: "bitcoin", symbol: "BTC", name: "Bitcoin" },
+  { id: "ethereum", symbol: "ETH", name: "Ethereum" },
+  { id: "solana", symbol: "SOL", name: "Solana" },
+  { id: "ripple", symbol: "XRP", name: "XRP" },
+  { id: "tether", symbol: "USDT", name: "Tether" },
+  { id: "binancecoin", symbol: "BNB", name: "BNB" },
+  { id: "cardano", symbol: "ADA", name: "Cardano" },
+  { id: "dogecoin", symbol: "DOGE", name: "Dogecoin" },
+  { id: "polkadot", symbol: "DOT", name: "Polkadot" },
+  { id: "avalanche-2", symbol: "AVAX", name: "Avalanche" },
+  { id: "chainlink", symbol: "LINK", name: "Chainlink" },
+  { id: "matic-network", symbol: "MATIC", name: "Polygon" },
+];
 export const DEFAULT_BUDGETS = { Food: 0, Transport: 0, Bills: 0, Shopping: 0, Health: 0, Entertainment: 0, Subscriptions: 0, Other: 0 };
 export const DEFAULT_PINS = { Joseph: "1234", Rowena: "5678" };
+export const CURRENCIES = [
+  { code: "PHP", symbol: "\u20B1", name: "Philippine Peso" },
+  { code: "USD", symbol: "$", name: "US Dollar" },
+  { code: "EUR", symbol: "\u20AC", name: "Euro" },
+  { code: "JPY", symbol: "\u00A5", name: "Japanese Yen" },
+  { code: "SGD", symbol: "S$", name: "Singapore Dollar" },
+  { code: "AED", symbol: "AED", name: "UAE Dirham" },
+  { code: "KRW", symbol: "\u20A9", name: "Korean Won" },
+  { code: "THB", symbol: "\u0E3F", name: "Thai Baht" },
+  { code: "GBP", symbol: "\u00A3", name: "British Pound" },
+  { code: "AUD", symbol: "A$", name: "Australian Dollar" },
+];
 
 export const aIcons = { savings: PiggyBank, checking: CreditCard, investment: Building2, other: Wallet };
 export const dIcons = { "Credit Card": CreditCard, "Mortgage": Building2, "Personal Loan": Wallet, "Car Loan": Coins, "Other": PiggyBank };

@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { supabase, sbReady } from "./supabase";
-import { themes, DEF_CATS, DEF_CCO, EXTRA_COLORS, DEFAULT_BUDGETS, localStore } from "./constants";
+import { themes, DEF_CATS, DEF_CCO, EXTRA_COLORS, DEFAULT_BUDGETS, CRYPTO_COINS, localStore } from "./constants";
 import { useMediaQuery } from "./hooks";
 import { sb } from "./db";
 
@@ -39,6 +39,8 @@ export function AppProvider({ children, user, householdId, householdRole, profil
   const [ld, setLd] = useState(true);
   const [toast, setToast] = useState(null);
   const [notifEnabled, setNotifEnabled] = useState(() => { try { return localStorage.getItem("notifEnabled") === "true"; } catch { return false; } });
+  const [cryptoPrices, setCryptoPrices] = useState(() => { try { const c = localStorage.getItem("cryptoPrices"); return c ? JSON.parse(c) : {}; } catch { return {}; } });
+  const [cryptoLastUpdated, setCryptoLastUpdated] = useState(() => { try { return localStorage.getItem("cryptoPricesTime") || null; } catch { return null; } });
 
   const tst = (m) => { setToast(m); setTimeout(() => setToast(null), 2500); };
 
@@ -233,6 +235,38 @@ export function AppProvider({ children, user, householdId, householdRole, profil
     return () => clearInterval(interval);
   }, [notifEnabled, debts, rec]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ─── CRYPTO PRICES (CoinGecko free API) ───
+  const fetchCryptoPrices = async () => {
+    try {
+      const ids = CRYPTO_COINS.map(c => c.id).join(",");
+      const r = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=php,usd&include_24hr_change=true`);
+      if (!r.ok) return;
+      const d = await r.json();
+      // Transform: { bitcoin: { php: 5000000, usd: 95000, php_24h_change: 1.5 }, ... }
+      const prices = {};
+      CRYPTO_COINS.forEach(c => {
+        if (d[c.id]) prices[c.symbol] = { php: d[c.id].php || 0, usd: d[c.id].usd || 0, change24h: d[c.id].php_24h_change || 0 };
+      });
+      // Derive USD→PHP rate from BTC prices (php/usd)
+      if (d.bitcoin?.php && d.bitcoin?.usd) prices["USD"] = { php: d.bitcoin.php / d.bitcoin.usd, usd: 1, change24h: 0 };
+      setCryptoPrices(prices);
+      const now = new Date().toISOString();
+      setCryptoLastUpdated(now);
+      localStorage.setItem("cryptoPrices", JSON.stringify(prices));
+      localStorage.setItem("cryptoPricesTime", now);
+    } catch (e) { console.error("[crypto]", e); }
+  };
+
+  // Fetch on load + every 5 min
+  useEffect(() => {
+    // Check if any savings goals use crypto, or just always fetch for quick display
+    const hasCrypto = savGoals.some(g => g.currency && g.currency !== "PHP");
+    const cacheAge = cryptoLastUpdated ? (Date.now() - new Date(cryptoLastUpdated).getTime()) : Infinity;
+    if (hasCrypto || cacheAge > 300000) fetchCryptoPrices();
+    const iv = setInterval(fetchCryptoPrices, 300000); // 5 min
+    return () => clearInterval(iv);
+  }, [savGoals.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ─── REFRESH ALL DATA (pull-to-refresh) ───
   const refreshData = async () => {
     try {
@@ -273,6 +307,8 @@ export function AppProvider({ children, user, householdId, householdRole, profil
     notifEnabled, toggleNotif,
     // Refresh
     refreshData,
+    // Crypto
+    cryptoPrices, cryptoLastUpdated, fetchCryptoPrices,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
