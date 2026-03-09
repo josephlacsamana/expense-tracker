@@ -70,7 +70,13 @@ function MainApp({ onLogout, toggleTheme }) {
     { id: "more", label: "More", icon: Settings }
   ];
 
-  if (ld) return <div style={{ minHeight: "100vh", background: T.gradBg, display: "flex", justifyContent: "center", alignItems: "center", color: T.gold }}>Loading...</div>;
+  if (ld) return (
+    <div style={{ minHeight: "100vh", background: T.gradBg, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 16 }}>
+      <div style={{ width: 48, height: 48, borderRadius: 14, background: T.grad, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 20, color: theme === "dark" ? "#0C0C12" : "#FFF", letterSpacing: -1, fontFamily: "system-ui,-apple-system,sans-serif", animation: "coinFlip 1.2s ease-in-out infinite" }}>RX</div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: T.text3 }}>Loading your data...</div>
+      <style>{`@keyframes coinFlip{0%,100%{transform:rotateY(0deg)}50%{transform:rotateY(180deg)}}`}</style>
+    </div>
+  );
 
   return (
     <div style={{ minHeight: "100vh", background: T.gradBg, color: T.text1, display: "flex", flexDirection: isDesktop ? "row" : "column", fontFamily: "'Inter',-apple-system,BlinkMacSystemFont,sans-serif" }} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
@@ -141,12 +147,12 @@ function MainApp({ onLogout, toggleTheme }) {
           </div>
         )}
 
-        {/* Mobile Tabs */}
+        {/* Mobile Tabs — icons only, gold dot indicator */}
         {!isDesktop && (
           <div style={{ maxWidth: 600, margin: "14px auto 0", padding: "0 20px", width: "100%", boxSizing: "border-box" }}>
-            <div style={{ display: "flex", gap: 2, background: T.surface, borderRadius: 16, padding: 4, border: `1px solid ${T.border}` }}>
+            <div style={{ display: "flex", gap: 2, background: T.surface, borderRadius: 16, padding: "6px 4px", border: `1px solid ${T.border}` }}>
               {tabs.map(t => { const I = t.icon; const a = tab === t.id;
-                return <button key={t.id} onClick={() => setTab(t.id)} style={{ flex: 1, padding: "10px 4px", borderRadius: 12, border: "none", background: a ? T.goldMuted : "transparent", color: a ? T.gold : T.text3, fontSize: 10, fontWeight: 700, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, position: "relative" }}><span style={{ position: "relative" }}><I size={16} />{t.badge > 0 && <span style={{ position: "absolute", top: -4, right: -8, background: T.err, color: "#FFF", fontSize: 8, fontWeight: 700, borderRadius: 8, padding: "1px 4px", minWidth: 12, textAlign: "center" }}>{t.badge}</span>}</span>{t.label}{a && <div style={{ position: "absolute", bottom: 2, width: 16, height: 2, borderRadius: 1, background: T.gold }} />}</button>;
+                return <button key={t.id} onClick={() => setTab(t.id)} style={{ flex: 1, padding: "12px 4px 14px", borderRadius: 12, border: "none", background: "transparent", color: a ? T.gold : T.text3, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, position: "relative" }}><span style={{ position: "relative" }}><I size={22} />{t.badge > 0 && <span style={{ position: "absolute", top: -4, right: -10, background: T.err, color: "#FFF", fontSize: 8, fontWeight: 700, borderRadius: 8, padding: "1px 4px", minWidth: 12, textAlign: "center" }}>{t.badge}</span>}</span>{a && <div style={{ width: 5, height: 5, borderRadius: "50%", background: T.gold }} />}</button>;
               })}
             </div>
           </div>
@@ -295,8 +301,10 @@ export default function App() {
 
   if (authLoading) {
     const T = themes[theme];
-    return (<div style={{ minHeight: "100vh", background: T.gradBg, display: "flex", justifyContent: "center", alignItems: "center" }}>
-      <div style={{ color: T.gold, fontSize: 16, fontWeight: 600 }}>Loading...</div>
+    return (<div style={{ minHeight: "100vh", background: T.gradBg, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 16 }}>
+      <div style={{ width: 48, height: 48, borderRadius: 14, background: T.grad, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 20, color: theme === "dark" ? "#0C0C12" : "#FFF", letterSpacing: -1, fontFamily: "system-ui,-apple-system,sans-serif", animation: "coinFlip 1.2s ease-in-out infinite" }}>RX</div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: T.text3 }}>Loading...</div>
+      <style>{`@keyframes coinFlip{0%,100%{transform:rotateY(0deg)}50%{transform:rotateY(180deg)}}`}</style>
     </div>);
   }
 
