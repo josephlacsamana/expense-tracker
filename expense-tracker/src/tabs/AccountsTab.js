@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { Plus, Trash2, Edit3, X, ChevronDown, ChevronRight, AlertTriangle, Wallet, Coins, Clock, Bell, RefreshCw } from "lucide-react";
+import { Plus, Trash2, Edit3, X, ChevronDown, ChevronRight, AlertTriangle, Wallet, Coins, Clock, Bell, RefreshCw, ArrowLeft, PiggyBank, Target, TrendingDown } from "lucide-react";
 import { useApp } from "../AppContext";
 import { aIcons, dIcons, DEBT_TYPES, CRYPTO_COINS, fmt, fmtS, td, uid, pld } from "../constants";
 
 export default function AccountsTab() {
   const { exp, accts, budgets, genBudget, cats, rec, debts, dPays, acctHist, savGoals, catColors, svE, svA, svB, svCats, svGB, svR, svD, svDP, svAH, svSG, tst, user, theme, isDesktop, T, cardS, pillS, inpS, btnP, btnG, mOvS, mInS, cryptoPrices, cryptoLastUpdated, fetchCryptoPrices } = useApp();
 
-  const [accSub, setAccSub] = useState("accounts");
+  const [accSub, setAccSub] = useState("hub");
   const [saf, setSaf] = useState(false);
   const [eaId, setEaId] = useState(null);
   const [af, setAf] = useState({ name: "", balance: "", type: "savings" });
@@ -141,11 +141,40 @@ export default function AccountsTab() {
 
   return (
     <div style={{ flex: 1, maxWidth: isDesktop ? 1100 : 600, margin: "0 auto", padding: isDesktop ? "28px 36px 40px" : "18px 20px 80px", width: "100%", boxSizing: "border-box", overflowY: "auto" }}>
-      <div style={{ display: "flex", gap: 6, marginBottom: 18, flexWrap: "wrap" }}>
-        {["accounts", "budgets", "debts", "savings"].map(s => { const dueCt = s === "debts" ? (() => { const today = new Date().getDate(); return debts.filter(d => d.currentBalance > 0 && d.dueDate).filter(d => { const diff = d.dueDate - today; return (diff >= 0 && diff <= 3) || (diff < 0 && diff >= -3); }).length; })() : 0; return (
-          <button key={s} onClick={() => setAccSub(s)} style={{ ...pillS(accSub === s), display: "flex", alignItems: "center", gap: 5 }}>{s.charAt(0).toUpperCase() + s.slice(1)}{dueCt > 0 && <span style={{ background: T.err, color: "#FFF", fontSize: 9, fontWeight: 700, borderRadius: 8, padding: "1px 5px", minWidth: 14, textAlign: "center" }}>{dueCt}</span>}</button>
-        ); })}
-      </div>
+      {accSub === "hub" ? (<>
+        <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>Money Hub</div>
+        <div style={{ fontSize: 12, color: T.text3, marginBottom: 18 }}>Your finances at a glance</div>
+        {(() => {
+          const today = new Date().getDate();
+          const debtDueCt = debts.filter(d => d.currentBalance > 0 && d.dueDate).filter(d => { const diff = d.dueDate - today; return (diff >= 0 && diff <= 3) || (diff < 0 && diff >= -3); }).length;
+          const tOw = debts.reduce((s, d) => s + d.currentBalance, 0);
+          const toPhpSG = (g) => { const c = g.currency || "PHP"; if (c === "PHP") return g.currentAmount; const p = cryptoPrices[c]; return p ? g.currentAmount * p.php : 0; };
+          const totalSaved = savGoals.reduce((s, g) => s + toPhpSG(g), 0);
+          const hubCards = [
+            { key: "accounts", icon: Wallet, label: "Bank Accounts", value: fmt(totA), sub: `${accts.length} account${accts.length !== 1 ? "s" : ""}`, color: T.ok, badge: 0 },
+            { key: "budgets", icon: Target, label: "Budgets", value: genBudget > 0 ? `${gbPct.toFixed(0)}% spent` : "No budget set", sub: genBudget > 0 ? `${fmt(mTot)} of ${fmt(genBudget)}` : "Tap to set up", color: genBudget > 0 ? (gbPct > 100 ? T.err : gbPct > 80 ? T.goldLight : T.ok) : T.text3, badge: 0 },
+            { key: "debts", icon: TrendingDown, label: "Debts", value: debts.length > 0 ? fmt(tOw) : "No debts", sub: debts.length > 0 ? `${debts.length} debt${debts.length !== 1 ? "s" : ""} tracked` : "Tap to add", color: tOw > 0 ? T.err : T.ok, badge: debtDueCt },
+            { key: "savings", icon: PiggyBank, label: "Savings Goals", value: savGoals.length > 0 ? fmt(totalSaved) : "No goals yet", sub: savGoals.length > 0 ? `${savGoals.length} goal${savGoals.length !== 1 ? "s" : ""}` : "Tap to start saving", color: T.gold, badge: 0 },
+          ];
+          return <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: isDesktop ? 14 : 10 }}>
+            {hubCards.map(c => { const Icon = c.icon; return (
+              <button key={c.key} onClick={() => setAccSub(c.key)} style={{ ...cardS, padding: isDesktop ? "22px 24px" : "18px 20px", cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 16, transition: "all 0.15s", border: cardS.border }}>
+                <div style={{ width: 48, height: 48, borderRadius: 14, background: T.goldMuted, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Icon size={22} style={{ color: T.gold }} /></div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: T.text3, textTransform: "uppercase", letterSpacing: 0.5 }}>{c.label}</span>
+                    {c.badge > 0 && <span style={{ background: T.err, color: "#FFF", fontSize: 9, fontWeight: 700, borderRadius: 8, padding: "1px 6px", minWidth: 14, textAlign: "center" }}>{c.badge}</span>}
+                  </div>
+                  <div style={{ fontSize: isDesktop ? 22 : 20, fontWeight: 800, color: c.color, lineHeight: 1.2 }}>{c.value}</div>
+                  <div style={{ fontSize: 11, color: T.text3, marginTop: 2 }}>{c.sub}</div>
+                </div>
+                <ChevronRight size={18} style={{ color: T.text3, flexShrink: 0 }} />
+              </button>
+            ); })}
+          </div>;
+        })()}
+      </>) : <div>
+      {accSub !== "hub" && <button onClick={() => setAccSub("hub")} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, padding: "0 0 14px", color: T.gold, fontSize: 13, fontWeight: 600 }}><ArrowLeft size={16} />Money Hub</button>}
       <div>
         {accSub === "accounts" && (<>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}><div style={{ fontSize: 18, fontWeight: 800 }}>Accounts</div><button onClick={() => { rstAf(); setSaf(true); }} style={{ ...btnP, padding: "10px 16px", fontSize: 12, display: "flex", alignItems: "center", gap: 5 }}><Plus size={14} />Add</button></div>
@@ -521,6 +550,7 @@ export default function AccountsTab() {
           </div>
         </>)}
       </div>
+      </div>}
 
       {/* Savings goal form modal */}
       {sgForm && <div style={mOvS}><div style={mInS}>
