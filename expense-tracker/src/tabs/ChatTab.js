@@ -61,8 +61,21 @@ For debt questions (repayment timeline, interest savings, what-if scenarios): us
   const doImg = async (ev) => {
     const file = ev.target.files?.[0]; if (!file) return;
     try {
-      const b64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(",")[1]); r.onerror = () => rej("fail"); r.readAsDataURL(file); });
-      setAtt({ b64, name: file.name, type: file.type || "image/jpeg", preview: URL.createObjectURL(file) });
+      const b64 = await new Promise((res, rej) => {
+        const img = new Image();
+        img.onload = () => {
+          const MAX = 1200;
+          let w = img.width, h = img.height;
+          if (w > MAX || h > MAX) { const s = MAX / Math.max(w, h); w = Math.round(w * s); h = Math.round(h * s); }
+          const c = document.createElement("canvas"); c.width = w; c.height = h;
+          const ctx = c.getContext("2d"); ctx.drawImage(img, 0, 0, w, h);
+          const dataUrl = c.toDataURL("image/jpeg", 0.7);
+          res(dataUrl.split(",")[1]);
+        };
+        img.onerror = () => rej("fail");
+        img.src = URL.createObjectURL(file);
+      });
+      setAtt({ b64, name: file.name, type: "image/jpeg", preview: URL.createObjectURL(file) });
     } catch { tst("Failed to read image."); }
     if (fr.current) fr.current.value = "";
   };
