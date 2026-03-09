@@ -4,7 +4,7 @@ import { useApp } from "../AppContext";
 import { aIcons, dIcons, DEBT_TYPES, fmt, fmtS, td, uid, pld } from "../constants";
 
 export default function AccountsTab() {
-  const { exp, accts, budgets, genBudget, cats, rec, debts, dPays, acctHist, catColors, svE, svA, svB, svCats, svGB, svR, svD, svDP, svAH, tst, user, theme, isDesktop, T, cardS, pillS, inpS, btnP, btnG, mOvS, mInS } = useApp();
+  const { exp, accts, budgets, genBudget, cats, rec, debts, dPays, acctHist, savGoals, catColors, svE, svA, svB, svCats, svGB, svR, svD, svDP, svAH, svSG, tst, user, theme, isDesktop, T, cardS, pillS, inpS, btnP, btnG, mOvS, mInS } = useApp();
 
   const [accSub, setAccSub] = useState("accounts");
   const [saf, setSaf] = useState(false);
@@ -30,6 +30,13 @@ export default function AccountsTab() {
   const [bulkAmt, setBulkAmt] = useState("");
   const [editPay, setEditPay] = useState(null);
   const [showNoLimit, setShowNoLimit] = useState(false);
+  // Savings goal states
+  const [sgForm, setSgForm] = useState(false);
+  const [sgEdit, setSgEdit] = useState(null);
+  const [sgf, setSgf] = useState({ name: "", targetAmount: "", targetDate: "", currentAmount: "" });
+  const [sgDel, setSgDel] = useState(null);
+  const [sgAdd, setSgAdd] = useState(null);
+  const [sgAddAmt, setSgAddAmt] = useState("");
   const [editPayForm, setEditPayForm] = useState({ amount: "", date: "", lateFee: "" });
   const [delPayId, setDelPayId] = useState(null);
   const [viewDt, setViewDt] = useState(null);
@@ -134,7 +141,7 @@ export default function AccountsTab() {
   return (
     <div style={{ flex: 1, maxWidth: isDesktop ? 1100 : 600, margin: "0 auto", padding: isDesktop ? "28px 36px 40px" : "18px 20px 80px", width: "100%", boxSizing: "border-box", overflowY: "auto" }}>
       <div style={{ display: "flex", gap: 6, marginBottom: 18, flexWrap: "wrap" }}>
-        {["accounts", "budgets", "debts"].map(s => { const dueCt = s === "debts" ? (() => { const today = new Date().getDate(); return debts.filter(d => d.currentBalance > 0 && d.dueDate).filter(d => { const diff = d.dueDate - today; return (diff >= 0 && diff <= 3) || (diff < 0 && diff >= -3); }).length; })() : 0; return (
+        {["accounts", "budgets", "debts", "savings"].map(s => { const dueCt = s === "debts" ? (() => { const today = new Date().getDate(); return debts.filter(d => d.currentBalance > 0 && d.dueDate).filter(d => { const diff = d.dueDate - today; return (diff >= 0 && diff <= 3) || (diff < 0 && diff >= -3); }).length; })() : 0; return (
           <button key={s} onClick={() => setAccSub(s)} style={{ ...pillS(accSub === s), display: "flex", alignItems: "center", gap: 5 }}>{s.charAt(0).toUpperCase() + s.slice(1)}{dueCt > 0 && <span style={{ background: T.err, color: "#FFF", fontSize: 9, fontWeight: 700, borderRadius: 8, padding: "1px 5px", minWidth: 14, textAlign: "center" }}>{dueCt}</span>}</button>
         ); })}
       </div>
@@ -447,7 +454,118 @@ export default function AccountsTab() {
               </div>); })}
           </div>
         </>)}
+
+        {accSub === "savings" && (<>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+            <div style={{ fontSize: 18, fontWeight: 800 }}>Savings Goals</div>
+            <button onClick={() => { setSgf({ name: "", targetAmount: "", targetDate: "", currentAmount: "" }); setSgEdit(null); setSgForm(true); }} style={{ ...btnP, padding: "10px 16px", fontSize: 12, display: "flex", alignItems: "center", gap: 5 }}><Plus size={14} />Add Goal</button>
+          </div>
+
+          {/* Summary card */}
+          {savGoals.length > 0 && (() => { const totalTarget = savGoals.reduce((s, g) => s + g.targetAmount, 0); const totalSaved = savGoals.reduce((s, g) => s + g.currentAmount, 0); const pctAll = totalTarget > 0 ? (totalSaved / totalTarget * 100) : 0; return (
+            <div style={{ background: `linear-gradient(135deg,${theme === "dark" ? "rgba(245,181,38,0.08)" : "rgba(212,155,31,0.06)"},transparent)`, border: `1px solid ${theme === "dark" ? "rgba(245,181,38,0.15)" : "rgba(212,155,31,0.15)"}`, borderRadius: 18, padding: "16px 18px", marginBottom: 18 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div><div style={{ fontSize: 10, color: T.text3, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>Total Saved</div><div style={{ fontSize: 28, fontWeight: 800, color: T.gold, marginTop: 2 }}>{fmt(totalSaved)}</div></div>
+                <div style={{ textAlign: "right" }}><div style={{ fontSize: 10, color: T.text3, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>Target</div><div style={{ fontSize: 20, fontWeight: 700, color: T.text2, marginTop: 2 }}>{fmt(totalTarget)}</div></div>
+              </div>
+              <div style={{ marginTop: 10, height: 8, borderRadius: 4, background: theme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)", overflow: "hidden" }}>
+                <div style={{ height: "100%", borderRadius: 4, width: `${Math.min(100, pctAll)}%`, background: pctAll >= 100 ? T.ok : T.gold, transition: "width 0.3s" }} />
+              </div>
+              <div style={{ fontSize: 11, color: T.text3, marginTop: 6 }}>{savGoals.length} {savGoals.length === 1 ? "goal" : "goals"} -- {pctAll.toFixed(0)}% overall</div>
+            </div>
+          ); })()}
+
+          {savGoals.length === 0 && <div style={{ ...cardS, padding: "32px 18px", textAlign: "center" }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: T.text2, marginBottom: 6 }}>No savings goals yet</div>
+            <div style={{ fontSize: 12, color: T.text3 }}>Tap "Add Goal" to start saving for something.</div>
+          </div>}
+
+          <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 10 }}>
+            {savGoals.map(g => { const pct = g.targetAmount > 0 ? (g.currentAmount / g.targetAmount * 100) : 0; const done = pct >= 100; const daysLeft = g.targetDate ? Math.max(0, Math.ceil((new Date(g.targetDate) - new Date()) / 86400000)) : null; return (
+              <div key={g.id} style={{ ...cardS, padding: "16px 18px", border: done ? `1px solid ${T.ok}` : cardS.border }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: done ? T.ok : T.text1 }}>{g.name}</div>
+                    {g.targetDate && <div style={{ fontSize: 10, color: daysLeft === 0 ? T.goldLight : T.text3, marginTop: 2 }}>{done ? "Goal reached!" : daysLeft === 0 ? "Due today" : `${daysLeft} days left`}</div>}
+                    {done && !g.targetDate && <div style={{ fontSize: 10, color: T.ok, marginTop: 2, fontWeight: 600 }}>Goal reached!</div>}
+                  </div>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    <button onClick={() => { setSgEdit(g.id); setSgf({ name: g.name, targetAmount: String(g.targetAmount), targetDate: g.targetDate || "", currentAmount: String(g.currentAmount) }); setSgForm(true); }} style={{ background: "none", border: "none", color: T.gold, cursor: "pointer", padding: 4 }}><Edit3 size={14} /></button>
+                    <button onClick={() => setSgDel(g.id)} style={{ background: "none", border: "none", color: T.err, cursor: "pointer", padding: 4 }}><Trash2 size={14} /></button>
+                  </div>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+                  <span style={{ fontSize: 20, fontWeight: 800, color: done ? T.ok : T.gold }}>{fmt(g.currentAmount)}</span>
+                  <span style={{ fontSize: 12, color: T.text3 }}>of {fmt(g.targetAmount)}</span>
+                </div>
+                <div style={{ height: 8, borderRadius: 4, background: theme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)", overflow: "hidden" }}>
+                  <div style={{ height: "100%", borderRadius: 4, width: `${Math.min(100, pct)}%`, background: done ? T.ok : pct > 75 ? T.goldLight : T.gold, transition: "width 0.3s" }} />
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+                  <span style={{ fontSize: 11, color: T.text3 }}>{pct.toFixed(0)}%{g.targetAmount > g.currentAmount && ` -- ${fmt(g.targetAmount - g.currentAmount)} to go`}</span>
+                  {!done && <button onClick={() => { setSgAdd(g.id); setSgAddAmt(""); }} style={{ ...btnP, padding: "6px 14px", fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}><Plus size={12} />Add Funds</button>}
+                </div>
+              </div>
+            ); })}
+          </div>
+        </>)}
       </div>
+
+      {/* Savings goal form modal */}
+      {sgForm && <div style={mOvS}><div style={mInS}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <div style={{ fontSize: 18, fontWeight: 800, color: T.text1 }}>{sgEdit ? "Edit" : "Add"} Savings Goal</div>
+          <button onClick={() => setSgForm(false)} style={{ background: "none", border: "none", color: T.text3, cursor: "pointer" }}><X size={22} /></button>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div><input placeholder="Goal name (e.g. Vacation Fund)" value={sgf.name} onChange={e => setSgf(v => ({ ...v, name: e.target.value }))} style={inpS} /><div style={{ fontSize: 10, color: T.text3, marginTop: 4 }}>What are you saving for?</div></div>
+          <div><input placeholder="Target amount" type="number" inputMode="decimal" value={sgf.targetAmount} onChange={e => setSgf(v => ({ ...v, targetAmount: e.target.value }))} style={inpS} /><div style={{ fontSize: 10, color: T.text3, marginTop: 4 }}>How much do you want to save?</div></div>
+          <div><input placeholder="Already saved (optional)" type="number" inputMode="decimal" value={sgf.currentAmount} onChange={e => setSgf(v => ({ ...v, currentAmount: e.target.value }))} style={inpS} /><div style={{ fontSize: 10, color: T.text3, marginTop: 4 }}>How much have you already saved toward this goal?</div></div>
+          <div><input type="date" value={sgf.targetDate} onChange={e => setSgf(v => ({ ...v, targetDate: e.target.value }))} style={inpS} /><div style={{ fontSize: 10, color: T.text3, marginTop: 4 }}>Target date (optional). When do you want to reach this goal?</div></div>
+          <button onClick={() => {
+            if (!sgf.name.trim() || !sgf.targetAmount || parseFloat(sgf.targetAmount) <= 0) return;
+            const entry = { id: sgEdit || uid(), name: sgf.name.trim(), targetAmount: parseFloat(parseFloat(sgf.targetAmount).toFixed(2)), currentAmount: parseFloat(parseFloat(sgf.currentAmount || 0).toFixed(2)), targetDate: sgf.targetDate || null, addedBy: user, createdAt: sgEdit ? (savGoals.find(g => g.id === sgEdit)?.createdAt || new Date().toISOString()) : new Date().toISOString(), updatedAt: new Date().toISOString() };
+            const updated = sgEdit ? savGoals.map(g => g.id === sgEdit ? entry : g) : [...savGoals, entry];
+            svSG(updated, { upsert: entry });
+            setSgForm(false);
+            tst(sgEdit ? "Goal updated" : "Goal added");
+          }} style={{ ...btnP, width: "100%" }}>{sgEdit ? "Update Goal" : "Add Goal"}</button>
+        </div>
+      </div></div>}
+
+      {/* Add funds modal */}
+      {sgAdd && <div style={mOvS}><div style={mInS}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <div style={{ fontSize: 18, fontWeight: 800, color: T.text1 }}>Add Funds</div>
+          <button onClick={() => setSgAdd(null)} style={{ background: "none", border: "none", color: T.text3, cursor: "pointer" }}><X size={22} /></button>
+        </div>
+        <div style={{ fontSize: 13, color: T.text2, marginBottom: 14 }}>Adding to: <strong>{savGoals.find(g => g.id === sgAdd)?.name}</strong></div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <input type="number" inputMode="decimal" placeholder="Amount" value={sgAddAmt} onChange={e => setSgAddAmt(e.target.value)} onKeyDown={e => { if (e.key === "Enter") document.getElementById("sgAddBtn")?.click(); }} style={{ ...inpS, flex: 1 }} autoFocus />
+          <button id="sgAddBtn" onClick={() => {
+            const amt = parseFloat(sgAddAmt);
+            if (!amt || amt <= 0) return;
+            const g = savGoals.find(g => g.id === sgAdd);
+            if (!g) return;
+            const updated = savGoals.map(x => x.id === sgAdd ? { ...x, currentAmount: parseFloat((x.currentAmount + amt).toFixed(2)), updatedAt: new Date().toISOString() } : x);
+            const upsertEntry = updated.find(x => x.id === sgAdd);
+            svSG(updated, { upsert: upsertEntry });
+            setSgAdd(null);
+            tst(`Added ${fmt(amt)} to ${g.name}`);
+          }} style={{ ...btnP, padding: "12px 20px", whiteSpace: "nowrap" }}>Add</button>
+        </div>
+      </div></div>}
+
+      {/* Delete savings goal modal */}
+      {sgDel && <div style={mOvS}><div style={mInS}><div style={{ textAlign: "center" }}>
+        <AlertTriangle size={36} style={{ color: T.err, marginBottom: 14 }} />
+        <div style={{ fontSize: 18, fontWeight: 700, color: T.text1, marginBottom: 6 }}>Delete this goal?</div>
+        <div style={{ fontSize: 12, color: T.text3, marginBottom: 20 }}>"{savGoals.find(g => g.id === sgDel)?.name}" will be permanently removed.</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => { svSG(savGoals.filter(g => g.id !== sgDel), { deleteId: sgDel }); setSgDel(null); tst("Goal deleted"); }} style={{ ...btnP, flex: 1, background: T.err, boxShadow: "none" }}>Delete</button>
+          <button onClick={() => setSgDel(null)} style={{ ...btnG, flex: 1 }}>Cancel</button>
+        </div>
+      </div></div></div>}
 
       {/* Account modal */}
       {saf && <div style={mOvS}><div style={mInS}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}><div style={{ fontSize: 18, fontWeight: 800, color: T.text1 }}>{eaId ? "Edit" : "Add"} Account</div><button onClick={rstAf} style={{ background: "none", border: "none", color: T.text3, cursor: "pointer" }}><X size={22} /></button></div>

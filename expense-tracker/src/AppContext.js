@@ -67,6 +67,7 @@ export function AppProvider({ children, user, householdId, householdRole, profil
             if (d.categories) setCats(d.categories);
             try { const ah = await sb.loadAccountHistory(householdId); if (ah.length) setAcctHist(ah); } catch {}
             try { const ins = await sb.loadInsights(householdId); if (ins.length) setInsights(ins); } catch {}
+            try { const sg = await sb.loadSavingsGoals(householdId); if (sg.length) setSavGoals(sg); } catch {}
             setLd(false); return;
           }
           // Supabase empty — try migrating localStorage data up
@@ -111,6 +112,7 @@ export function AppProvider({ children, user, householdId, householdRole, profil
             try { const dtp = await localStore.get("debtPayments"); if (dtp?.value) setDPays(JSON.parse(dtp.value)); } catch {}
             try { const ah = await localStore.get("acctHist"); if (ah?.value) setAcctHist(JSON.parse(ah.value)); } catch {}
             try { const ins = await localStore.get("insights"); if (ins?.value) setInsights(JSON.parse(ins.value)); } catch {}
+            try { const sg = await localStore.get("savGoals"); if (sg?.value) setSavGoals(JSON.parse(sg.value)); } catch {}
             setLd(false); return;
           }
         }
@@ -150,6 +152,7 @@ export function AppProvider({ children, user, householdId, householdRole, profil
   const svAH = async (entry) => { setAcctHist(prev => [entry, ...prev]); try { if (sbReady) await sb.upsertAccountHistory(entry, householdId); else await localStore.set("acctHist", JSON.stringify([entry, ...acctHist])); } catch {} };
   const svIns = async (entry) => { setInsights(prev => [entry, ...prev].slice(0, 20)); try { if (sbReady) await sb.upsertInsight(entry, householdId); else await localStore.set("insights", JSON.stringify([entry, ...insights].slice(0, 20))); } catch {} };
   const delIns = async (id) => { setInsights(prev => prev.filter(i => i.id !== id)); try { if (sbReady) await sb.deleteInsight(id, householdId); else await localStore.set("insights", JSON.stringify(insights.filter(i => i.id !== id))); } catch {} };
+  const svSG = async (d, opts) => { setSavGoals(d); try { if (sbReady) { if (opts?.deleteId) await sb.deleteSavingsGoal(opts.deleteId, householdId); else if (opts?.upsert) await sb.upsertSavingsGoal(opts.upsert, householdId); } else await localStore.set("savGoals", JSON.stringify(d)); } catch {} };
 
   // ─── AI ───
   const callAI = async (m, s, ret = 2) => {
@@ -236,13 +239,13 @@ export function AppProvider({ children, user, householdId, householdRole, profil
     // Styles
     pillS, cardS, inpS, btnP, btnG, mOvS, mInS,
     // Data
-    exp, accts, budgets, genBudget, cats, rec, debts, dPays, acctHist, insights, users, memberProfiles, ld, toast,
+    exp, accts, budgets, genBudget, cats, rec, debts, dPays, acctHist, insights, savGoals, users, memberProfiles, ld, toast,
     // Setters (for local use by tabs)
-    setExp, setAccts, setBudgets, setGenBudget, setCats, setRec, setDebts, setDPays, setAcctHist,
+    setExp, setAccts, setBudgets, setGenBudget, setCats, setRec, setDebts, setDPays, setAcctHist, setSavGoals,
     // Actions
     tst, catColors,
     // Save functions
-    svE, svA, svB, svCats, svGB, svR, svD, svDP, svAH, svIns, delIns,
+    svE, svA, svB, svCats, svGB, svR, svD, svDP, svAH, svIns, delIns, svSG,
     // AI
     callAI,
     // Notifications

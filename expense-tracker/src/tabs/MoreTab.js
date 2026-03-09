@@ -6,7 +6,7 @@ import { useApp } from "../AppContext";
 import { DEF_CATS, DEFAULT_BUDGETS, uid } from "../constants";
 
 export default function MoreTab() {
-  const { exp, setExp, setAccts, setBudgets, setGenBudget, setCats, setRec, setDebts, setDPays, tst, user, memberProfiles, householdId, householdRole, profile, household, isDesktop, T, cardS, inpS, btnP, btnG, mOvS, mInS, notifEnabled, toggleNotif } = useApp();
+  const { exp, setExp, setAccts, setBudgets, setGenBudget, setCats, setRec, setDebts, setDPays, setSavGoals, tst, user, memberProfiles, householdId, householdRole, profile, household, isDesktop, T, cardS, inpS, btnP, btnG, mOvS, mInS, notifEnabled, toggleNotif } = useApp();
 
   const [clr, setClr] = useState(false);
   const [inviteModal, setInviteModal] = useState(false);
@@ -23,13 +23,13 @@ export default function MoreTab() {
   };
 
   const clearAll = async () => {
-    setExp([]); setAccts([]); setRec([]); setDebts([]); setDPays([]); setGenBudget(0); setCats(DEF_CATS); setBudgets(DEFAULT_BUDGETS);
+    setExp([]); setAccts([]); setRec([]); setDebts([]); setDPays([]); setSavGoals([]); setGenBudget(0); setCats(DEF_CATS); setBudgets(DEFAULT_BUDGETS);
     try {
       if (sbReady) {
-        await Promise.all([sb.deleteAllExpenses(householdId), sb.deleteAllAccounts(householdId), sb.deleteAllRecurring(householdId), sb.deleteAllDebts(householdId), sb.saveCategories(DEF_CATS, householdId), sb.saveSetting("budgets", DEFAULT_BUDGETS, householdId), sb.saveSetting("genBudget", 0, householdId)]);
+        await Promise.all([sb.deleteAllExpenses(householdId), sb.deleteAllAccounts(householdId), sb.deleteAllRecurring(householdId), sb.deleteAllDebts(householdId), sb.deleteAllSavingsGoals(householdId), sb.saveCategories(DEF_CATS, householdId), sb.saveSetting("budgets", DEFAULT_BUDGETS, householdId), sb.saveSetting("genBudget", 0, householdId)]);
       } else {
         const ls = window.localStorage;
-        ls.setItem("expenses", JSON.stringify([])); ls.setItem("accounts", JSON.stringify([])); ls.setItem("recurring", JSON.stringify([])); ls.setItem("debts", JSON.stringify([])); ls.setItem("debtPayments", JSON.stringify([])); ls.setItem("genBudget", JSON.stringify(0)); ls.setItem("categories", JSON.stringify(DEF_CATS)); ls.setItem("budgets", JSON.stringify(DEFAULT_BUDGETS));
+        ls.setItem("expenses", JSON.stringify([])); ls.setItem("accounts", JSON.stringify([])); ls.setItem("recurring", JSON.stringify([])); ls.setItem("debts", JSON.stringify([])); ls.setItem("debtPayments", JSON.stringify([])); ls.setItem("savGoals", JSON.stringify([])); ls.setItem("genBudget", JSON.stringify(0)); ls.setItem("categories", JSON.stringify(DEF_CATS)); ls.setItem("budgets", JSON.stringify(DEFAULT_BUDGETS));
       }
     } catch {}
     setClr(false); tst("All data cleared");
