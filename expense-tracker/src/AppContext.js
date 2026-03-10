@@ -278,6 +278,23 @@ export function AppProvider({ children, user, householdId, householdRole, profil
   // ─── REFRESH ALL DATA (pull-to-refresh) ───
   const refreshData = async () => {
     try {
+      // Check for new service worker (new code deploy) and force reload if found
+      if ("serviceWorker" in navigator) {
+        try {
+          const reg = await navigator.serviceWorker.getRegistration();
+          if (reg) {
+            await reg.update();
+            if (reg.waiting || reg.installing) {
+              // New SW found — clear caches and hard reload to get new JS
+              reg.waiting?.postMessage({ type: "FORCE_UPDATE" });
+              reg.installing?.postMessage({ type: "FORCE_UPDATE" });
+              tst("Updating app...");
+              setTimeout(() => window.location.reload(), 500);
+              return;
+            }
+          }
+        } catch {}
+      }
       if (sbReady) {
         const d = await sb.loadAll(householdId);
         setExp(d.expenses);

@@ -1,11 +1,27 @@
-/* RXpenses Service Worker — local notification scheduler */
+/* RXpenses Service Worker — notifications + cache management */
 
-const CACHE_NAME = "rxpenses-v1";
+const CACHE_NAME = "rxpenses-v2";
 
 self.addEventListener("install", () => self.skipWaiting());
-self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
 
-// Listen for messages from the app to check and notify
+self.addEventListener("activate", (e) => {
+  e.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+    ).then(() => self.clients.claim())
+  );
+});
+
+// Network-first for navigation (HTML) — always get fresh app shell
+self.addEventListener("fetch", (event) => {
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match(event.request))
+    );
+  }
+});
+
+// Listen for messages from the app
 self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "CHECK_NOTIFICATIONS") {
     const { debts, recurring, today } = event.data;
@@ -38,7 +54,6 @@ self.addEventListener("message", (event) => {
 
     // Send notifications (max 5 to avoid spam)
     notifications.slice(0, 5).forEach((n, i) => {
-      // Small delay between notifications so OS doesn't collapse them
       setTimeout(() => {
         self.registration.showNotification(n.title, {
           body: n.body,
@@ -49,6 +64,11 @@ self.addEventListener("message", (event) => {
         });
       }, i * 300);
     });
+  }
+
+  // Force update: clear caches and reload all clients
+  if (event.data && event.data.type === "FORCE_UPDATE") {
+    caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k))));
   }
 });
 
