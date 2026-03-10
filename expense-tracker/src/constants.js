@@ -44,7 +44,7 @@ export const EXTRA_COLORS = ["#A78BFA","#F97316","#06B6D4","#84CC16","#E879F9","
 export const PERIODS = ["Daily","Weekly","Monthly","Quarterly","Yearly","All"];
 export const LOCAL_USERS = ["Joseph","Rowena"];
 export const DEBT_TYPES = ["Credit Card", "Mortgage", "Personal Loan", "Car Loan", "Other"];
-export const INCOME_SOURCES = ["Salary", "Freelance", "Business", "Side Hustle", "Gift", "Refund", "Other"];
+export const INCOME_SOURCES = ["Salary", "Freelance", "Business", "Side Hustle", "Crypto Gains", "Gift", "Refund", "Other"];
 export const CRYPTO_COINS = [
   { id: "bitcoin", symbol: "BTC", name: "Bitcoin" },
   { id: "ethereum", symbol: "ETH", name: "Ethereum" },
