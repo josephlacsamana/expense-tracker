@@ -79,17 +79,17 @@ export default function DashboardTab() {
 
       {(totInc > 0 || totF > 0) && (
         <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr 1fr" : "1fr 1fr 1fr", gap: 8, marginBottom: 18 }}>
-          <div style={{ ...cardS, padding: "14px 16px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}><DollarSign size={12} style={{ color: T.ok }} /><span style={{ fontSize: 10, color: T.text3, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>Income</span></div>
-            <div style={{ fontSize: isDesktop ? 20 : 16, fontWeight: 800, color: T.ok }}>{fmt(totInc)}</div>
+          <div style={{ ...cardS, padding: isDesktop ? "14px 16px" : "12px 10px", overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}><DollarSign size={11} style={{ color: T.ok, flexShrink: 0 }} /><span style={{ fontSize: 9, color: T.text3, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.3 }}>Income</span></div>
+            <div style={{ fontSize: isDesktop ? 20 : 14, fontWeight: 800, color: T.ok, whiteSpace: "nowrap" }}>{fmt(totInc)}</div>
           </div>
-          <div style={{ ...cardS, padding: "14px 16px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}><TrendingDown size={12} style={{ color: T.err }} /><span style={{ fontSize: 10, color: T.text3, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>Expenses</span></div>
-            <div style={{ fontSize: isDesktop ? 20 : 16, fontWeight: 800, color: T.err }}>{fmt(totF)}</div>
+          <div style={{ ...cardS, padding: isDesktop ? "14px 16px" : "12px 10px", overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}><TrendingDown size={11} style={{ color: T.err, flexShrink: 0 }} /><span style={{ fontSize: 9, color: T.text3, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.3 }}>Expenses</span></div>
+            <div style={{ fontSize: isDesktop ? 20 : 14, fontWeight: 800, color: T.err, whiteSpace: "nowrap" }}>{fmt(totF)}</div>
           </div>
-          <div style={{ ...cardS, padding: "14px 16px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}><Wallet size={12} style={{ color: cashFlow >= 0 ? T.ok : T.err }} /><span style={{ fontSize: 10, color: T.text3, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>Net Flow</span></div>
-            <div style={{ fontSize: isDesktop ? 20 : 16, fontWeight: 800, color: cashFlow >= 0 ? T.ok : T.err }}>{cashFlow >= 0 ? "+" : ""}{fmt(cashFlow)}</div>
+          <div style={{ ...cardS, padding: isDesktop ? "14px 16px" : "12px 10px", overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}><Wallet size={11} style={{ color: cashFlow >= 0 ? T.ok : T.err, flexShrink: 0 }} /><span style={{ fontSize: 9, color: T.text3, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.3 }}>Net Flow</span></div>
+            <div style={{ fontSize: isDesktop ? 20 : 14, fontWeight: 800, color: cashFlow >= 0 ? T.ok : T.err, whiteSpace: "nowrap" }}>{cashFlow >= 0 ? "+" : ""}{fmt(cashFlow)}</div>
           </div>
         </div>
       )}
