@@ -66,13 +66,13 @@ function MainApp({ onLogout, toggleTheme }) {
     { id: "dashboard", label: "Dashboard", icon: PieChart },
     { id: "expenses", label: "Expenses", icon: LayoutDashboard, badge: recDueCount },
     { id: "chat", label: "AI Chat", icon: MessageSquare },
-    { id: "accounts", label: "Accounts", icon: Wallet, badge: dueCount },
+    { id: "accounts", label: "Money Hub", icon: Wallet, badge: dueCount },
     { id: "more", label: "More", icon: Settings }
   ];
 
   if (ld) return (
     <div style={{ minHeight: "100vh", background: T.gradBg, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 16 }}>
-      <div style={{ width: 48, height: 48, borderRadius: 14, background: T.grad, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 20, color: theme === "dark" ? "#0C0C12" : "#FFF", letterSpacing: -1, fontFamily: "system-ui,-apple-system,sans-serif", animation: "coinFlip 1.2s ease-in-out infinite" }}>RX</div>
+      <div style={{ width: 48, height: 48, borderRadius: 14, background: T.grad, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 20, color: theme === "dark" ? "#0C0C12" : "#FFF", letterSpacing: -1, fontFamily: "system-ui,-apple-system,sans-serif", animation: "coinFlip 1.2s ease-in-out infinite" }}>rx</div>
       <div style={{ fontSize: 13, fontWeight: 600, color: T.text3 }}>Loading your data...</div>
       <style>{`@keyframes coinFlip{0%,100%{transform:rotateY(0deg)}50%{transform:rotateY(180deg)}}`}</style>
     </div>
@@ -95,8 +95,8 @@ function MainApp({ onLogout, toggleTheme }) {
         <div style={{ width: 250, height: "100vh", background: T.surface, borderRight: `1px solid ${T.border}`, padding: "28px 0", display: "flex", flexDirection: "column", flexShrink: 0, position: "sticky", top: 0, alignSelf: "flex-start", boxSizing: "border-box" }}>
           <div style={{ padding: "0 24px", marginBottom: 36 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-              <div style={{ width: 32, height: 32, borderRadius: 9, background: T.grad, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 14, color: theme === "dark" ? "#0C0C12" : "#FFF", letterSpacing: -1, fontFamily: "system-ui,-apple-system,sans-serif", flexShrink: 0 }}>RX</div>
-              <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, color: T.text1, letterSpacing: -0.5 }}>R<span style={{ color: T.gold }}>X</span>penses</h1>
+              <div style={{ width: 32, height: 32, borderRadius: 9, background: T.grad, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 14, color: theme === "dark" ? "#0C0C12" : "#FFF", letterSpacing: -1, fontFamily: "system-ui,-apple-system,sans-serif", flexShrink: 0 }}>rx</div>
+              <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, color: T.text1, letterSpacing: -0.5 }}>r<span style={{ color: T.gold }}>x</span>penses</h1>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               {profile?.avatar_url ? <img src={profile.avatar_url} alt="" style={{ width: 34, height: 34, borderRadius: "50%", objectFit: "cover", border: `2px solid ${T.gold}`, flexShrink: 0 }} /> : <div style={{ width: 34, height: 34, borderRadius: "50%", background: T.goldMuted, border: `2px solid ${T.gold}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: T.gold, flexShrink: 0 }}>{(user || "?")[0].toUpperCase()}</div>}
@@ -132,9 +132,9 @@ function MainApp({ onLogout, toggleTheme }) {
         {!isDesktop && (
           <div style={{ padding: "18px 20px 0", maxWidth: 600, margin: "0 auto", width: "100%", boxSizing: "border-box", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 32, height: 32, borderRadius: 9, background: T.grad, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 14, color: theme === "dark" ? "#0C0C12" : "#FFF", letterSpacing: -1, fontFamily: "system-ui,-apple-system,sans-serif", flexShrink: 0 }}>RX</div>
+              <div style={{ width: 32, height: 32, borderRadius: 9, background: T.grad, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 14, color: theme === "dark" ? "#0C0C12" : "#FFF", letterSpacing: -1, fontFamily: "system-ui,-apple-system,sans-serif", flexShrink: 0 }}>rx</div>
               <div>
-                <h1 style={{ fontSize: 24, fontWeight: 800, margin: 0, color: T.text1, letterSpacing: -0.5 }}>R<span style={{ color: T.gold }}>X</span>penses</h1>
+                <h1 style={{ fontSize: 24, fontWeight: 800, margin: 0, color: T.text1, letterSpacing: -0.5 }}>r<span style={{ color: T.gold }}>x</span>penses</h1>
                 <p style={{ color: T.text3, fontSize: 11, margin: "2px 0 0" }}>Logged in as <span style={{ color: T.gold }}>{user}</span></p>
               </div>
             </div>
@@ -302,7 +302,7 @@ export default function App() {
   if (authLoading) {
     const T = themes[theme];
     return (<div style={{ minHeight: "100vh", background: T.gradBg, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 16 }}>
-      <div style={{ width: 48, height: 48, borderRadius: 14, background: T.grad, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 20, color: theme === "dark" ? "#0C0C12" : "#FFF", letterSpacing: -1, fontFamily: "system-ui,-apple-system,sans-serif", animation: "coinFlip 1.2s ease-in-out infinite" }}>RX</div>
+      <div style={{ width: 48, height: 48, borderRadius: 14, background: T.grad, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 20, color: theme === "dark" ? "#0C0C12" : "#FFF", letterSpacing: -1, fontFamily: "system-ui,-apple-system,sans-serif", animation: "coinFlip 1.2s ease-in-out infinite" }}>rx</div>
       <div style={{ fontSize: 13, fontWeight: 600, color: T.text3 }}>Loading...</div>
       <style>{`@keyframes coinFlip{0%,100%{transform:rotateY(0deg)}50%{transform:rotateY(180deg)}}`}</style>
     </div>);

@@ -55,11 +55,11 @@ export default function LandingPage({ onLogin, theme, toggleTheme, authError, lo
 
   const faqs = [
     { q: "How do I track shared expenses with my partner?", a: "Sign in with Google, then invite your partner via their Gmail address in Settings. You both share one household -- every expense, budget, and debt is visible to both of you in real time." },
-    { q: "Is RXpenses really free?", a: "Yes. All core features are free: expense tracking, AI chat, receipt scanning, budgets, debt management, dashboards, and CSV export. No credit card required." },
+    { q: "Is rxpenses really free?", a: "Yes. All core features are free: expense tracking, AI chat, receipt scanning, budgets, debt management, dashboards, and CSV export. No credit card required." },
     { q: "Can I scan receipts with AI?", a: "Absolutely. Open the AI Chat tab, attach a photo of your receipt, and the AI will extract items, amounts, dates, and categories automatically. You can review and edit before saving." },
     { q: "How does debt tracking work?", a: "Add your debts (credit cards, loans, mortgages) in the Accounts tab. Set due dates, interest rates, and minimum payments. The interactive payment grid tracks your history month by month, and AI can calculate payoff timelines." },
-    { q: "What is the best free expense tracker app for couples in the Philippines?", a: "RXpenses is built specifically for Filipino couples. All amounts are in PHP, and features like shared households, AI chat in plain language, and debt tracking are designed for real-world use." },
-    { q: "Does it work on my phone?", a: "Yes. RXpenses is a Progressive Web App (PWA). Open rxpenses.com in your browser, add it to your home screen, and it works like a native app -- with push notifications for due bills and debts." },
+    { q: "What is the best free expense tracker app for couples in the Philippines?", a: "rxpenses is built specifically for Filipino couples. All amounts are in PHP, and features like shared households, AI chat in plain language, and debt tracking are designed for real-world use." },
+    { q: "Does it work on my phone?", a: "Yes. rxpenses is a Progressive Web App (PWA). Open rxpenses.com in your browser, add it to your home screen, and it works like a native app -- with push notifications for due bills and debts." },
   ];
 
   // Shared styles
@@ -73,11 +73,11 @@ export default function LandingPage({ onLogin, theme, toggleTheme, authError, lo
       {/* ─── NAV BAR ─── */}
       <nav style={{ position: "sticky", top: 0, zIndex: 100, background: theme === "dark" ? "rgba(14,14,20,0.85)" : "rgba(250,250,247,0.85)", backdropFilter: "blur(20px)", borderBottom: `1px solid ${T.border}` }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: isDesktop ? "0 60px" : "0 20px", height: isDesktop ? 72 : 60, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }} onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label="RXpenses home">
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: T.grad, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 16, color: theme === "dark" ? "#0C0C12" : "#FFF", letterSpacing: -1, fontFamily: "system-ui,-apple-system,sans-serif" }} role="img" aria-label="RXpenses logo">
-              RX
+          <div style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }} onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label="rxpenses home">
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: T.grad, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 16, color: theme === "dark" ? "#0C0C12" : "#FFF", letterSpacing: -1, fontFamily: "system-ui,-apple-system,sans-serif" }} role="img" aria-label="rxpenses logo">
+              rx
             </div>
-            <span style={{ fontSize: 18, fontWeight: 800, color: T.text1, letterSpacing: -0.5 }}>R<span style={{ color: T.gold }}>X</span>penses</span>
+            <span style={{ fontSize: 18, fontWeight: 800, color: T.text1, letterSpacing: -0.5 }}>r<span style={{ color: T.gold }}>x</span>penses</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: isDesktop ? 16 : 8 }}>
             {isDesktop && <>
@@ -224,7 +224,7 @@ export default function LandingPage({ onLogin, theme, toggleTheme, authError, lo
         <div style={sectionPad}>
           <div style={{ textAlign: "center", marginBottom: isDesktop ? 56 : 40 }}>
             <h2 style={{ fontSize: isDesktop ? 36 : 26, fontWeight: 800, margin: "0 0 12px", color: T.text1, letterSpacing: -0.5 }}>Frequently Asked Questions</h2>
-            <p style={{ fontSize: isDesktop ? 16 : 14, color: T.text2, maxWidth: 480, margin: "0 auto" }}>Everything you need to know about RXpenses.</p>
+            <p style={{ fontSize: isDesktop ? 16 : 14, color: T.text2, maxWidth: 480, margin: "0 auto" }}>Everything you need to know about rxpenses.</p>
           </div>
           <div style={{ maxWidth: 700, margin: "0 auto", display: "flex", flexDirection: "column", gap: 8 }}>
             {faqs.map((f, i) => (
@@ -288,9 +288,9 @@ export default function LandingPage({ onLogin, theme, toggleTheme, authError, lo
         <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", flexDirection: isDesktop ? "row" : "column", justifyContent: "space-between", alignItems: isDesktop ? "center" : "flex-start", gap: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div style={{ width: 28, height: 28, borderRadius: 8, background: T.grad, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 12, color: theme === "dark" ? "#0C0C12" : "#FFF", letterSpacing: -1, fontFamily: "system-ui,-apple-system,sans-serif" }}>
-              RX
+              rx
             </div>
-            <span style={{ fontSize: 14, fontWeight: 700, color: T.text2 }}>R<span style={{ color: T.gold }}>X</span>penses</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: T.text2 }}>r<span style={{ color: T.gold }}>x</span>penses</span>
           </div>
           <p style={{ fontSize: 11, color: T.text3, margin: 0 }}>Personal finance, simplified. Built with AI.</p>
         </div>

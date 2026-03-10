@@ -22,9 +22,9 @@ export default function handler(req, res) {
   <rect width="1200" height="630" fill="url(#glow1)"/>
   <rect width="1200" height="630" fill="url(#glow2)"/>
   <rect x="480" y="155" width="80" height="80" rx="20" fill="url(#gold)"/>
-  <text x="520" y="210" font-family="system-ui,-apple-system,sans-serif" font-size="40" font-weight="800" fill="#1A1A2E" text-anchor="middle" letter-spacing="-2">RX</text>
-  <text x="600" y="210" font-family="system-ui,-apple-system,sans-serif" font-size="56" font-weight="800" fill="#E0D5C0" text-anchor="start" letter-spacing="-1">R<tspan fill="#F5B526">X</tspan>penses</text>
-  <text x="600" y="290" font-family="system-ui,-apple-system,sans-serif" font-size="26" font-weight="600" fill="#8A8078" text-anchor="middle">Free AI-Powered Expense Tracker for Couples</text>
+  <text x="520" y="210" font-family="system-ui,-apple-system,sans-serif" font-size="40" font-weight="800" fill="#1A1A2E" text-anchor="middle" letter-spacing="-2">rx</text>
+  <text x="600" y="210" font-family="system-ui,-apple-system,sans-serif" font-size="56" font-weight="800" fill="#E0D5C0" text-anchor="start" letter-spacing="-1">r<tspan fill="#F5B526">x</tspan>penses</text>
+  <text x="600" y="290" font-family="system-ui,-apple-system,sans-serif" font-size="26" font-weight="600" fill="#8A8078" text-anchor="middle">Smart Money Tracker for Couples</text>
   <rect x="228" y="340" width="120" height="40" rx="12" fill="rgba(245,181,38,0.12)" stroke="rgba(245,181,38,0.25)" stroke-width="1"/>
   <text x="288" y="366" font-family="system-ui,-apple-system,sans-serif" font-size="18" font-weight="600" fill="#F5B526" text-anchor="middle">AI Chat</text>
   <rect x="368" y="340" width="180" height="40" rx="12" fill="rgba(245,181,38,0.12)" stroke="rgba(245,181,38,0.25)" stroke-width="1"/>

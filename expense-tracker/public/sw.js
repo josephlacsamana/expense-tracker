@@ -1,4 +1,4 @@
-/* RXpenses Service Worker — notifications + cache management */
+/* rxpenses Service Worker — notifications + cache management */
 
 const CACHE_NAME = "rxpenses-v2";
 
