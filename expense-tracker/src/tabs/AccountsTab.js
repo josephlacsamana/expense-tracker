@@ -160,6 +160,8 @@ export default function AccountsTab() {
           const tOw = debts.reduce((s, d) => s + d.currentBalance, 0);
           const toPhpSG = (g) => { const c = g.currency || "PHP"; if (c === "PHP") return g.currentAmount; const p = cryptoPrices[c]; return p ? g.currentAmount * p.php : 0; };
           const totalSaved = savGoals.reduce((s, g) => s + toPhpSG(g), 0);
+          const toPhpTarget = (g) => { const c = g.currency || "PHP"; if (c === "PHP") return g.targetAmount; const p = cryptoPrices[c]; return p ? g.targetAmount * p.php : 0; };
+          const totalTarget = savGoals.reduce((s, g) => s + toPhpTarget(g), 0);
           const mInc = income.filter(i => pld(i.date) >= mStart).reduce((s, i) => s + i.amount, 0);
           const riDueCt = (() => { const now = new Date(); return recIncome.filter(r => { const nd = new Date(r.nextDate + "T00:00:00"); return nd <= now; }).length; })();
           const hubCards = [
@@ -167,7 +169,7 @@ export default function AccountsTab() {
             { key: "accounts", icon: Wallet, label: "Bank Accounts", value: fmt(totA), sub: `${accts.length} account${accts.length !== 1 ? "s" : ""}`, color: T.ok, badge: 0 },
             { key: "budgets", icon: Target, label: "Budgets", value: genBudget > 0 ? `${gbPct.toFixed(0)}% spent` : "No budget set", sub: genBudget > 0 ? `${fmt(mTot)} of ${fmt(genBudget)}` : "Tap to set up", color: genBudget > 0 ? (gbPct > 100 ? T.err : gbPct > 80 ? T.goldLight : T.ok) : T.text3, badge: 0 },
             { key: "debts", icon: TrendingDown, label: "Debts", value: debts.length > 0 ? fmt(tOw) : "No debts", sub: debts.length > 0 ? `${debts.length} debt${debts.length !== 1 ? "s" : ""} tracked` : "Tap to add", color: tOw > 0 ? T.err : T.ok, badge: debtDueCt },
-            { key: "savings", icon: PiggyBank, label: "Savings Goals", value: savGoals.length > 0 ? fmt(totalSaved) : "No goals yet", sub: savGoals.length > 0 ? `${savGoals.length} goal${savGoals.length !== 1 ? "s" : ""}` : "Tap to start saving", color: T.gold, badge: 0 },
+            { key: "savings", icon: PiggyBank, label: "Savings Goals", value: savGoals.length > 0 ? `${fmt(totalSaved)} / ${fmt(totalTarget)}` : "No goals yet", sub: savGoals.length > 0 ? `${savGoals.length} goal${savGoals.length !== 1 ? "s" : ""} -- ${totalTarget > 0 ? (totalSaved / totalTarget * 100).toFixed(0) : 0}% reached` : "Tap to start saving", color: T.gold, badge: 0 },
           ];
           return <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: isDesktop ? 14 : 10 }}>
             {hubCards.map(c => { const Icon = c.icon; return (
