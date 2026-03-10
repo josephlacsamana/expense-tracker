@@ -35,6 +35,8 @@ export function AppProvider({ children, user, householdId, householdRole, profil
   const [acctHist, setAcctHist] = useState([]);
   const [insights, setInsights] = useState([]);
   const [savGoals, setSavGoals] = useState([]);
+  const [income, setIncome] = useState([]);
+  const [recIncome, setRecIncome] = useState([]);
   const [users, setUsers] = useState([user]);
   const [ld, setLd] = useState(true);
   const [toast, setToast] = useState(null);
@@ -70,6 +72,8 @@ export function AppProvider({ children, user, householdId, householdRole, profil
             try { const ah = await sb.loadAccountHistory(householdId); if (ah.length) setAcctHist(ah); } catch {}
             try { const ins = await sb.loadInsights(householdId); if (ins.length) setInsights(ins); } catch {}
             try { const sg = await sb.loadSavingsGoals(householdId); if (sg.length) setSavGoals(sg); } catch {}
+            try { const inc = await sb.loadIncome(householdId); if (inc.length) setIncome(inc); } catch {}
+            try { const ri = await sb.loadRecurringIncome(householdId); if (ri.length) setRecIncome(ri); } catch {}
             setLd(false); return;
           }
           // Supabase empty — try migrating localStorage data up
@@ -115,6 +119,8 @@ export function AppProvider({ children, user, householdId, householdRole, profil
             try { const ah = await localStore.get("acctHist"); if (ah?.value) setAcctHist(JSON.parse(ah.value)); } catch {}
             try { const ins = await localStore.get("insights"); if (ins?.value) setInsights(JSON.parse(ins.value)); } catch {}
             try { const sg = await localStore.get("savGoals"); if (sg?.value) setSavGoals(JSON.parse(sg.value)); } catch {}
+            try { const inc = await localStore.get("income"); if (inc?.value) setIncome(JSON.parse(inc.value)); } catch {}
+            try { const ri = await localStore.get("recIncome"); if (ri?.value) setRecIncome(JSON.parse(ri.value)); } catch {}
             setLd(false); return;
           }
         }
@@ -155,6 +161,8 @@ export function AppProvider({ children, user, householdId, householdRole, profil
   const svIns = async (entry) => { setInsights(prev => [entry, ...prev].slice(0, 20)); try { if (sbReady) await sb.upsertInsight(entry, householdId); else await localStore.set("insights", JSON.stringify([entry, ...insights].slice(0, 20))); } catch {} };
   const delIns = async (id) => { setInsights(prev => prev.filter(i => i.id !== id)); try { if (sbReady) await sb.deleteInsight(id, householdId); else await localStore.set("insights", JSON.stringify(insights.filter(i => i.id !== id))); } catch {} };
   const svSG = async (d, opts) => { setSavGoals(d); try { if (sbReady) { if (opts?.deleteId) await sb.deleteSavingsGoal(opts.deleteId, householdId); else if (opts?.upsert) await sb.upsertSavingsGoal(opts.upsert, householdId); } else await localStore.set("savGoals", JSON.stringify(d)); } catch {} };
+  const svI = async (d, opts) => { setIncome(d); try { if (sbReady) { if (opts?.deleteId) await sb.deleteIncome(opts.deleteId, householdId); else if (opts?.upsert) await sb.upsertIncome(opts.upsert, householdId); } else await localStore.set("income", JSON.stringify(d)); } catch {} };
+  const svRI = async (d, opts) => { setRecIncome(d); try { if (sbReady) { if (opts?.deleteId) await sb.deleteRecurringIncome(opts.deleteId, householdId); else if (opts?.upsert) await sb.upsertRecurringIncome(opts.upsert, householdId); } else await localStore.set("recIncome", JSON.stringify(d)); } catch {} };
 
   // ─── AI ───
   const callAI = async (m, s, ret = 2) => {
@@ -283,6 +291,8 @@ export function AppProvider({ children, user, householdId, householdRole, profil
         try { const ah = await sb.loadAccountHistory(householdId); setAcctHist(ah); } catch {}
         try { const ins = await sb.loadInsights(householdId); setInsights(ins); } catch {}
         try { const sg = await sb.loadSavingsGoals(householdId); setSavGoals(sg); } catch {}
+        try { const inc = await sb.loadIncome(householdId); setIncome(inc); } catch {}
+        try { const ri = await sb.loadRecurringIncome(householdId); setRecIncome(ri); } catch {}
       }
       tst("Data refreshed");
     } catch (e) { console.error("[refresh]", e); tst("Refresh failed"); }
@@ -294,13 +304,13 @@ export function AppProvider({ children, user, householdId, householdRole, profil
     // Styles
     pillS, cardS, inpS, btnP, btnG, mOvS, mInS,
     // Data
-    exp, accts, budgets, genBudget, cats, rec, debts, dPays, acctHist, insights, savGoals, users, memberProfiles, ld, toast,
+    exp, accts, budgets, genBudget, cats, rec, debts, dPays, acctHist, insights, savGoals, income, recIncome, users, memberProfiles, ld, toast,
     // Setters (for local use by tabs)
-    setExp, setAccts, setBudgets, setGenBudget, setCats, setRec, setDebts, setDPays, setAcctHist, setSavGoals,
+    setExp, setAccts, setBudgets, setGenBudget, setCats, setRec, setDebts, setDPays, setAcctHist, setSavGoals, setIncome, setRecIncome,
     // Actions
     tst, catColors,
     // Save functions
-    svE, svA, svB, svCats, svGB, svR, svD, svDP, svAH, svIns, delIns, svSG,
+    svE, svA, svB, svCats, svGB, svR, svD, svDP, svAH, svIns, delIns, svSG, svI, svRI,
     // AI
     callAI,
     // Notifications

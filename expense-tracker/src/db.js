@@ -108,6 +108,26 @@ export const sb = {
   },
   deleteSavingsGoal: async (id, hid) => { await supabase.from("savings_goals").delete().eq("id", id).eq("household_id", hid); },
   deleteAllSavingsGoals: async (hid) => { await supabase.from("savings_goals").delete().eq("household_id", hid); },
+  // Income
+  loadIncome: async (hid) => {
+    const { data } = await supabase.from("income").select("*").eq("household_id", hid).order("created_at", { ascending: false });
+    return data?.map(r => ({ id: r.id, amount: Number(r.amount), source: r.source, description: r.description || "", date: r.date, addedBy: r.added_by, accountId: r.account_id || null, createdAt: r.created_at })) || [];
+  },
+  upsertIncome: async (i, hid) => {
+    await supabase.from("income").upsert({ id: i.id, amount: i.amount, source: i.source, description: i.description || "", date: i.date, added_by: i.addedBy, account_id: i.accountId || null, household_id: hid, created_at: i.createdAt });
+  },
+  deleteIncome: async (id, hid) => { await supabase.from("income").delete().eq("id", id).eq("household_id", hid); },
+  deleteAllIncome: async (hid) => { await supabase.from("income").delete().eq("household_id", hid); },
+  // Recurring Income
+  loadRecurringIncome: async (hid) => {
+    const { data } = await supabase.from("recurring_income").select("*").eq("household_id", hid).order("created_at", { ascending: false });
+    return data?.map(r => ({ id: r.id, amount: Number(r.amount), source: r.source, description: r.description || "", frequency: r.frequency, nextDate: r.next_date, addedBy: r.added_by, createdAt: r.created_at })) || [];
+  },
+  upsertRecurringIncome: async (r, hid) => {
+    await supabase.from("recurring_income").upsert({ id: r.id, amount: r.amount, source: r.source, description: r.description || "", frequency: r.frequency, next_date: r.nextDate, added_by: r.addedBy, household_id: hid, created_at: r.createdAt });
+  },
+  deleteRecurringIncome: async (id, hid) => { await supabase.from("recurring_income").delete().eq("id", id).eq("household_id", hid); },
+  deleteAllRecurringIncome: async (hid) => { await supabase.from("recurring_income").delete().eq("household_id", hid); },
   // Migrate localStorage → Supabase (one-time)
   migrate: async (expenses, accounts, recurring, categories, budgets, genBudget, pins, hid) => {
     const ops = [];
