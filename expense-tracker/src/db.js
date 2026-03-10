@@ -114,7 +114,8 @@ export const sb = {
     return data?.map(r => ({ id: r.id, amount: Number(r.amount), source: r.source, description: r.description || "", date: r.date, addedBy: r.added_by, accountId: r.account_id || null, createdAt: r.created_at })) || [];
   },
   upsertIncome: async (i, hid) => {
-    await supabase.from("income").upsert({ id: i.id, amount: i.amount, source: i.source, description: i.description || "", date: i.date, added_by: i.addedBy, account_id: i.accountId || null, household_id: hid, created_at: i.createdAt });
+    const { error } = await supabase.from("income").upsert({ id: i.id, amount: i.amount, source: i.source, description: i.description || "", date: i.date, added_by: i.addedBy, account_id: i.accountId || null, household_id: hid, created_at: i.createdAt });
+    if (error) console.error("upsertIncome error:", error);
   },
   deleteIncome: async (id, hid) => { await supabase.from("income").delete().eq("id", id).eq("household_id", hid); },
   deleteAllIncome: async (hid) => { await supabase.from("income").delete().eq("household_id", hid); },
@@ -124,7 +125,8 @@ export const sb = {
     return data?.map(r => ({ id: r.id, amount: Number(r.amount), source: r.source, description: r.description || "", frequency: r.frequency, nextDate: r.next_date, addedBy: r.added_by, createdAt: r.created_at })) || [];
   },
   upsertRecurringIncome: async (r, hid) => {
-    await supabase.from("recurring_income").upsert({ id: r.id, amount: r.amount, source: r.source, description: r.description || "", frequency: r.frequency, next_date: r.nextDate, added_by: r.addedBy, household_id: hid, created_at: r.createdAt });
+    const { error } = await supabase.from("recurring_income").upsert({ id: r.id, amount: r.amount, source: r.source, description: r.description || "", frequency: r.frequency, next_date: r.nextDate, added_by: r.addedBy, household_id: hid, created_at: r.createdAt });
+    if (error) console.error("upsertRecurringIncome error:", error);
   },
   deleteRecurringIncome: async (id, hid) => { await supabase.from("recurring_income").delete().eq("id", id).eq("household_id", hid); },
   deleteAllRecurringIncome: async (hid) => { await supabase.from("recurring_income").delete().eq("household_id", hid); },

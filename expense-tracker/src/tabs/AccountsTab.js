@@ -627,7 +627,7 @@ export default function AccountsTab() {
                       <div style={{ fontSize: 11, color: T.text2 }}>{r.description || r.source} -- {fmt(r.amount)}</div>
                     </div>
                     <button onClick={() => {
-                      const entry = { id: uid(), amount: r.amount, source: r.source, description: r.description, date: td(), addedBy: user, accountId: null, createdAt: Date.now() };
+                      const entry = { id: uid(), amount: r.amount, source: r.source, description: r.description, date: td(), addedBy: user, accountId: null, createdAt: new Date().toISOString() };
                       svI([entry, ...income], { upsert: entry });
                       // Advance next date
                       const nd2 = new Date(r.nextDate + "T00:00:00");
@@ -698,7 +698,7 @@ export default function AccountsTab() {
           <button onClick={() => {
             const amt = parseFloat(incF.amount);
             if (!amt || amt <= 0) return;
-            const entry = { id: incEdit || uid(), amount: parseFloat(amt.toFixed(2)), source: incF.source, description: incF.description?.trim() || "", date: incF.date || td(), addedBy: incF.addedBy || user, accountId: incF.accountId || null, createdAt: incEdit ? (income.find(i => i.id === incEdit)?.createdAt || Date.now()) : Date.now() };
+            const entry = { id: incEdit || uid(), amount: parseFloat(amt.toFixed(2)), source: incF.source, description: incF.description?.trim() || "", date: incF.date || td(), addedBy: incF.addedBy || user, accountId: incF.accountId || null, createdAt: incEdit ? (income.find(i => i.id === incEdit)?.createdAt || new Date().toISOString()) : new Date().toISOString() };
             if (incEdit) {
               // Reverse old account link
               const old = income.find(i => i.id === incEdit);
@@ -765,7 +765,7 @@ export default function AccountsTab() {
           <button onClick={() => {
             const amt = parseFloat(riF.amount);
             if (!amt || amt <= 0) return;
-            const entry = { id: riEdit || uid(), amount: parseFloat(amt.toFixed(2)), source: riF.source, description: riF.description?.trim() || "", frequency: riF.frequency, nextDate: riF.nextDate || td(), addedBy: user, createdAt: riEdit ? (recIncome.find(r => r.id === riEdit)?.createdAt || Date.now()) : Date.now() };
+            const entry = { id: riEdit || uid(), amount: parseFloat(amt.toFixed(2)), source: riF.source, description: riF.description?.trim() || "", frequency: riF.frequency, nextDate: riF.nextDate || td(), addedBy: user, createdAt: riEdit ? (recIncome.find(r => r.id === riEdit)?.createdAt || new Date().toISOString()) : new Date().toISOString() };
             if (riEdit) { svRI(recIncome.map(r => r.id === riEdit ? entry : r), { upsert: entry }); } else { svRI([entry, ...recIncome], { upsert: entry }); }
             setRiForm(false);
             tst(riEdit ? "Recurring income updated" : "Recurring income added");
