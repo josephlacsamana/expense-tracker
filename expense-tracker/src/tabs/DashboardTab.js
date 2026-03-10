@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { TrendingUp, TrendingDown, Wallet } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, DollarSign } from "lucide-react";
 import { PieChart as RPie, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, LineChart, Line, CartesianGrid, Legend } from "recharts";
 import { useApp } from "../AppContext";
 import { PERIODS, fmt, fmtS, pld, startOf, prevRange } from "../constants";
 import ChartTooltip from "../components/ChartTooltip";
 
 export default function DashboardTab() {
-  const { exp, accts, budgets, genBudget, cats, catColors, users, theme, isDesktop, T, cardS, pillS, inpS } = useApp();
+  const { exp, accts, budgets, genBudget, cats, catColors, income, users, theme, isDesktop, T, cardS, pillS, inpS } = useApp();
   const [per, setPer] = useState("Monthly");
   const [pf, setPf] = useState("All");
 
@@ -22,14 +22,17 @@ export default function DashboardTab() {
   const dT = Object.entries(dm).sort((a, b) => a[0].localeCompare(b[0])).map(([d, v]) => ({ date: d.slice(5), amount: v }));
   const pieD = Object.entries(byCat).sort((a, b) => b[1] - a[1]).map(([n, v]) => ({ name: n, value: v }));
   const t5 = [...filt].sort((a, b) => b.amount - a.amount).slice(0, 5);
-  const cBar = Object.entries(byCat).sort((a, b) => b[1] - a[1]).map(([n, v]) => ({ name: n.slice(0, 5), full: n, value: v }));
+  const cBar = Object.entries(byCat).sort((a, b) => b[1] - a[1]).map(([n, v]) => ({ name: n.length > 8 ? n.slice(0, 7) + ".." : n, full: n, value: v }));
   const totA = accts.reduce((s, a) => s + a.balance, 0);
   const mStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
   const mExp = exp.filter(e => pld(e.date) >= mStart);
   const mByCat = mExp.reduce((a, e) => { a[e.category] = (a[e.category] || 0) + e.amount; return a; }, {});
   const mTot = mExp.reduce((s, e) => s + e.amount, 0);
   const gbPct = genBudget > 0 ? (mTot / genBudget) * 100 : 0;
-  const budgetChart = cats.map(c => ({ name: c.slice(0, 5), full: c, budget: budgets[c] || 0, actual: mByCat[c] || 0 })).filter(d => d.budget > 0 || d.actual > 0);
+  const budgetChart = cats.map(c => ({ name: c.length > 8 ? c.slice(0, 7) + ".." : c, full: c, budget: budgets[c] || 0, actual: mByCat[c] || 0 })).filter(d => d.budget > 0 || d.actual > 0);
+  const filtInc = income.filter(i => per === "All" || pld(i.date) >= ps).filter(i => pf === "All" || i.addedBy === pf);
+  const totInc = filtInc.reduce((s, i) => s + i.amount, 0);
+  const cashFlow = totInc - totF;
 
   return (
     <div style={{ flex: 1, maxWidth: isDesktop ? 1100 : 600, margin: "0 auto", padding: isDesktop ? "28px 36px 40px" : "18px 20px 80px", width: "100%", boxSizing: "border-box", overflowY: "auto" }}>
@@ -74,6 +77,23 @@ export default function DashboardTab() {
         </div>
       )}
 
+      {(totInc > 0 || totF > 0) && (
+        <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr 1fr" : "1fr 1fr 1fr", gap: 8, marginBottom: 18 }}>
+          <div style={{ ...cardS, padding: "14px 16px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}><DollarSign size={12} style={{ color: T.ok }} /><span style={{ fontSize: 10, color: T.text3, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>Income</span></div>
+            <div style={{ fontSize: isDesktop ? 20 : 16, fontWeight: 800, color: T.ok }}>{fmt(totInc)}</div>
+          </div>
+          <div style={{ ...cardS, padding: "14px 16px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}><TrendingDown size={12} style={{ color: T.err }} /><span style={{ fontSize: 10, color: T.text3, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>Expenses</span></div>
+            <div style={{ fontSize: isDesktop ? 20 : 16, fontWeight: 800, color: T.err }}>{fmt(totF)}</div>
+          </div>
+          <div style={{ ...cardS, padding: "14px 16px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}><Wallet size={12} style={{ color: cashFlow >= 0 ? T.ok : T.err }} /><span style={{ fontSize: 10, color: T.text3, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>Net Flow</span></div>
+            <div style={{ fontSize: isDesktop ? 20 : 16, fontWeight: 800, color: cashFlow >= 0 ? T.ok : T.err }}>{cashFlow >= 0 ? "+" : ""}{fmt(cashFlow)}</div>
+          </div>
+        </div>
+      )}
+
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 18 }}>
         {Object.entries(byP).map(([n, a]) => (<div key={n} style={cardS}><div style={{ fontSize: 11, color: T.text2, fontWeight: 600 }}>{n}</div><div style={{ fontSize: 22, fontWeight: 800, marginTop: 4 }}>{fmt(a)}</div><div style={{ fontSize: 10, color: T.text3, marginTop: 4 }}>{totF > 0 ? (a / totF * 100).toFixed(0) : 0}% of total</div></div>))}
       </div>
@@ -85,7 +105,7 @@ export default function DashboardTab() {
         </div>)}
 
         {cBar.length > 0 && (<div style={{ ...cardS }}><div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Category Breakdown</div>
-          <ResponsiveContainer width="100%" height={isDesktop ? 260 : 180}><BarChart data={cBar}><XAxis dataKey="name" tick={{ fill: T.text3, fontSize: 10 }} axisLine={false} tickLine={false} /><YAxis tick={{ fill: T.text3, fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={fmtS} /><Tooltip content={<ChartTooltip />} /><Bar dataKey="value" radius={[8, 8, 0, 0]}>{cBar.map((d, i) => <Cell key={i} fill={catColors[d.full] || T.gold} />)}</Bar></BarChart></ResponsiveContainer>
+          <ResponsiveContainer width="100%" height={isDesktop ? 280 : 200}><BarChart data={cBar} margin={{ bottom: isDesktop ? 20 : 30 }}><XAxis dataKey="name" tick={{ fill: T.text3, fontSize: isDesktop ? 10 : 9 }} axisLine={false} tickLine={false} angle={isDesktop ? 0 : -35} textAnchor={isDesktop ? "middle" : "end"} interval={0} height={isDesktop ? 30 : 50} /><YAxis tick={{ fill: T.text3, fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={fmtS} /><Tooltip content={<ChartTooltip nameKey="full" />} /><Bar dataKey="value" radius={[8, 8, 0, 0]}>{cBar.map((d, i) => <Cell key={i} fill={catColors[d.full] || T.gold} />)}</Bar></BarChart></ResponsiveContainer>
         </div>)}
 
         {dT.length > 1 && (<div style={{ ...cardS }}><div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Spending Trend</div>
@@ -93,7 +113,7 @@ export default function DashboardTab() {
         </div>)}
 
         {budgetChart.length > 0 && (<div style={{ ...cardS }}><div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Budget vs Actual</div>
-          <ResponsiveContainer width="100%" height={isDesktop ? 260 : 200}><BarChart data={budgetChart}><XAxis dataKey="name" tick={{ fill: T.text3, fontSize: 10 }} axisLine={false} tickLine={false} /><YAxis tick={{ fill: T.text3, fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={fmtS} /><Tooltip content={<ChartTooltip />} /><Legend wrapperStyle={{ fontSize: 10 }} formatter={(v) => <span style={{ color: T.text2 }}>{v}</span>} /><Bar dataKey="budget" fill={theme === "dark" ? "rgba(245,181,38,0.35)" : "rgba(212,155,31,0.3)"} radius={[6, 6, 0, 0]} name="Budget" /><Bar dataKey="actual" radius={[6, 6, 0, 0]} name="Actual">{budgetChart.map((d, i) => <Cell key={i} fill={d.actual > d.budget ? T.err : d.actual > d.budget * 0.8 ? T.goldLight : T.ok} />)}</Bar></BarChart></ResponsiveContainer>
+          <ResponsiveContainer width="100%" height={isDesktop ? 280 : 220}><BarChart data={budgetChart} margin={{ bottom: isDesktop ? 20 : 30 }}><XAxis dataKey="name" tick={{ fill: T.text3, fontSize: isDesktop ? 10 : 9 }} axisLine={false} tickLine={false} angle={isDesktop ? 0 : -35} textAnchor={isDesktop ? "middle" : "end"} interval={0} height={isDesktop ? 30 : 50} /><YAxis tick={{ fill: T.text3, fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={fmtS} /><Tooltip content={<ChartTooltip nameKey="full" />} /><Legend wrapperStyle={{ fontSize: 10 }} formatter={(v) => <span style={{ color: T.text2 }}>{v}</span>} /><Bar dataKey="budget" fill={theme === "dark" ? "rgba(245,181,38,0.35)" : "rgba(212,155,31,0.3)"} radius={[6, 6, 0, 0]} name="Budget" /><Bar dataKey="actual" radius={[6, 6, 0, 0]} name="Actual">{budgetChart.map((d, i) => <Cell key={i} fill={d.actual > d.budget ? T.err : d.actual > d.budget * 0.8 ? T.goldLight : T.ok} />)}</Bar></BarChart></ResponsiveContainer>
         </div>)}
       </div>
 
