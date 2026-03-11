@@ -247,7 +247,7 @@ export function AppProvider({ children, user, householdId, householdRole, profil
   const fetchCryptoPrices = async () => {
     try {
       const ids = CRYPTO_COINS.map(c => c.id).join(",");
-      const r = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=php,usd&include_24hr_change=true`);
+      const r = await fetch(`/api/crypto?ids=${ids}`);
       if (!r.ok) return;
       const d = await r.json();
       // Transform: { bitcoin: { php: 5000000, usd: 95000, php_24h_change: 1.5 }, ... }
