@@ -48,7 +48,7 @@ For debt questions (repayment timeline, interest savings, what-if scenarios): us
     try {
       let content;
       if (img) {
-        const parts = [{ type: "image", source: { type: "base64", media_type: img.type, data: img.b64 } }, { type: "text", text: m || "Extract all items and totals from this receipt. Return as expenses JSON." }];
+        const parts = [{ type: "image", source: { type: "base64", media_type: img.type, data: img.b64 } }, { type: "text", text: m || "Extract all items and totals from this receipt. Read each price carefully and exactly as printed. Do not guess, round, or estimate amounts. Match the exact numbers shown on the receipt. Return as expenses JSON." }];
         content = [{ role: "user", content: parts }];
       } else { content = [{ role: "user", content: m }]; }
       const raw = await callAI(content, SYS); const p = parseR(raw); const t = stripE(p.message || "Done.");

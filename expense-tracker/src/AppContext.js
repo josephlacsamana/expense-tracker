@@ -168,7 +168,7 @@ export function AppProvider({ children, user, householdId, householdRole, profil
   const callAI = async (m, s, ret = 2) => {
     for (let i = 0; i <= ret; i++) {
       try {
-        const r = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, system: s, messages: m }) });
+        const r = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 4096, system: s, messages: m }) });
         if (r.status === 429 || r.status >= 500) { if (i < ret) { await new Promise(rs => setTimeout(rs, 1500 * (i + 1))); continue; } }
         if (!r.ok) return `{"expenses":[],"message":"API error ${r.status}."}`;
         const d = await r.json(); return d.content?.map(b => b.text || "").filter(Boolean).join("") || '{"expenses":[],"message":"No response."}';

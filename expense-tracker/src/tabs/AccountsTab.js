@@ -659,8 +659,8 @@ export default function AccountsTab() {
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <div style={{ width: 38, height: 38, borderRadius: 11, background: theme === "dark" ? "rgba(52,211,153,0.1)" : "rgba(5,150,105,0.06)", display: "flex", alignItems: "center", justifyContent: "center" }}><Repeat size={16} style={{ color: T.ok }} /></div>
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 700 }}>{r.description || r.source}</div>
-                        <div style={{ fontSize: 10, color: T.text3 }}>{r.source} -- {r.frequency} -- Next: {r.nextDate}</div>
+                        <div style={{ fontSize: 13, fontWeight: 700 }}>{r.source}</div>
+                        <div style={{ fontSize: 10, color: T.text3 }}>{r.description ? `${r.description} -- ` : ""}{r.frequency} -- Next: {r.nextDate}</div>
                       </div>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
