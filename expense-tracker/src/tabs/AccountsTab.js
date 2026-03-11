@@ -197,7 +197,21 @@ export default function AccountsTab() {
       {accSub !== "hub" && <button onClick={() => setAccSub("hub")} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, padding: "0 0 14px", color: T.gold, fontSize: 13, fontWeight: 600 }}><ArrowLeft size={16} />Money Hub</button>}
       <div>
         {accSub === "accounts" && (<>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}><div style={{ fontSize: 18, fontWeight: 800 }}>Accounts</div><button onClick={() => { rstAf(); setSaf(true); }} style={{ ...btnP, padding: "10px 16px", fontSize: 12, display: "flex", alignItems: "center", gap: 5 }}><Plus size={14} />Add</button></div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, gap: 8 }}><div style={{ fontSize: 18, fontWeight: 800 }}>Accounts</div>
+            <div style={{ display: "flex", gap: 6 }}>
+              {accts.length > 0 && exp.some(e => e.accountId) && acctHist.filter(h => h.reason === "expense" || h.reason === "expense_backfill").length < exp.filter(e => e.accountId).length && (
+                <button onClick={() => {
+                  const linked = exp.filter(e => e.accountId && !acctHist.some(h => h.description === (e.description || e.category) && h.accountId === e.accountId && Math.abs(h.change) === e.amount));
+                  if (!linked.length) { tst("No missing history to rebuild"); return; }
+                  linked.forEach(e => {
+                    svAH({ id: uid(), accountId: e.accountId, oldBalance: 0, newBalance: 0, change: -e.amount, reason: "expense_backfill", description: `${e.description || e.category} (${e.date})`, createdAt: new Date(e.date).toISOString() });
+                  });
+                  tst(`Rebuilt ${linked.length} history entries`);
+                }} style={{ ...btnG, padding: "10px 12px", fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}><Clock size={12} />Rebuild History</button>
+              )}
+              <button onClick={() => { rstAf(); setSaf(true); }} style={{ ...btnP, padding: "10px 16px", fontSize: 12, display: "flex", alignItems: "center", gap: 5 }}><Plus size={14} />Add</button>
+            </div>
+          </div>
           {accts.length > 0 && (<div style={{ background: `linear-gradient(135deg,${theme === "dark" ? "rgba(52,211,153,0.08)" : "rgba(5,150,105,0.06)"},transparent)`, border: `1px solid ${theme === "dark" ? "rgba(52,211,153,0.15)" : "rgba(5,150,105,0.15)"}`, borderRadius: 18, padding: "16px 18px", marginBottom: 18 }}><div style={{ fontSize: 10, color: T.text3, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>Net Worth</div><div style={{ fontSize: 30, fontWeight: 800, color: T.ok, marginTop: 2 }}>{fmt(totA)}</div></div>)}
           <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 8 }}>
             {accts.map(a => { const I = aIcons[a.type] || Wallet; const hist = acctHist.filter(h => h.accountId === a.id).sort((x, y) => y.createdAt - x.createdAt); const isEx = viewAH === a.id; return (

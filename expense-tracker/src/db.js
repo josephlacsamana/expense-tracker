@@ -72,7 +72,9 @@ export const sb = {
     return data?.map(r => ({ id: r.id, accountId: r.account_id, oldBalance: Number(r.old_balance), newBalance: Number(r.new_balance), change: Number(r.change_amount), reason: r.reason, description: r.description || "", createdAt: r.created_at })) || [];
   },
   upsertAccountHistory: async (h, hid) => {
-    await supabase.from("account_history").upsert({ id: h.id, account_id: h.accountId, old_balance: h.oldBalance, new_balance: h.newBalance, change_amount: h.change, reason: h.reason, description: h.description || "", household_id: hid, created_at: h.createdAt });
+    const ca = typeof h.createdAt === "number" ? new Date(h.createdAt).toISOString() : h.createdAt;
+    const { error } = await supabase.from("account_history").upsert({ id: h.id, account_id: h.accountId, old_balance: h.oldBalance, new_balance: h.newBalance, change_amount: h.change, reason: h.reason, description: h.description || "", household_id: hid, created_at: ca });
+    if (error) console.error("upsertAccountHistory error:", error);
   },
   deleteAccountHistoryByAccount: async (accountId, hid) => {
     await supabase.from("account_history").delete().eq("account_id", accountId).eq("household_id", hid);
