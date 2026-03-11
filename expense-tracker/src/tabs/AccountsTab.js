@@ -48,6 +48,11 @@ export default function AccountsTab() {
   const [riEdit, setRiEdit] = useState(null);
   const [riF, setRiF] = useState({ amount: "", source: "Salary", description: "", frequency: "monthly", nextDate: td() });
   const [riDel, setRiDel] = useState(null);
+  // Account adjust balance
+  const [adjAcct, setAdjAcct] = useState(null); // account id
+  const [adjAmt, setAdjAmt] = useState("");
+  const [adjNote, setAdjNote] = useState("");
+  const [adjMode, setAdjMode] = useState("add"); // "add" | "deduct"
   const [editPayForm, setEditPayForm] = useState({ amount: "", date: "", lateFee: "" });
   const [delPayId, setDelPayId] = useState(null);
   const [viewDt, setViewDt] = useState(null);
@@ -200,6 +205,7 @@ export default function AccountsTab() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}><div style={{ width: 42, height: 42, borderRadius: 13, background: T.goldMuted, display: "flex", alignItems: "center", justifyContent: "center" }}><I size={18} style={{ color: T.gold }} /></div><div><div style={{ fontSize: 13, fontWeight: 600 }}>{a.name}</div><div style={{ fontSize: 10, color: T.text3, textTransform: "capitalize" }}>{a.type}</div></div></div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ fontSize: 16, fontWeight: 800, color: T.ok }}>{fmt(a.balance)}</div>
+                    <button onClick={() => { setAdjAcct(a.id); setAdjAmt(""); setAdjNote(""); setAdjMode("add"); }} style={{ background: "none", border: "none", color: T.ok, cursor: "pointer", padding: 4, display: "flex", alignItems: "center" }} title="Adjust balance"><Plus size={14} /></button>
                     <button onClick={() => setViewAH(isEx ? null : a.id)} style={{ background: "none", border: "none", color: T.text3, cursor: "pointer", padding: 4, display: "flex", alignItems: "center", gap: 2 }}><Clock size={13} /><span style={{ fontSize: 10 }}>{hist.length}</span></button>
                     <button onClick={() => edA(a)} style={{ background: "none", border: "none", color: T.gold, cursor: "pointer", padding: 4 }}><Edit3 size={14} /></button><button onClick={() => setDac(a.id)} style={{ background: "none", border: "none", color: T.err, cursor: "pointer", padding: 4 }}><Trash2 size={14} /></button></div>
                 </div>
@@ -910,6 +916,37 @@ export default function AccountsTab() {
 
       {/* Delete account modal */}
       {dac && <div style={mOvS}><div style={mInS}><div style={{ textAlign: "center" }}><AlertTriangle size={36} style={{ color: T.err, marginBottom: 14 }} /><div style={{ fontSize: 18, fontWeight: 700, color: T.text1, marginBottom: 6 }}>Delete account?</div><div style={{ display: "flex", gap: 8, marginTop: 20 }}><button onClick={() => delA(dac)} style={{ ...btnP, flex: 1, background: T.err, boxShadow: "none" }}>Delete</button><button onClick={() => setDac(null)} style={{ ...btnG, flex: 1 }}>Cancel</button></div></div></div></div>}
+
+      {/* Adjust balance modal */}
+      {adjAcct && (() => { const a = accts.find(x => x.id === adjAcct); if (!a) return null; return (
+        <div style={mOvS}><div style={mInS}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: T.text1 }}>Adjust Balance</div>
+            <button onClick={() => setAdjAcct(null)} style={{ background: "none", border: "none", color: T.text3, cursor: "pointer" }}><X size={22} /></button>
+          </div>
+          <div style={{ fontSize: 13, color: T.text2, marginBottom: 12 }}>{a.name} -- Current: <span style={{ fontWeight: 700, color: T.ok }}>{fmt(a.balance)}</span></div>
+          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+            <button onClick={() => setAdjMode("add")} style={{ ...pillS, flex: 1, background: adjMode === "add" ? T.ok : "transparent", color: adjMode === "add" ? "#fff" : T.text2, border: `1px solid ${adjMode === "add" ? T.ok : T.border}`, fontWeight: 700, padding: "10px 0", borderRadius: 12, cursor: "pointer" }}>+ Add</button>
+            <button onClick={() => setAdjMode("deduct")} style={{ ...pillS, flex: 1, background: adjMode === "deduct" ? T.err : "transparent", color: adjMode === "deduct" ? "#fff" : T.text2, border: `1px solid ${adjMode === "deduct" ? T.err : T.border}`, fontWeight: 700, padding: "10px 0", borderRadius: 12, cursor: "pointer" }}>- Deduct</button>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <input placeholder="Amount" type="number" inputMode="decimal" value={adjAmt} onChange={e => setAdjAmt(e.target.value)} style={inpS} autoFocus />
+            <input placeholder="Reason (optional)" value={adjNote} onChange={e => setAdjNote(e.target.value)} style={inpS} />
+            {adjAmt && parseFloat(adjAmt) > 0 && <div style={{ fontSize: 12, color: T.text3 }}>New balance: <span style={{ fontWeight: 700, color: adjMode === "add" ? T.ok : T.err }}>{fmt(adjMode === "add" ? a.balance + parseFloat(adjAmt) : a.balance - parseFloat(adjAmt))}</span></div>}
+            <button onClick={() => {
+              const v = parseFloat(adjAmt);
+              if (!v || v <= 0) return;
+              const change = adjMode === "add" ? v : -v;
+              const newBal = parseFloat((a.balance + change).toFixed(2));
+              const upA = { ...a, balance: newBal, updatedAt: Date.now() };
+              svA(accts.map(x => x.id === a.id ? upA : x), { upsert: upA });
+              svAH({ id: uid(), accountId: a.id, oldBalance: a.balance, newBalance: newBal, change: parseFloat(change.toFixed(2)), reason: adjMode === "add" ? "adjustment_add" : "adjustment_deduct", description: adjNote.trim() || (adjMode === "add" ? "Balance added" : "Balance deducted"), createdAt: Date.now() });
+              tst(`${adjMode === "add" ? "Added" : "Deducted"} ${fmt(v)} ${adjMode === "add" ? "to" : "from"} ${a.name}`);
+              setAdjAcct(null);
+            }} style={{ ...btnP, width: "100%", background: adjMode === "add" ? T.ok : T.err, boxShadow: "none" }}>{adjMode === "add" ? "Add to Balance" : "Deduct from Balance"}</button>
+          </div>
+        </div></div>
+      ); })()}
 
       {/* Clear budget modal */}
       {cgb && <div style={mOvS}><div style={mInS}><div style={{ textAlign: "center" }}><AlertTriangle size={36} style={{ color: T.err, marginBottom: 14 }} /><div style={{ fontSize: 18, fontWeight: 700, color: T.text1, marginBottom: 6 }}>Clear monthly budget?</div><div style={{ fontSize: 13, color: T.text3, marginBottom: 20 }}>This will remove your general monthly budget limit of {fmt(genBudget)}. The budget progress bar will no longer show on the dashboard.</div><div style={{ display: "flex", gap: 8 }}><button onClick={() => { svGB(0); setGbEdit(""); setCgb(false); tst("Budget cleared"); }} style={{ ...btnP, flex: 1, background: T.err, boxShadow: "none" }}>Clear Budget</button><button onClick={() => setCgb(false)} style={{ ...btnG, flex: 1 }}>Cancel</button></div></div></div></div>}
