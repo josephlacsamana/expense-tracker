@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect } from "react";
-import { X, Check, Send, ImagePlus, AlertTriangle, TrendingUp, Lightbulb, Coins, PieChart, History, Trash2, Download, ChevronUp, Zap } from "lucide-react";
+import { X, Check, Send, ImagePlus, AlertTriangle, TrendingUp, Lightbulb, Coins, PieChart, History, Trash2, Download, ChevronUp, Zap, DollarSign } from "lucide-react";
 import { PieChart as RPie, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
 import ChartTooltip from "../components/ChartTooltip";
 import { useApp } from "../AppContext";
-import { fmt, td, uid, stripE, pld, startOf, prevRange, fmtS } from "../constants";
+import { fmt, td, uid, stripE, pld, startOf, prevRange, fmtS, INCOME_SOURCES } from "../constants";
 
 export default function ChatTab() {
-  const { exp, accts, budgets, cats, debts, catColors, users, svE, svA, svAH, svIns, delIns, insights, tst, callAI, user, household, theme, isDesktop, T, cardS, pillS, inpS, btnP, btnG, mOvS, mInS } = useApp();
+  const { exp, accts, budgets, cats, debts, income, catColors, users, svE, svA, svAH, svI, svIns, delIns, insights, tst, callAI, user, household, theme, isDesktop, T, cardS, pillS, inpS, btnP, btnG, mOvS, mInS } = useApp();
 
   const welcome = { role: "assistant", content: `Hey ${user}! Tell me what you spent and I'll log it. Upload a receipt or just type it out.` };
   const [msgs, setMsgs] = useState(() => { try { const s = localStorage.getItem("chatMsgs"); if (s) { const p = JSON.parse(s); if (Array.isArray(p) && p.length > 0) return p; } } catch {} return [welcome]; });
@@ -17,6 +17,9 @@ export default function ChatTab() {
   const [att, setAtt] = useState(null);
   const [editIdx, setEditIdx] = useState(null);
   const [editForm, setEditForm] = useState(null);
+  const [pi, setPi] = useState(null); // pending income from AI
+  const [incEditIdx, setIncEditIdx] = useState(null);
+  const [incEditForm, setIncEditForm] = useState(null);
   const [showRevPer, setShowRevPer] = useState(false);
   const [showPastRev, setShowPastRev] = useState(false);
 
@@ -27,15 +30,19 @@ export default function ChatTab() {
   const acctCtx = accts.length ? `\nAccounts:\n${accts.map(a => `- "${a.name}" (${a.type}): PHP ${a.balance.toFixed(2)}`).join("\n")}\nIf user mentions paying from a specific account/bank/card, set "account" to the matching account name. If not mentioned, omit "account".` : "";
   const SYS = `You are an expense tracker assistant for a couple (${users.join(" and ")}). Currency: PHP (Philippine Peso).
 RESPOND ONLY WITH VALID JSON. No markdown, no backticks. Today: ${td()}. Current user: ${user}.
-Format: {"expenses":[{"amount":number,"category":"${cats.join("|")}","description":"text","date":"YYYY-MM-DD"${accts.length ? ',"account":"account name or omit"' : ""}}],"message":"confirmation text, NO emojis"}
-Not expenses: {"expenses":[],"message":"response, NO emojis"}
+Format for EXPENSES: {"expenses":[{"amount":number,"category":"${cats.join("|")}","description":"text","date":"YYYY-MM-DD"${accts.length ? ',"account":"account name or omit"' : ""}}],"message":"confirmation text, NO emojis"}
+Format for INCOME (salary, freelance, payments received, GCash/bank transfers IN, payslips): {"income":[{"amount":number,"source":"${INCOME_SOURCES.join("|")}","description":"text","date":"YYYY-MM-DD"}],"message":"confirmation text, NO emojis"}
+For payslips/salary slips: use the NET PAY (take-home pay after deductions), NOT gross pay. Extract pay period date and employer name for description.
+If user says "received", "got paid", "salary", "income", "earned", "payslip", or uploads a payslip/salary receipt/GCash receive screenshot, treat as INCOME not expense.
+A response can have BOTH expenses and income: {"expenses":[...],"income":[...],"message":"..."}
+Not expenses or income: {"expenses":[],"message":"response, NO emojis"}
 Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multiple. Categories: ${cats.join(", ")}. If unsure pick "Other". gas/grab/angkas=Transport. food/jollibee/grocery/coffee=Food. netflix/spotify=Subscriptions. meralco/pldt/water=Bills.
 For debt questions (repayment timeline, interest savings, what-if scenarios): use expenses:[] and answer in message. Use amortization math for timelines. Be specific with numbers and months.${debtCtx}${acctCtx}`;
 
   const resolveAcct = (name) => { if (!name) return null; const n = name.toLowerCase(); return accts.find(a => a.name.toLowerCase() === n || a.name.toLowerCase().includes(n) || n.includes(a.name.toLowerCase())) || null; };
   const parseR = (t) => {
-    try { let c = t.replace(/```json|```/g, "").trim(); const m = c.match(/\{[\s\S]*\}/); if (m) { const p = JSON.parse(m[0]); return { expenses: (p.expenses || []).map(e => { const matched = resolveAcct(e.account); return { ...e, category: cats.includes(e.category) ? e.category : "Other", date: e.date || td(), accountId: matched?.id || null, accountName: matched?.name || null }; }), message: p.message || "" }; } return { expenses: [], message: t.slice(0, 300) }; }
-    catch { if (t && !t.startsWith("{")) return { expenses: [], message: t.slice(0, 300) }; return { expenses: [], message: "Could not parse." }; }
+    try { let c = t.replace(/```json|```/g, "").trim(); const m = c.match(/\{[\s\S]*\}/); if (m) { const p = JSON.parse(m[0]); return { expenses: (p.expenses || []).map(e => { const matched = resolveAcct(e.account); return { ...e, category: cats.includes(e.category) ? e.category : "Other", date: e.date || td(), accountId: matched?.id || null, accountName: matched?.name || null }; }), income: (p.income || []).map(inc => ({ ...inc, source: INCOME_SOURCES.includes(inc.source) ? inc.source : "Other", date: inc.date || td() })), message: p.message || "" }; } return { expenses: [], income: [], message: t.slice(0, 300) }; }
+    catch { if (t && !t.startsWith("{")) return { expenses: [], income: [], message: t.slice(0, 300) }; return { expenses: [], income: [], message: "Could not parse." }; }
   };
 
   const doChat = async () => {
@@ -53,6 +60,7 @@ For debt questions (repayment timeline, interest savings, what-if scenarios): us
       } else { content = [{ role: "user", content: m }]; }
       const raw = await callAI(content, SYS); const p = parseR(raw); const t = stripE(p.message || "Done.");
       if (p.expenses?.length > 0) setPe(p.expenses.map(e => ({ ...e, id: uid(), addedBy: user, createdAt: Date.now() })));
+      if (p.income?.length > 0) setPi(p.income.map(inc => ({ ...inc, id: uid(), addedBy: user, accountId: null, createdAt: new Date().toISOString() })));
       setMsgs(v => [...v, { role: "assistant", content: t }]);
     } catch { setMsgs(v => [...v, { role: "assistant", content: "Something went wrong." }]); }
     setCl(false);
@@ -108,6 +116,17 @@ For debt questions (repayment timeline, interest savings, what-if scenarios): us
   const applyEdit = (i) => { if (!editForm) return; const u = [...pe]; u[i] = { ...editForm, amount: parseFloat(editForm.amount) || 0 }; setPe(u); setEditIdx(null); setEditForm(null); };
   const applyAndSave = (i) => { if (!editForm) return; const e = { ...editForm, amount: parseFloat(editForm.amount) || 0 }; svE([e, ...exp], { upsert: e }); deductAccts([e]); setMsgs(v => [...v, { role: "assistant", content: `Saved: ${e.description || e.category} (${e.category}) - ${fmt(e.amount)} on ${e.date}${e.accountName ? ` [${e.accountName}]` : ""}` }]); tst(`Saved: ${e.description || e.category}`); const rest = (pe || []).filter((_, j) => j !== i); setPe(rest.length ? rest : null); setEditIdx(null); setEditForm(null); };
 
+  // Income helpers
+  const findIncDup = (inc) => { const desc = (inc.description || "").toLowerCase(); return income.find(x => x.source === inc.source && Math.abs(x.amount - inc.amount) / (inc.amount || 1) <= 0.1 && desc && (x.description || "").toLowerCase().includes(desc.toLowerCase().split(" ")[0])); };
+  const confirmAllInc = () => { if (!pi || !pi.length) return; svI([...pi, ...income], { upsertMany: pi }); const sum = pi.map(i => `  ${i.description || i.source} (${i.source}) - ${fmt(i.amount)}`).join("\n"); setMsgs(v => [...v, { role: "assistant", content: `Saved ${pi.length} income entries:\n${sum}\nTotal: ${fmt(pi.reduce((s, i) => s + i.amount, 0))}` }]); tst(`${pi.length} income added`); setPi(null); setIncEditIdx(null); };
+  const rejectAllInc = () => { const n = pi?.length || 0; setPi(null); setIncEditIdx(null); setMsgs(v => [...v, { role: "assistant", content: `Discarded all ${n} income entries. No changes were saved.` }]); };
+  const saveIncSingle = (i) => { if (!pi) return; const e = pi[i]; svI([e, ...income], { upsert: e }); setMsgs(v => [...v, { role: "assistant", content: `Saved income: ${e.description || e.source} (${e.source}) - ${fmt(e.amount)} on ${e.date}` }]); tst(`Saved: ${e.description || e.source}`); const rest = pi.filter((_, j) => j !== i); setPi(rest.length ? rest : null); if (incEditIdx === i) { setIncEditIdx(null); setIncEditForm(null); } };
+  const discardIncSingle = (i) => { if (!pi) return; const e = pi[i]; setMsgs(v => [...v, { role: "assistant", content: `Discarded: ${e.description || e.source} (${e.source}) - ${fmt(e.amount)}` }]); const rest = pi.filter((_, j) => j !== i); setPi(rest.length ? rest : null); if (incEditIdx === i) { setIncEditIdx(null); setIncEditForm(null); } };
+  const startIncEdit = (i) => { setIncEditIdx(i); setIncEditForm({ ...pi[i] }); };
+  const cancelIncEdit = () => { setIncEditIdx(null); setIncEditForm(null); };
+  const applyIncEdit = (i) => { if (!incEditForm) return; const u = [...pi]; u[i] = { ...incEditForm, amount: parseFloat(incEditForm.amount) || 0 }; setPi(u); setIncEditIdx(null); setIncEditForm(null); };
+  const applyAndSaveInc = (i) => { if (!incEditForm) return; const e = { ...incEditForm, amount: parseFloat(incEditForm.amount) || 0 }; svI([e, ...income], { upsert: e }); setMsgs(v => [...v, { role: "assistant", content: `Saved income: ${e.description || e.source} (${e.source}) - ${fmt(e.amount)} on ${e.date}` }]); tst(`Saved: ${e.description || e.source}`); const rest = (pi || []).filter((_, j) => j !== i); setPi(rest.length ? rest : null); setIncEditIdx(null); setIncEditForm(null); };
+
   // Quick action chips
   const CHIPS = [
     { label: "What did I spend this month?", msg: "What did I spend this month? Give me a summary." },
@@ -117,7 +136,7 @@ For debt questions (repayment timeline, interest savings, what-if scenarios): us
     ...(debts.length ? [{ label: "Debt payoff plan", msg: "Give me a debt payoff plan. Which debt should I prioritize and why?" }] : []),
   ];
   const [chipsOpen, setChipsOpen] = useState(true);
-  const showChipsAlways = !cl && !pe;
+  const showChipsAlways = !cl && !pe && !pi;
   const chipsExpanded = msgs.length === 1 ? true : chipsOpen;
 
   const loadPastReview = (ins) => {
@@ -220,7 +239,7 @@ ${ins.debtAnalysis && debtRows ? `<h2>Debt Summary</h2><table><tr><th>Debt</th><
   return (
     <div style={{ flex: 1, maxWidth: isDesktop ? 720 : 600, margin: "0 auto", padding: isDesktop ? "28px 36px 20px" : "18px 20px", width: "100%", boxSizing: "border-box", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       {msgs.length > 1 && <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 6 }}>
-        <button onClick={() => { setMsgs([welcome]); setPe(null); setEditIdx(null); setEditForm(null); }} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: "pointer", border: `1px solid ${T.border}`, background: "transparent", color: T.text3 }}><Trash2 size={11} />Clear chat</button>
+        <button onClick={() => { setMsgs([welcome]); setPe(null); setPi(null); setEditIdx(null); setEditForm(null); setIncEditIdx(null); setIncEditForm(null); }} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: "pointer", border: `1px solid ${T.border}`, background: "transparent", color: T.text3 }}><Trash2 size={11} />Clear chat</button>
       </div>}
       <div style={{ flex: 1, overflowY: "auto", marginBottom: 14 }}>
         {msgs.map((m, i) => (
@@ -305,6 +324,52 @@ ${ins.debtAnalysis && debtRows ? `<h2>Debt Summary</h2><table><tr><th>Debt</th><
                       <button onClick={() => saveSingle(i)} style={{ ...btnP, padding: "6px 12px", fontSize: 11, display: "flex", alignItems: "center", gap: 3 }}><Check size={11} />Save</button>
                       <button onClick={() => startEdit(i)} style={{ ...btnG, padding: "6px 12px", fontSize: 11 }}>Edit</button>
                       <button onClick={() => discardSingle(i)} style={{ ...btnG, padding: "6px 12px", fontSize: 11, borderColor: T.err, color: T.err }}>Discard</button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ); })}
+          </div>
+        )}
+        {pi && pi.length > 0 && (
+          <div style={{ ...cardS, marginBottom: 10, borderColor: "rgba(16,185,129,0.4)", background: theme === "dark" ? "rgba(16,185,129,0.04)" : "rgba(16,185,129,0.02)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: T.ok, display: "flex", alignItems: "center", gap: 6 }}><DollarSign size={14} />{pi.length} income{pi.length > 1 ? " entries" : ""} found</div>
+              {pi.length > 1 && (
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button onClick={confirmAllInc} style={{ ...btnP, padding: "7px 14px", fontSize: 11, display: "flex", alignItems: "center", gap: 4, background: T.ok, boxShadow: "none" }}><Check size={12} />Save All</button>
+                  <button onClick={rejectAllInc} style={{ ...btnG, padding: "7px 14px", fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}><X size={12} />Discard All</button>
+                </div>
+              )}
+            </div>
+            {pi.map((inc, i) => { const dup = findIncDup(inc); return (
+              <div key={inc.id} style={{ padding: 12, marginBottom: i < pi.length - 1 ? 8 : 0, background: theme === "dark" ? "rgba(16,185,129,0.06)" : "rgba(16,185,129,0.03)", borderRadius: 12, border: `1px solid ${dup ? T.err : "rgba(16,185,129,0.2)"}` }}>
+                {incEditIdx === i && incEditForm ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <input type="number" value={incEditForm.amount} onChange={ev => setIncEditForm({ ...incEditForm, amount: ev.target.value })} placeholder="Amount" style={{ ...inpS, flex: 1, padding: "8px 10px", fontSize: 12 }} />
+                      <select value={incEditForm.source} onChange={ev => setIncEditForm({ ...incEditForm, source: ev.target.value })} style={{ ...inpS, flex: 1, padding: "8px 10px", fontSize: 12 }}>{INCOME_SOURCES.map(s => <option key={s} value={s}>{s}</option>)}</select>
+                    </div>
+                    <input value={incEditForm.description} onChange={ev => setIncEditForm({ ...incEditForm, description: ev.target.value })} placeholder="Description" style={{ ...inpS, padding: "8px 10px", fontSize: 12 }} />
+                    <input type="date" value={incEditForm.date} onChange={ev => setIncEditForm({ ...incEditForm, date: ev.target.value })} style={{ ...inpS, padding: "8px 10px", fontSize: 12 }} />
+                    {accts.length > 0 && <select value={incEditForm.accountId || ""} onChange={ev => setIncEditForm({ ...incEditForm, accountId: ev.target.value || null })} style={{ ...inpS, padding: "8px 10px", fontSize: 12 }}><option value="">No account linked</option>{accts.map(a => <option key={a.id} value={a.id}>{a.name} ({fmt(a.balance)})</option>)}</select>}
+                    <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                      <button onClick={() => applyAndSaveInc(i)} style={{ ...btnP, padding: "7px 14px", fontSize: 11, display: "flex", alignItems: "center", gap: 4, background: T.ok, boxShadow: "none" }}><Check size={12} />Done & Save</button>
+                      <button onClick={() => applyIncEdit(i)} style={{ ...btnG, padding: "7px 14px", fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}><Check size={12} />Done</button>
+                      <button onClick={cancelIncEdit} style={{ ...btnG, padding: "7px 14px", fontSize: 11 }}>Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {dup && <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: T.err, marginBottom: 6 }}><AlertTriangle size={12} />Similar income entry found on {dup.date}</div>}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                      <div><div style={{ fontSize: 13, fontWeight: 600 }}>{inc.description || inc.source}</div><div style={{ fontSize: 10, color: T.text3, marginTop: 2 }}>{inc.source} -- {inc.date}</div></div>
+                      <div style={{ fontSize: 15, fontWeight: 800, color: T.ok }}>+{fmt(inc.amount)}</div>
+                    </div>
+                    <div style={{ display: "flex", gap: 6, marginTop: 8, justifyContent: "flex-end" }}>
+                      <button onClick={() => saveIncSingle(i)} style={{ ...btnP, padding: "6px 12px", fontSize: 11, display: "flex", alignItems: "center", gap: 3, background: T.ok, boxShadow: "none" }}><Check size={11} />Save as Income</button>
+                      <button onClick={() => startIncEdit(i)} style={{ ...btnG, padding: "6px 12px", fontSize: 11 }}>Edit</button>
+                      <button onClick={() => discardIncSingle(i)} style={{ ...btnG, padding: "6px 12px", fontSize: 11, borderColor: T.err, color: T.err }}>Discard</button>
                     </div>
                   </>
                 )}

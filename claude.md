@@ -505,24 +505,25 @@ On first Supabase load with empty tables, existing localStorage data is auto-mig
 - [x] Dashboard 3-column: Income (green) | Expenses (red) | Net Flow
 - [x] Respects period selector and person filter
 
-### Phase 27 — AI Income Recognition (Payslip Scanning)
+### Phase 27 — AI Income Recognition (Payslip Scanning) ✅ DONE
 
 **Why:** AI Chat currently only parses expenses. Users should be able to upload a payslip or income receipt and have the AI log it as income automatically.
 
-**27a — AI Parses Income from Images & Text**
-- [ ] Update AI system prompt to recognize income scenarios (payslips, salary receipts, freelance payments, GCash/bank transfer screenshots)
-- [ ] AI returns `{"income":[...],"message":"..."}` when it detects income
-- [ ] AI uses net pay (take-home), not gross pay
-- [ ] Fallback: "received 50k salary" or "got paid" → income, not expense
+**27a — AI Parses Income from Images & Text ✅ DONE**
+- [x] Update AI system prompt to recognize income scenarios (payslips, salary receipts, freelance payments, GCash/bank transfer screenshots)
+- [x] AI returns `{"income":[...],"message":"..."}` when it detects income
+- [x] AI uses net pay (take-home), not gross pay
+- [x] Fallback: "received 50k salary" or "got paid" → income, not expense
 
-**27b — Save as Income UX in Chat**
-- [ ] ChatTab detects `income` array in AI response
-- [ ] "Save as Income" button (green themed) with individual save/edit/discard
-- [ ] Edit form: Amount, Source, Description, Date, Account link
+**27b — Save as Income UX in Chat ✅ DONE**
+- [x] ChatTab detects `income` array in AI response
+- [x] "Save as Income" button (green themed) with individual save/edit/discard
+- [x] Edit form: Amount, Source (dropdown), Description, Date, Account link
+- [x] Duplicate detection against existing income entries
 
-**27c — Mixed Responses**
-- [ ] AI returns both expenses AND income in one response
-- [ ] Expense cards (red/gold) and income cards (green) rendered separately
+**27c — Mixed Responses ✅ DONE**
+- [x] AI returns both expenses AND income in one response
+- [x] Expense cards (gold themed) and income cards (green themed) rendered separately
 
 ### Phase 28 — Life Goals
 
@@ -584,7 +585,7 @@ On first Supabase load with empty tables, existing localStorage data is auto-mig
 - [ ] **RLS policies for income/recurring_income** — run INSERT/UPDATE/DELETE policies in Supabase Dashboard
 - [ ] Phase 15 — Stripe subscription (monetization)
 - [ ] Phase 25 — Projects (planned purchases, home improvements)
-- [ ] Phase 27 — AI income recognition (payslip scanning)
+- [x] Phase 27 — AI income recognition (payslip scanning) ✅
 - [ ] Phase 28 — Life Goals (milestones, budgets, linked expenses)
 - [ ] Phase 19e/19f — Off-page SEO + blog content marketing
 
