@@ -29,15 +29,18 @@ export default function ChatTab() {
   const debtCtx = debts.length ? `\nDebts:\n${debts.map(d => `- ${d.name} (${d.type}): Balance PHP ${d.currentBalance.toFixed(0)} of PHP ${d.totalAmount.toFixed(0)}, Min PHP ${d.minPayment || 0}/mo${d.interestRate ? `, ${d.interestRate}% APR` : ""}${d.dueDate ? `, due day ${d.dueDate}` : ""}`).join("\n")}\nTotal debt: PHP ${debts.reduce((s, d) => s + d.currentBalance, 0).toFixed(0)}` : "";
   const acctCtx = accts.length ? `\nAccounts:\n${accts.map(a => `- "${a.name}" (${a.type}): PHP ${a.balance.toFixed(2)}`).join("\n")}\nIf user mentions paying from a specific account/bank/card, set "account" to the matching account name. If not mentioned, omit "account".` : "";
   const SYS = `You are an expense tracker assistant for a couple (${users.join(" and ")}). Currency: PHP (Philippine Peso).
-RESPOND ONLY WITH VALID JSON. No markdown, no backticks. Today: ${td()}. Current user: ${user}.
-Format for EXPENSES: {"expenses":[{"amount":number,"category":"${cats.join("|")}","description":"text","date":"YYYY-MM-DD"${accts.length ? ',"account":"account name or omit"' : ""}}],"message":"confirmation text, NO emojis"}
-Format for INCOME (salary, freelance, payments received, GCash/bank transfers IN, payslips): {"income":[{"amount":number,"source":"${INCOME_SOURCES.join("|")}","description":"text","date":"YYYY-MM-DD"}],"message":"confirmation text, NO emojis"}
-For payslips/salary slips: use the NET PAY (take-home pay after deductions), NOT gross pay. Extract pay period date and employer name for description.
-If user says "received", "got paid", "salary", "income", "earned", "payslip", or uploads a payslip/salary receipt/GCash receive screenshot, treat as INCOME not expense.
-A response can have BOTH expenses and income: {"expenses":[...],"income":[...],"message":"..."}
-Not expenses or income: {"expenses":[],"message":"response, NO emojis"}
+RESPOND ONLY WITH VALID JSON. No markdown, no backticks, no plain text. Today: ${td()}. Current user: ${user}.
+EVERY response MUST be valid JSON in one of these formats:
+
+1. EXPENSE: {"expenses":[{"amount":number,"category":"${cats.join("|")}","description":"text","date":"YYYY-MM-DD"${accts.length ? ',"account":"account name or omit"' : ""}}],"message":"confirmation text, NO emojis"}
+2. INCOME: {"income":[{"amount":number,"source":"${INCOME_SOURCES.join("|")}","description":"text","date":"YYYY-MM-DD"}],"message":"confirmation text, NO emojis"}
+3. BOTH: {"expenses":[...],"income":[...],"message":"..."}
+4. NEITHER (questions, chat): {"expenses":[],"message":"response, NO emojis"}
+
+CRITICAL: When user mentions receiving money, getting paid, salary, income, earned, freelance payment, GCash/bank transfer IN, payslip, or any money COMING IN — you MUST return format 2 or 3 with the "income" array populated. NEVER put income in the message text only. The income array is REQUIRED for the app to save it.
+For payslips/salary slips: use NET PAY (take-home after deductions), NOT gross. Extract pay period date and employer for description.
 Rules: No emojis. If no date mentioned use today. Parse commas/newlines as multiple. Categories: ${cats.join(", ")}. If unsure pick "Other". gas/grab/angkas=Transport. food/jollibee/grocery/coffee=Food. netflix/spotify=Subscriptions. meralco/pldt/water=Bills.
-For debt questions (repayment timeline, interest savings, what-if scenarios): use expenses:[] and answer in message. Use amortization math for timelines. Be specific with numbers and months.${debtCtx}${acctCtx}`;
+For debt questions (repayment timeline, interest savings, what-if scenarios): use format 4 and answer in message. Use amortization math for timelines. Be specific with numbers and months.${debtCtx}${acctCtx}`;
 
   const resolveAcct = (name) => { if (!name) return null; const n = name.toLowerCase(); return accts.find(a => a.name.toLowerCase() === n || a.name.toLowerCase().includes(n) || n.includes(a.name.toLowerCase())) || null; };
   const parseR = (t) => {
