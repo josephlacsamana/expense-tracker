@@ -78,7 +78,7 @@ export default function DashboardTab() {
       )}
 
       {(totInc > 0 || totF > 0) && (
-        <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr 1fr" : "1fr 1fr 1fr", gap: 8, marginBottom: 18 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 18 }}>
           <div style={{ ...cardS, padding: isDesktop ? "14px 16px" : "12px 10px", overflow: "hidden" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}><DollarSign size={11} style={{ color: T.ok, flexShrink: 0 }} /><span style={{ fontSize: 9, color: T.text3, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.3 }}>Income</span></div>
             <div style={{ fontSize: isDesktop ? 20 : 14, fontWeight: 800, color: T.ok, whiteSpace: "nowrap" }}>{fmt(totInc)}</div>

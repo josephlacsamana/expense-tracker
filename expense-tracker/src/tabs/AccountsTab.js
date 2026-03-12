@@ -203,10 +203,9 @@ export default function AccountsTab() {
                 <button onClick={() => {
                   const linked = exp.filter(e => e.accountId && !acctHist.some(h => h.description === (e.description || e.category) && h.accountId === e.accountId && Math.abs(h.change) === e.amount));
                   if (!linked.length) { tst("No missing history to rebuild"); return; }
-                  linked.forEach(e => {
-                    svAH({ id: uid(), accountId: e.accountId, oldBalance: 0, newBalance: 0, change: -e.amount, reason: "expense_backfill", description: `${e.description || e.category} (${e.date})`, createdAt: new Date(e.date).toISOString() });
-                  });
-                  tst(`Rebuilt ${linked.length} history entries`);
+                  const entries = linked.map(e => ({ id: uid(), accountId: e.accountId, oldBalance: 0, newBalance: 0, change: -e.amount, reason: "expense_backfill", description: `${e.description || e.category} (${e.date})`, createdAt: new Date(e.date).toISOString() }));
+                  entries.forEach(e => svAH(e));
+                  tst(`Rebuilt ${entries.length} history entries`);
                 }} style={{ ...btnG, padding: "10px 12px", fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}><Clock size={12} />Rebuild History</button>
               )}
               <button onClick={() => { rstAf(); setSaf(true); }} style={{ ...btnP, padding: "10px 16px", fontSize: 12, display: "flex", alignItems: "center", gap: 5 }}><Plus size={14} />Add</button>
@@ -936,7 +935,7 @@ export default function AccountsTab() {
         <div style={mOvS}><div style={mInS}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <div style={{ fontSize: 18, fontWeight: 800, color: T.text1 }}>Adjust Balance</div>
-            <button onClick={() => setAdjAcct(null)} style={{ background: "none", border: "none", color: T.text3, cursor: "pointer" }}><X size={22} /></button>
+            <button onClick={() => { setAdjAcct(null); setAdjAmt(""); setAdjNote(""); setAdjMode("add"); }} style={{ background: "none", border: "none", color: T.text3, cursor: "pointer" }}><X size={22} /></button>
           </div>
           <div style={{ fontSize: 13, color: T.text2, marginBottom: 12 }}>{a.name} -- Current: <span style={{ fontWeight: 700, color: T.ok }}>{fmt(a.balance)}</span></div>
           <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
@@ -956,7 +955,7 @@ export default function AccountsTab() {
               svA(accts.map(x => x.id === a.id ? upA : x), { upsert: upA });
               svAH({ id: uid(), accountId: a.id, oldBalance: a.balance, newBalance: newBal, change: parseFloat(change.toFixed(2)), reason: adjMode === "add" ? "adjustment_add" : "adjustment_deduct", description: adjNote.trim() || (adjMode === "add" ? "Balance added" : "Balance deducted"), createdAt: Date.now() });
               tst(`${adjMode === "add" ? "Added" : "Deducted"} ${fmt(v)} ${adjMode === "add" ? "to" : "from"} ${a.name}`);
-              setAdjAcct(null);
+              setAdjAcct(null); setAdjAmt(""); setAdjNote(""); setAdjMode("add");
             }} style={{ ...btnP, width: "100%", background: adjMode === "add" ? T.ok : T.err, boxShadow: "none" }}>{adjMode === "add" ? "Add to Balance" : "Deduct from Balance"}</button>
           </div>
         </div></div>
