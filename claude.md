@@ -10,8 +10,8 @@ AI-powered receipt scanning, chat-based expense logging, dashboards, analytics, 
 | Item | Details |
 |---|---|
 | **App code** | `expense-tracker/src/App.js` (~300 lines — auth, nav shell only), `src/LandingPage.js` (marketing homepage + login) |
-| **Tab files** | `src/tabs/DashboardTab.js`, `src/tabs/ExpensesTab.js`, `src/tabs/ChatTab.js`, `src/tabs/AccountsTab.js`, `src/tabs/MoreTab.js` |
-| **Components** | `src/components/ChartTooltip.js` (shared recharts tooltip) |
+| **Tab files** | `src/tabs/DashboardTab.js`, `src/tabs/ExpensesTab.js`, `src/tabs/ChatTab.js`, `src/tabs/AccountsTab.js` (hub + router only), `src/tabs/MoreTab.js` |
+| **Components** | `src/components/ChartTooltip.js` (shared recharts tooltip), `src/components/BankAccountsSection.js`, `src/components/BudgetsSection.js`, `src/components/DebtsSection.js`, `src/components/SavingsSection.js`, `src/components/IncomeSection.js` |
 | **Shared modules** | `src/constants.js` (themes, consts, utils), `src/hooks.js` (useMediaQuery), `src/db.js` (Supabase helpers), `src/AppContext.js` (global state + style helpers + provider) |
 | **API proxies** | `expense-tracker/api/chat.js` (Anthropic API proxy), `expense-tracker/api/crypto.js` (CoinGecko price proxy), `expense-tracker/api/og.js` (OG image) |
 | **Hosting** | Vercel (free tier), Root Directory = `expense-tracker`, Custom domain: `rxpenses.com` |
@@ -304,7 +304,12 @@ On first Supabase load with empty tables, existing localStorage data is auto-mig
 - [x] `src/tabs/DashboardTab.js` — own `per` state (independent period selector)
 - [x] `src/tabs/ExpensesTab.js` — includes Expense + Recurring modals, person filter
 - [x] `src/tabs/ChatTab.js` — all chat/AI logic + duplicate detection + edit mode
-- [x] `src/tabs/AccountsTab.js` — Money Hub + accounts + budgets + debts + savings + income
+- [x] `src/tabs/AccountsTab.js` — Money Hub hub cards + router only (~70 lines)
+- [x] `src/components/BankAccountsSection.js` — accounts list, adjust balance, history
+- [x] `src/components/BudgetsSection.js` — general + per-category budgets, category management
+- [x] `src/components/DebtsSection.js` — debts CRUD, payment grid, payment history
+- [x] `src/components/SavingsSection.js` — savings goals + crypto currency support
+- [x] `src/components/IncomeSection.js` — income + recurring income CRUD
 - [x] `src/tabs/MoreTab.js` — Settings + Invite modal
 - [x] `App.js` — ~300 lines, auth + nav shell only
 
