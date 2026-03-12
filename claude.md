@@ -1,4 +1,4 @@
-# Shared Expense Tracker
+# rxpenses — Smart Money Tracker
 
 A sleek, modern shared expense tracker for **2 users** (Joseph + Rowena).
 AI-powered receipt scanning, chat-based expense logging, dashboards, analytics, and AI insights.
@@ -13,7 +13,7 @@ AI-powered receipt scanning, chat-based expense logging, dashboards, analytics, 
 | **Tab files** | `src/tabs/DashboardTab.js`, `src/tabs/ExpensesTab.js`, `src/tabs/ChatTab.js`, `src/tabs/AccountsTab.js`, `src/tabs/MoreTab.js` |
 | **Components** | `src/components/ChartTooltip.js` (shared recharts tooltip) |
 | **Shared modules** | `src/constants.js` (themes, consts, utils), `src/hooks.js` (useMediaQuery), `src/db.js` (Supabase helpers), `src/AppContext.js` (global state + style helpers + provider) |
-| **API proxy** | `expense-tracker/api/chat.js` (Vercel serverless, solves CORS for Anthropic API) |
+| **API proxies** | `expense-tracker/api/chat.js` (Anthropic API proxy), `expense-tracker/api/crypto.js` (CoinGecko price proxy), `expense-tracker/api/og.js` (OG image) |
 | **Hosting** | Vercel (free tier), Root Directory = `expense-tracker`, Custom domain: `rxpenses.com` |
 | **Stack** | React 19, recharts, lucide-react, inline styles (no CSS framework) |
 | **Responsive** | `useMediaQuery` hook — `isDesktop` (>=1024px), sidebar on desktop, bottom nav on mobile |
@@ -41,10 +41,11 @@ AI-powered receipt scanning, chat-based expense logging, dashboards, analytics, 
 | `debt_payments` | id (TEXT PK), debt_id (FK), amount, date, new_balance, late_fee, household_id (FK), created_at | Payment history, scoped to household |
 | `account_history` | id (TEXT PK), account_id, old_balance, new_balance, change_amount, reason, description, household_id (FK), created_at | Balance change log per account |
 | `insights` | id (TEXT PK), period, data (JSONB), ai_response (JSONB), household_id (FK), created_at | Saved AI spending reviews (Phase 14) |
+| `savings_goals` | id (TEXT PK), name, target_amount, current_amount, target_date, currency (TEXT default 'PHP'), added_by, household_id (FK), created_at, updated_at | Savings goals with progress tracking + crypto currency support (Phase 20/23) |
+| `income` | id (TEXT PK), amount, source, description, date, added_by, account_id, household_id (FK), created_at | Income entries, scoped to household (Phase 26) |
+| `recurring_income` | id (TEXT PK), amount, source, description, frequency, next_date, added_by, household_id (FK), created_at | Recurring income templates (Phase 26) |
 
 Default categories: `["Food", "Transport", "Bills", "Shopping", "Health", "Entertainment", "Subscriptions", "Other"]`
-
-Joseph & Rowena's actual categories: `["Bills", "Health", "Entertainment", "Subscriptions", "Mortgage", "Utilities (Electric/Water/Wifi)", "Date Expense", "Grocery", "Eat Outside", "Support to parents", "Support to Mikaela", "Support to Ate Dette", "Transportation (Gas/Toll/Grab)", "Shopping or Parcels", "Other"]`
 
 **Storage flow:** `sbReady` (env vars exist) → Supabase; otherwise → localStorage fallback.
 On first Supabase load with empty tables, existing localStorage data is auto-migrated up.
@@ -58,10 +59,10 @@ On first Supabase load with empty tables, existing localStorage data is auto-mig
 ## Screens
 
 1. **Landing Page** — Marketing homepage with hero, features, how it works, CTA + Google OAuth (PIN fallback for local dev)
-2. **Dashboard** — Summary cards, charts, period selector
+2. **Dashboard** — Summary cards, income/expense/net flow cards, charts, period selector
 3. **Expenses** — sub-tabs: List (full list with search/filters) | Recurring (templates)
 4. **AI Chat** — Chat interface for adding expenses and asking questions
-5. **Accounts** — sub-tabs: Accounts (manual bank balances) | Budgets (general + per-category) | Debts (debt tracking + payment grid)
+5. **Money Hub** — Hub cards: Bank Accounts | Budgets | Debts | Savings | Income (drill-in with back button)
 6. **More** — Settings (categories, invite, export)
 
 ---
@@ -135,7 +136,7 @@ On first Supabase load with empty tables, existing localStorage data is auto-mig
 - [x] Export expenses as CSV
 - [x] 5-tab navigation: Dashboard / Expenses / AI Chat / Insights / More
 
-### Phase 6 — Login, Names, Budgets & Recurring (PARTIAL)
+### Phase 6 — Login, Names, Budgets & Recurring ✅ DONE
 
 **6a — Login & Custom Names ✅ DONE**
 - [x] PIN-based login screen (Joseph / Rowena)
@@ -176,7 +177,7 @@ On first Supabase load with empty tables, existing localStorage data is auto-mig
 - [x] Category colors remapped to gold-complementary palette
 - [x] Responsive desktop layout: sidebar nav, wider content areas, multi-column charts
 
-### Phase 8 — AI Chat & Insights Improvements
+### Phase 8 — AI Chat & Insights Improvements ✅ DONE
 
 **8a — Image Upload Should Not Auto-Send ✅ DONE**
 - [x] Uploading an image in AI Chat should NOT send immediately
@@ -218,9 +219,9 @@ On first Supabase load with empty tables, existing localStorage data is auto-mig
 - [x] AI system prompt uses dynamic categories list
 - [x] All forms, charts, filters, budgets use dynamic `cats` state
 
-### Phase 9 — Google Auth & Multi-Household System
+### Phase 9 — Google Auth & Multi-Household System ✅ DONE
 
-**9a — Google Authentication** ✅ DONE
+**9a — Google Authentication ✅ DONE**
 - [x] Replace PIN-based login with "Sign in with Google" button
 - [x] Store user profile (name, email, avatar) in a `profiles` table
 - [x] Session management via Supabase Auth (auto-refresh, persist across tabs)
@@ -228,420 +229,68 @@ On first Supabase load with empty tables, existing localStorage data is auto-mig
 - [x] Logout button uses Supabase signOut (local scope, with error handling)
 - [x] Dynamic user names in AI prompts and expense form dropdown
 - [x] PIN login preserved as localStorage fallback (local dev)
-- [x] Enable Google Auth provider in Supabase dashboard
-- [x] Create `profiles` table in Supabase SQL Editor
-- [x] Configure Google OAuth in Google Cloud Console
-- [x] Custom favicon (gold peso coin SVG) and browser tab title ("Shared Finance")
 
-**9b-lite + 9c — Households & Invite System** ✅ DONE (Email-based)
-- [x] Create `households` table (id UUID, name, created_at)
-- [x] Create `household_members` table (household_id, user_id, role: "owner"/"member", joined_at)
-- [x] Create `invites` table (with `invited_email` column — email-based, not link/token)
-- [x] Auto-create household on first Google sign-in (always, no gate)
-- [x] "Invite Partner" button (owner only) — enter partner's Gmail, no link needed
-- [x] Invite stored in DB with `invited_email` field
-- [x] On sign-in, `handleSession` checks for pending email invite matching user's email
-- [x] If valid invite found → show "Accept & Join" confirmation screen (inside auth flow, no race condition)
-- [x] User clicks Accept → leave current household → join invited household → invite marked used
-- [x] User clicks Decline → stays in their auto-created household
-- [x] Invite reuse: if unexpired invite already exists for that email, don't create a duplicate
-- [x] "Invite sent!" confirmation shows copyable app URL (for easy sharing)
-- [x] Users list fetched from household_members (not all profiles)
-- [x] Household info card in Settings (member count + role badge)
-- [x] Supabase RLS: invites SELECT by email, households SELECT for invited users, household_members INSERT
+**9b — Households & Invite System ✅ DONE (Email-based)**
+- [x] Create `households` table, `household_members` table, `invites` table
+- [x] Auto-create household on first Google sign-in
+- [x] "Invite Partner" button (owner only) — enter partner's Gmail
+- [x] On sign-in, check for pending invite → show "Accept & Join" screen
+- [x] Data isolation: `household_id` on all tables, RLS policies
+- [x] All Supabase queries filter by household_id
 
-**9b-full — Data Isolation** ✅ DONE
-- [x] Add `household_id` column to all data tables (expenses, accounts, recurring, categories, settings, debts, debt_payments)
-- [x] Migrate existing data: assign to default household
-- [x] Enable Row Level Security (RLS) on all tables — users can only see data for their household
-- [x] Update all Supabase queries to filter by household_id
-- [x] Categories and settings use composite PK (name/key + household_id)
-- [x] All sb helper functions accept and include household_id
-- [x] Seeding, migration, and clearAll pass household_id
+**9c — Role-Based Permissions ✅ DONE**
+- [x] Owner: full access. Member: full access except Clear All Data and Invite
+- [x] Role badge in Settings (Owner / Member)
+- [x] Household member list with avatar, name, role
 
-**9d — Role-Based Permissions** ✅ DONE
-- [x] Owner role: full access to everything (the person who created the household)
-- [x] Member role: full access to all features EXCEPT Settings > Clear All Data
-- [x] Hide "Clear All Data" button for members
-- [x] Hide "Invite Partner" button for members
-- [x] Show role badge in Settings (Owner / Member) — gold pill for owner, grey for member
-- [x] Household member list in Settings: avatar, name, role per member (not just count)
+**9d — Profile & Household UI ✅ DONE**
+- [x] Profile card in Settings: avatar, display name, email
+- [x] Household name display (editable by owner)
+- [x] Person filter on Dashboard uses real household member names
 
-**9e — Profile & Household UI** ✅ DONE
-- [x] Profile card in Settings: avatar, display name, email (from Google)
-- [x] Avatar + name + email shown in desktop sidebar
-- [x] Household name display (editable by owner via inline Rename)
-- [x] Google OAuth forces account picker (`prompt: "select_account"`) — no more auto-login
-- [x] "addedBy" field uses profile display_name (set from Google profile on login)
-- [x] Person filter on Dashboard uses real household member names (dropdown, same as Expenses)
-- [x] Summary cards show per-person breakdown using real names (byP groups by addedBy from data)
-- [x] Full member profiles (avatar, name, role) loaded in AppContext and exposed as `memberProfiles`
+### Phase 10 — Navigation & Tab Restructure ✅ DONE
 
-### Phase 10 — Navigation & Tab Restructure
+**10a — Household Auto-Create + Theme Persistence ✅ DONE**
+- [x] Auto-create household on first sign-in (no manual "Create" step)
+- [x] Persist theme (dark/light) to localStorage
 
-**10a — Household Auto-Create + Theme Persistence** ✅ DONE
-- [x] Remove `NoHouseholdScreen` gate — don't block users on login
-- [x] Auto-create household on first Google sign-in (no manual "Create" step)
-- [x] Keep "Invite Partner" and household info in Settings (optional, not required)
-- [x] Persist theme (dark/light) to localStorage — retain choice across login, logout, and page refreshes
+**10b — Tab Restructure ✅ DONE**
+- [x] 5-tab layout: Dashboard | Expenses | AI Chat | Money Hub | More
+- [x] Expenses sub-tabs: List | Recurring
+- [x] Money Hub: hub cards with drill-in sections
+- [x] More tab: Settings only
 
-**10b — Tab Restructure** ✅ DONE
+**10c — Account-Linked Expenses ✅ DONE**
+- [x] Account picker dropdown in expense form (optional)
+- [x] Auto-deduct expense amount from selected account on save
+- [x] Reverse on delete, re-apply on edit
 
-New 5-tab layout (mobile bottom nav / desktop sidebar):
-```
-Dashboard | Expenses | AI Chat | Accounts | More
-```
+**10d — Category Management in Budgets ✅ DONE**
+- [x] Category add/remove moved from Settings into Budgets section
 
-- **Expenses tab** — sub-tabs: `List` | `Recurring`
-  - [x] Move Recurring from More into Expenses as a sub-tab
-  - [x] Expense list stays as-is (first sub-tab, default)
-  - [x] Recurring templates as second sub-tab
+### Phase 11 — Debt & Credit Tracking ✅ DONE
 
-- **Accounts tab** (new main tab, merged) — sub-tabs: `Accounts` | `Budgets`
-  - [x] Move Accounts out of More into its own main tab
-  - [x] Move Budgets out of More into Accounts as second sub-tab
-  - [x] Bank balances + net worth in first sub-tab
-  - [x] General budget + per-category budgets in second sub-tab
+**11a — Debt Data Model & UI ✅ DONE**
+- [x] `debts` + `debt_payments` tables
+- [x] Debts management screen with CRUD, payment recording, progress bars
+- [x] Total debt summary card
 
-- **More tab** — Settings only (Insights moved to AI Chat in Phase 13)
-  - [x] Move Insights from main nav into More (then later into AI Chat)
-  - [x] Settings stays in More
-  - [x] Cleaner More tab with just Settings
+**11b — AI Debt Insights ✅ DONE**
+- [x] AI Chat includes debt context, calculates repayment timelines
+- [x] "What if" scenarios and interest savings calculations
 
-**10d — Category Management in Budgets** ✅ DONE
-- [x] Move full category management (add/remove) from Settings into Budgets per-category section
-- [x] Add category: input + "Add" button above the per-category budget cards
-- [x] Remove category: X button on each category (except "Other") with confirmation modal
-- [x] Remove the old category management section from Settings tab entirely
-- [x] Max 15 categories, "Other" cannot be removed (same rules as before)
+**11c — Payment Alerts & Notifications ✅ DONE**
+- [x] PWA push notifications for due dates
+- [x] In-app badges on Money Hub tab
+- [x] Due-soon/overdue alert banners with quick Pay button
 
-**10c — Account-Linked Expenses** ✅ DONE
-- [x] When adding an expense (manual form), user can optionally pick which account the money came from
-- [x] Account picker dropdown in the expense form (optional field, default "No account linked")
-- [x] On save, auto-deduct the expense amount from the selected account's balance
-- [x] On delete, reverse the account balance (restore deducted amount)
-- [x] On edit, reverse old account deduction and apply new one
-- [x] Add `account_id` to Supabase expense upsert/load mappings
-- [x] Show linked account name on expense list items + dashboard top 5
-- [ ] (Future) AI Chat: AI can ask or infer which account to use
-- [ ] (Future) Account balance history — track balance changes over time
+**11d — Payment History & Monthly Tracking ✅ DONE**
+- [x] Interactive monthly payment grid (clickable cells)
+- [x] "Mark all paid" bulk fill, late fee tracking
+- [x] Payment stats: months paid, missed, streak, total paid
 
-### Phase 11 — Debt & Credit Tracking
-
-**11a — Debt Data Model & UI** ✅ DONE
-- [x] Create `debts` table: id (TEXT PK), name, type (Credit Card / Mortgage / Personal Loan / Car Loan / Other), total_amount, current_balance, due_date (day of month), interest_rate, min_payment, added_by, created_at, updated_at
-- [x] Create `debt_payments` table: id (TEXT PK), debt_id (FK), amount, date, new_balance, created_at
-- [x] Debts management screen: list all debts with name, type icon, balance, due date, progress bar (paid vs total)
-- [x] Add/edit/delete debt entries with form (name, type dropdown, total amount, current balance, due date, interest rate, min payment)
-- [x] Record payment: deduct from current balance, log payment with date and new balance
-- [x] Payment history log per debt (expandable, date, amount paid, new balance)
-- [x] Total debt summary card (total owed, total minimum payments, next due date)
-- [x] Where it lives: under Accounts tab as a third sub-tab (`Accounts | Budgets | Debts`)
-- [x] Supabase CRUD helpers + localStorage fallback
-- [x] Clear All Data includes debts
-- [x] Payment modal pre-fills min monthly payment amount (editable)
-- [x] Debt form has helper text under each field explaining what it means
-
-**11b — AI Debt Insights** ✅ DONE
-- [x] AI Chat SYS prompt includes full debt context (name, type, balance, APR, min payment, due date)
-- [x] AI calculates repayment timelines using amortization math
-- [x] "What if" scenarios: "If I pay P5,000/month on my credit card, when will it be paid off?"
-- [x] Interest savings calculator: "How much do I save by paying P2,000 extra per month?"
-- [x] AI can answer debt questions in AI Chat (total owed, next due date, payoff timeline, etc.)
-- [x] Debt summary included in AI Insights reviews (debtAnalysis field in JSON + debt summary card in UI)
-
-**11c — Payment Alerts & Notifications** ✅ DONE (except email)
-- [x] PWA push notifications for approaching due dates (3 days before, 1 day before, day of) — via Phase 18d SW
-- [x] Service Worker registration for push notifications — via Phase 18d
-- [x] Notification permission request flow (Settings toggle) — via Phase 18d
-- [x] Missed payment detection: overdue alert when due date passes (red banner with month names)
-- [x] In-app notification badge on Accounts tab (desktop sidebar + mobile nav) with due count
-- [x] Due-soon alert banners in Debts sub-tab: overdue (red), due today (gold), due within 3 days (gold) with quick Pay button
-- [x] Badge count on Debts sub-tab pill
-- [x] Overdue detection accounts for due day (e.g. due day 5, today is 7th → March is overdue, not "current")
-- [x] Daily debt/recurring check via SW — sends notifications once per day for due items
-- [ ] Email notifications (future/lower priority): Supabase Edge Function to send reminder emails
-
-**11d — Payment History & Monthly Tracking** ✅ DONE
-- [x] Add `start_date` (DATE) column to `debts` table — when payments began
-- [x] Add `start_date` field to debt form with helper text ("When did you start paying this debt?")
-- [x] Interactive monthly payment grid per debt: clickable cells from start date to now
-  - Green = paid (payment recorded that month), tap to remove
-  - Red = missed (no payment recorded), tap to mark paid
-  - Gold = current month (only if due date hasn't passed yet)
-- [x] Payment summary stats per debt: months paid, months missed, total paid, payment streak
-- [x] "Mark all paid" button — fills all unpaid months at specified amount (for bulk historical entry)
-- [x] Late fee tracking: `late_fee` (NUMERIC, default 0) column on `debt_payments`
-- [x] Record Payment modal: amount, date, late fee (optional)
-- [x] Payment history list with inline edit (amount, date, late fee) and delete per entry
-- [x] Delete payment confirmation modal
-- [x] Manual "+ Add" button in payment history for adding past payments
-- [x] Grid correctly marks current month as missed if today > due day
-
-**11e — Payment Grid & History UX Improvements** ✅ DONE
-- [x] Collapsible year rows in monthly grid: current year expanded, past years collapsed
-- [x] Collapsed year shows summary: "2024 — 10/12 paid (2 missed)"
-- [x] Tap year header to expand/collapse its month cells (ChevronDown/ChevronRight)
-- [x] Auto-expand current year + when only 1-2 years exist
-- [x] Payment history: show last 5 by default with "Show all (N)" button to expand
-- [x] "Show less" button to re-collapse after expanding
-
-### Phase 13 — AI Chat Hub (Unified) ✅ DONE
-
-**13a — Quick Action Chips** ✅ DONE
-- [x] Pre-chat suggestion chips shown when chat has only the welcome message
-- [x] Chips: "What did I spend this month?", "Budget check", "Top expenses", "Spending review", "Debt payoff plan", "Compare with last month"
-- [x] Tapping a chip auto-sends the question to AI immediately
-- [x] "Spending review" chip shows a period picker (Weekly/Monthly/Quarterly/Yearly) before generating
-- [x] Chips disappear once user sends first message or AI responds
-
-**13b — Move Insights into AI Chat** ✅ DONE
-- [x] Remove Insights sub-tab from More (More becomes just Settings)
-- [x] "Spending review" chip triggers the existing AI insights prompt with expense data context
-- [x] AI returns structured JSON (overview, categoryAnalysis, patterns, tips, debtAnalysis)
-- [x] Render rich insight cards + charts inline in the chat feed (same UI as current Insights, but inside chat)
-- [x] Period selector appears when "Spending review" chip is tapped
-
-**13c — Chat History Persistence** ✅ DONE
-- [x] Persist chat messages to localStorage so conversation survives tab navigation and page refreshes
-- [x] Clear chat button (visible when msgs > 1) to reset conversation back to welcome message
-- [x] Zero-cost implementation — localStorage only, no Supabase needed
-
-### Phase 14 — Saved Insights + PDF Export ✅ DONE
-
-**14a — Insights Persistence** ✅ DONE
-- [x] New `insights` Supabase table: id (TEXT PK), period, data (JSONB), ai_response (JSONB), household_id (FK), created_at
-- [x] Auto-save every generated insight to the table
-- [x] "Past Reviews" accessible from chat (chip or button)
-- [x] List view: date, period label, total spent preview
-- [x] Tap to view full past insight (rendered inline or modal)
-- [x] Delete old insights
-
-**14b — PDF Export** ✅ DONE
-- [x] "Download PDF" button on each insight (current + past)
-- [x] Uses browser window.open() + window.print() API targeting the insight content
-- [x] Clean print stylesheet: white background, no nav, proper margins
-- [x] Include header with household name, period, date generated
-
-### Phase 15 — Stripe Subscription (Premium Tier)
-
-**15a — Stripe Setup & Backend**
-- [ ] Create Stripe account (stripe.com) and get API keys
-- [ ] Create products in Stripe Dashboard: Premium Monthly (P149 PH / $4.99 International)
-- [ ] Add `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` to Vercel env vars
-- [ ] Add `REACT_APP_STRIPE_PUBLISHABLE_KEY` to Vercel env vars
-- [ ] Create `api/stripe-checkout.js` — Vercel serverless function to create Stripe Checkout session
-- [ ] Create `api/stripe-webhook.js` — Vercel serverless function to handle Stripe webhook events (subscription created, cancelled, payment failed)
-- [ ] Add `subscriptions` table in Supabase: id, user_id, household_id, stripe_customer_id, stripe_subscription_id, plan, status (active/cancelled/past_due), current_period_end, created_at, updated_at
-- [ ] Add `stripe_customer_id` column to `profiles` table
-- [ ] Regional pricing: detect country via Vercel `x-vercel-ip-country` header → show PH or international price
-
-**15b — Free vs Premium Feature Gating**
-- [ ] Add `isPremium` flag to AppContext (derived from subscription status)
-- [ ] **Free tier** (all users): manual expense CRUD, dashboard, charts, budgets, accounts, debts, recurring, household sharing, CSV export
-- [ ] **Premium tier** (P149/mo PH, $4.99/mo international): AI Chat, receipt scanning, AI spending reviews, PDF export, debt payoff AI analysis
-- [ ] AI Chat tab shows upgrade prompt for free users (preview of what AI can do + Subscribe button)
-- [ ] "Spending review" chip disabled for free users with lock icon
-- [ ] PDF export button hidden for free users
-- [ ] Gate `callAI` function — return upgrade message if not premium
-
-**15c — Subscription UI**
-- [ ] "Upgrade to Premium" card in Settings (for free users) — shows features + price + Subscribe button
-- [ ] Subscribe button → Stripe Checkout (hosted payment page, handles cards + GCash)
-- [ ] "Manage Subscription" link in Settings (for premium users) → Stripe Customer Portal (cancel, update payment method)
-- [ ] Premium badge/pill next to user name in sidebar + Settings
-- [ ] Subscription status card in Settings: plan name, renewal date, status
-- [ ] Toast notification on successful subscription
-- [ ] Grace period handling: if payment fails, show warning but keep access for a few days
-
-**15d — Trial Period (optional)**
-- [ ] 7-day free trial for new users (no credit card required)
-- [ ] Trial countdown shown in AI Chat and Settings
-- [ ] After trial expires, AI features locked with "Subscribe to continue" prompt
-- [ ] Stripe trial period configuration (if using card-required trial)
-
-### Phase 16 — Branding & PWA (Logo, Favicon, Homescreen)
-
-**16a — Logo & Favicon** ✅ DONE
-- [x] Design new app logo (gold/amber themed, clean, modern — no emojis) — RX monogram with gold gradient
-- [x] Create SVG logo for use in login screen, sidebar header, and about section (`public/favicon.svg`)
-- [x] Replace current gold peso coin SVG favicon with new RX logo
-- [x] Update `public/index.html` with favicon + apple-touch-icon links
-- [x] Logo used in landing page nav + footer (replaced Coins icon with inline RX)
-- [x] Logo used in desktop sidebar header + mobile header (RX box + text)
-- [x] PNG icon generation script available (`scripts/generate-icons.js` — requires `npm install canvas`)
-
-**16b — PWA Manifest & Homescreen Icons** ✅ DONE
-- [x] Update `public/manifest.json` with app name, theme color, background color, display: standalone, orientation, description, categories
-- [x] SVG icons in manifest (modern browsers support SVG for PWA install)
-- [x] Add `<link rel="apple-touch-icon">` to `public/index.html`
-- [x] `<meta name="apple-mobile-web-app-capable" content="yes">` (already existed from Phase 18d)
-- [x] `<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">` (already existed)
-- [x] `<meta name="theme-color" content="#F5B526">` (already existed)
-- [ ] Generate PNG icons for older browsers (run `scripts/generate-icons.js` — optional, SVG works for Chrome/Edge/Firefox)
-- [ ] Test "Add to Home Screen" on iOS Safari and Android Chrome
-
-**16c — App Name Update** ✅ DONE
-- [x] Update browser tab title from "Shared Finance" to "RXpenses"
-- [x] Update login screen brand text (LandingPage shows "RXpenses")
-- [x] Update sidebar header text (shows "RXpenses" in sidebar + mobile header)
-- [x] Update manifest.json short_name and name
-
-### Phase 17 — Landing Page (Public Homepage)
-
-**17a — Landing Page Build** ✅ DONE
-- [x] Replace bare LoginScreen with full marketing landing page
-- [x] Hero section: brand name, tagline, description, "Get Started" CTA
-- [x] Features section: 6 feature cards with Lucide icons (AI chat, shared tracking, debt management, budgets, analytics, receipt scanning)
-- [x] How It Works section: 3-step flow (Sign up, Track, Get insights)
-- [x] Footer with app name + credits
-- [x] Fully responsive (desktop: multi-column, mobile: stacked)
-- [x] Gold theme consistent with app design system
-- [x] Sign in with Google button in hero + header nav
-- [x] Dark/light theme toggle on landing page
-- [x] Smooth scroll to sections
-- [x] No external dependencies (pure inline styles)
-
-### Phase 18 — Enhancements ✅ DONE
-
-**18a — Editable Category Names** ✅ DONE
-- [x] Category name is editable inline (click to rename instead of delete + re-add)
-- [x] Renaming updates all expenses, recurring templates, and budgets that used the old name
-- [x] "Other" category cannot be renamed
-
-**18b — Collapsible Quick Action Chips** ✅ DONE
-- [x] Quick action chips are always available (not hidden when convo exists)
-- [x] Chips section is collapsible: collapsed by default when msgs > 1, expanded when msgs === 1
-- [x] Toggle button to show/hide chips ("Shortcuts" pill with chevron)
-- [x] "Spending review" period picker and "Past reviews" button included in collapsible area
-
-**18c — Recurring Expense Notifications** ✅ DONE
-- [x] Due recurring expenses get alert banners in the Recurring sub-tab (like debt alerts)
-- [x] Badge count on Expenses tab in nav (desktop sidebar + mobile bottom nav) for due recurring count
-- [x] Badge count on Recurring sub-tab pill
-- [x] Alert banner shows: description, amount, "Due today" or "Overdue by N days"
-
-**18d — Daily PWA Push Notifications** ✅ DONE
-- [x] Service Worker (`public/sw.js`) for local push notifications
-- [x] Notification permission request flow (toggle in Settings > Enable/Disable Notifications)
-- [x] Daily check: sends debt + recurring data to SW, SW shows notifications for due/overdue items
-- [x] PWA manifest (`public/manifest.json`) for installable app
-- [x] Browser tab title updated to "RXpenses"
-- [x] Apple mobile web app meta tags added
-
-**18e — Dark Mode White Border Fix** ✅ DONE
-- [x] Added CSS reset (margin:0, padding:0) on html/body in index.html
-- [x] Set body background to #0E0E14 (dark theme base) to eliminate white border/flash in PWA and browser
-
-### Phase 19 — SEO & Discoverability (Lower Priority)
-
-**Why:** rxpenses.com is not indexed by Google yet. Searching "rxpenses.com" shows unrelated results. Need proper SEO so it ranks for "expense tracker", "shared expense tracker", "AI expense tracker Philippines", etc.
-
-**19a — Technical SEO (On-Page Basics)** ✅ DONE
-- [x] Add `<meta name="description">` with keyword-rich copy
-- [x] Add `<meta name="keywords">` with target terms: expense tracker, shared expenses, AI receipt scanner, budget tracker, debt tracker, Philippines, PHP
-- [x] Add Open Graph meta tags (`og:title`, `og:description`, `og:site_name`, `og:url`, `og:type`) for social sharing previews
-- [x] Add Twitter Card meta tags (`twitter:card`, `twitter:title`, `twitter:description`)
-- [x] Create OG image via Vercel Edge function (`api/og.js` using `@vercel/og`) — 1200x630, gold-themed with app name, tagline, feature pills
-- [x] Add `og:image` and `twitter:image` meta tags pointing to `/api/og`
-- [x] Add `<link rel="canonical" href="https://rxpenses.com/">` to prevent duplicate content
-- [x] Add structured data (JSON-LD) — `SoftwareApplication` schema with name, description, price, features
-- [x] Improve `<title>` tag: "RXpenses — Free AI Expense Tracker for Couples | Track, Budget, Save"
-
-**19b — Crawlability & Indexing** ✅ DONE (except Bing)
-- [x] Create `public/robots.txt` — allow all crawlers, point to sitemap
-- [x] Create `public/sitemap.xml` — list the main URL (https://rxpenses.com/)
-- [x] Verify site ownership in Google Search Console (URL prefix method, auto-verified)
-- [x] Submit sitemap to Google Search Console (Success, 1 page discovered)
-- [x] Submit URL for indexing in Google Search Console ("Request Indexing") — queued for crawl
-- [x] Fix Vercel rewrite to serve sitemap.xml and robots.txt as static files (vercel.json updated)
-- [ ] Submit to Bing Webmaster Tools (optional, covers Bing + Yahoo)
-
-**19c — Landing Page SEO Content** ✅ DONE
-- [x] Add more text content to landing page (FAQ section adds crawlable keyword-rich text)
-- [x] Add an FAQ section at the bottom (6 questions answering common search queries)
-- [x] Use semantic HTML: `<main>`, `<nav>`, `<section>`, `<footer>`, `<h1>`-`<h3>`, `<p>` with proper hierarchy
-- [x] Add aria-labels to logo/icon elements (no `<img>` tags — all Lucide SVG icons)
-- [x] Internal anchor links (Features, How It Works, FAQ) for better crawling
-- [x] Add geo-targeting copy: "Built for couples in the Philippines" in hero section
-
-**19d — Performance & Core Web Vitals** ✅ DONE
-- [x] Preconnect + dns-prefetch to Supabase domain in index.html
-- [x] Minimal bundle: no CSS framework, no unused deps, inline styles only
-- [ ] Run Lighthouse audit and optimize if score < 90 (deferred — React SPA baseline is good)
-
-**19e — Off-Page & Social**
-- [ ] Create a simple landing on Product Hunt or similar (free exposure)
-- [ ] Add the site to free web directories (startuplist, saashub, etc.)
-- [ ] Share on Reddit (r/budgetph, r/phinvest, r/webdev) for backlinks
-- [ ] Set up Google Analytics or Vercel Analytics (track visitors)
-
-**19f — Blog / Content Marketing**
-- [ ] Create a simple blog section on the landing page or separate `/blog` route
-- [ ] Write 3-5 SEO-targeted articles:
-  - "How to Track Shared Expenses as a Couple in 2026"
-  - "Best Free AI Expense Tracker Apps for Filipinos"
-  - "How to Manage Debt Payments and Stay on Track"
-  - "5 Budgeting Tips for Couples Living Together"
-  - "How AI Receipt Scanning Saves You Time on Expense Tracking"
-- [ ] Each post targets long-tail keywords for organic search traffic
-- [ ] Blog posts include internal links back to app features + CTA to sign up
-- [ ] Add blog index to sitemap.xml for crawling
-- [ ] Consider using markdown files or Supabase table for blog content storage
-
-### Phase 20 — Savings Goals
-
-**20a — Savings Goal Data Model & UI**
-- [ ] Create `savings_goals` Supabase table: id (TEXT PK), name, target_amount, current_amount, target_date, icon, household_id (FK), created_at, updated_at
-- [ ] Add/edit/delete savings goals with form (name, target amount, target date, optional icon)
-- [ ] Goal card: name, progress bar, current vs target amount, percentage, days remaining
-- [ ] "Add Funds" button per goal — record contribution with amount and date
-- [ ] Goal history: list of contributions (date, amount)
-- [ ] Summary card: total saved across all goals, number of active goals
-- [ ] Where it lives: new sub-tab under Accounts (`Accounts | Budgets | Debts | Savings`)
-- [ ] Celebration state when goal is reached (100% filled, green highlight)
-- [ ] Supabase CRUD helpers + localStorage fallback
-- [ ] Clear All Data includes savings goals
-
-### Phase 21 — Multi-Currency Support
-
-**21a — Currency Data & Conversion**
-- [ ] Add `currency` field to expense form (default PHP, optional override)
-- [ ] Currency selector dropdown with common currencies (PHP, USD, EUR, JPY, SGD, AED, KRW, THB)
-- [ ] Free exchange rate API (e.g. frankfurter.app or exchangerate-api.com) — fetch daily rates
-- [ ] Auto-convert foreign currency expenses to PHP equivalent on save
-- [ ] Store both original amount + currency AND converted PHP amount on each expense
-- [ ] Dashboard/charts always show PHP totals (converted)
-- [ ] Expense list shows original currency + PHP equivalent: "¥2,500 (P850.00)"
-- [ ] Cache exchange rates in localStorage (refresh once per day)
-
-### Phase 22 — UI/UX Polish
-
-**22a — Budget Cards Grouping**
-- [ ] Group budget category cards: categories with budget set (top), categories with no limit (collapsed section below)
-- [ ] Collapsed "No limit set" section shows count: "8 categories with no budget limit" — tap to expand
-- [ ] Categories with budget set show progress bar + spending (as current)
-- [ ] Reduces visual clutter when many categories exist
-
-**22b — Mobile Navigation Redesign**
-- [ ] Icons-only bottom nav on mobile (remove text labels)
-- [ ] Larger icons (20-22px instead of 16px)
-- [ ] Active tab: gold dot indicator below icon (instead of text highlight)
-- [ ] Slightly taller nav bar for easier tap targets
-- [ ] Keep desktop sidebar as-is (text labels work well with sidebar width)
-
-**22c — Loading Animation**
-- [ ] Replace "Loading..." text with animated coin/money illustration
-- [ ] CSS-only animation: spinning coin or falling coins effect
-- [ ] Gold-themed, consistent with design system
-- [ ] Used on initial app load and data fetching states
-
-**22d — Pull-to-Refresh (Mobile PWA)**
-- [ ] Detect pull-down gesture on mobile when scrolled to top
-- [ ] Show refresh indicator (spinning coin or gold spinner)
-- [ ] Re-fetch all data from Supabase on release (expenses, accounts, recurring, debts, categories, settings)
-- [ ] Toast confirmation: "Data refreshed"
-- [ ] Only active on mobile (not desktop)
+**11e — Payment Grid & History UX ✅ DONE**
+- [x] Collapsible year rows, payment history show last 5 with "Show all"
 
 ### Phase 12 — Code Refactoring ✅ DONE
 
@@ -650,14 +299,268 @@ Dashboard | Expenses | AI Chat | Accounts | More
 - [x] `src/constants.js` — themes, DEF_CATS, PERIODS, uid, fmt, helpers, all constants
 - [x] `src/hooks.js` — `useMediaQuery`
 - [x] `src/db.js` — full `sb` Supabase CRUD helpers
-- [x] `src/AppContext.js` — global state, save functions, callAI, style helpers (pillS, cardS, etc.), householdRole/profile/household
+- [x] `src/AppContext.js` — global state, save functions, callAI, style helpers
 - [x] `src/components/ChartTooltip.js` — shared recharts tooltip
 - [x] `src/tabs/DashboardTab.js` — own `per` state (independent period selector)
 - [x] `src/tabs/ExpensesTab.js` — includes Expense + Recurring modals, person filter
 - [x] `src/tabs/ChatTab.js` — all chat/AI logic + duplicate detection + edit mode
-- [x] `src/tabs/AccountsTab.js` — includes Account + Budget + Debt modals
-- [x] `src/tabs/MoreTab.js` — Settings + Invite modal (Insights moved to ChatTab)
-- [x] `App.js` — 416 lines, auth + LoginScreen + nav shell only
+- [x] `src/tabs/AccountsTab.js` — Money Hub + accounts + budgets + debts + savings + income
+- [x] `src/tabs/MoreTab.js` — Settings + Invite modal
+- [x] `App.js` — ~300 lines, auth + nav shell only
+
+### Phase 13 — AI Chat Hub (Unified) ✅ DONE
+
+**13a — Quick Action Chips ✅ DONE**
+- [x] Pre-chat suggestion chips (spending review, budget check, top expenses, debt payoff, etc.)
+- [x] "Spending review" shows period picker before generating
+
+**13b — Move Insights into AI Chat ✅ DONE**
+- [x] AI returns structured JSON, rendered as rich insight cards + charts inline in chat
+
+**13c — Chat History Persistence ✅ DONE**
+- [x] Persist messages to localStorage, clear chat button
+
+### Phase 14 — Saved Insights + PDF Export ✅ DONE
+
+**14a — Insights Persistence ✅ DONE**
+- [x] `insights` Supabase table, auto-save reviews, "Past Reviews" list, delete
+
+**14b — PDF Export ✅ DONE**
+- [x] "Download PDF" button using window.print() API
+
+### Phase 15 — Stripe Subscription (Premium Tier)
+
+**15a — Stripe Setup & Backend**
+- [ ] Create Stripe account, API keys, products (P149 PH / $4.99 International)
+- [ ] `api/stripe-checkout.js` + `api/stripe-webhook.js` serverless functions
+- [ ] `subscriptions` table in Supabase
+- [ ] Regional pricing via Vercel `x-vercel-ip-country` header
+
+**15b — Free vs Premium Feature Gating**
+- [ ] `isPremium` flag in AppContext
+- [ ] Free tier: all manual features. Premium: AI Chat, receipt scanning, AI reviews, PDF export
+- [ ] Upgrade prompt for free users in AI Chat tab
+
+**15c — Subscription UI**
+- [ ] "Upgrade to Premium" card in Settings → Stripe Checkout
+- [ ] "Manage Subscription" → Stripe Customer Portal
+- [ ] Premium badge, subscription status card
+
+**15d — Trial Period (optional)**
+- [ ] 7-day free trial, countdown in AI Chat and Settings
+
+### Phase 16 — Branding & PWA ✅ DONE
+
+**16a — Logo & Favicon ✅ DONE**
+- [x] RX monogram logo (gold gradient), SVG favicon
+- [x] Logo in landing page, sidebar, mobile header
+
+**16b — PWA Manifest & Homescreen Icons ✅ DONE**
+- [x] manifest.json with app name, theme color, display: standalone
+- [x] SVG icons, apple-touch-icon, PWA meta tags
+
+**16c — App Name Update ✅ DONE**
+- [x] Rebrand from "RXpenses" to "rxpenses" (lowercase) across all files
+- [x] Browser tab: "rxpenses — Smart Money Tracker"
+
+### Phase 17 — Landing Page ✅ DONE
+- [x] Full marketing homepage: hero, features (6 cards), how it works (3 steps), FAQ, footer
+- [x] Fully responsive, gold theme, Google OAuth, dark/light toggle
+
+### Phase 18 — Enhancements ✅ DONE
+
+**18a — Editable Category Names ✅ DONE**
+- [x] Inline rename, updates all expenses/recurring/budgets
+
+**18b — Collapsible Quick Action Chips ✅ DONE**
+- [x] Always available, collapsible with toggle button
+
+**18c — Recurring Expense Notifications ✅ DONE**
+- [x] Due alert banners, badge count on Expenses tab + Recurring pill
+
+**18d — Daily PWA Push Notifications ✅ DONE**
+- [x] Service Worker for local push notifications, daily debt/recurring check
+
+**18e — Dark Mode White Border Fix ✅ DONE**
+- [x] CSS reset on html/body, dark background to prevent white flash
+
+### Phase 19 — SEO & Discoverability
+
+**19a — Technical SEO ✅ DONE**
+- [x] Meta tags, OG tags, Twitter cards, JSON-LD structured data, canonical URL
+- [x] OG image via Vercel Edge function (`api/og.js`)
+
+**19b — Crawlability & Indexing ✅ DONE**
+- [x] robots.txt, sitemap.xml, Google Search Console verified + indexed
+
+**19c — Landing Page SEO Content ✅ DONE**
+- [x] FAQ section, semantic HTML, aria-labels, geo-targeting copy
+
+**19d — Performance ✅ DONE**
+- [x] Preconnect to Supabase, minimal bundle
+
+**19e — Off-Page & Social**
+- [ ] Product Hunt, web directories, Reddit (r/budgetph, r/phinvest)
+- [ ] Google Analytics or Vercel Analytics
+
+**19f — Blog / Content Marketing**
+- [ ] Blog section with SEO-targeted articles
+- [ ] Internal links + CTA to sign up
+
+### Phase 20 — Savings Goals ✅ DONE
+- [x] `savings_goals` Supabase table with CRUD + RLS
+- [x] Goal cards: progress bar, current vs target, percentage, days remaining
+- [x] "Add Funds" button, summary card, celebration state at 100%
+- [x] Lives in Money Hub as "Savings" section
+
+### Phase 21 — Multi-Currency Support
+- [ ] Currency field on expenses (PHP default, optional override)
+- [ ] Exchange rate API, auto-convert to PHP on save
+- [ ] Show original + PHP equivalent in expense list
+
+### Phase 22 — UI/UX Polish ✅ DONE
+
+**22a — Budget Cards Grouping ✅ DONE**
+- [x] Categories with budget (top) vs no limit (collapsed section)
+
+**22b — Mobile Navigation Redesign ✅ DONE**
+- [x] Icons-only mobile nav, gold dot indicator, larger tap targets
+
+**22c — Loading Animation ✅ DONE**
+- [x] Animated RX logo coin (CSS coinFlip animation)
+
+**22d — Pull-to-Refresh ✅ DONE**
+- [x] Pull-down gesture on mobile, re-fetch all data, toast confirmation
+- [x] Receipt image compression (1200px max, JPEG 70%)
+
+### Phase 23 — Crypto Portfolio & Savings
+
+**23a — Crypto as Savings Goal Currency ✅ DONE**
+- [x] Currency type on savings goals: BTC, ETH, SOL, XRP, USDT, BNB, ADA, DOGE, DOT, AVAX, LINK, MATIC
+- [x] Crypto goals show both crypto amount and PHP equivalent
+- [x] Currency selector with live price, Add Funds adapted for crypto
+
+**23b — Live Crypto Price Feed ✅ DONE**
+- [x] CoinGecko API via Vercel proxy (`api/crypto.js`), auto-fetch every 5 min
+- [x] Cache in localStorage, 24h change indicator, manual Refresh button
+
+**23c — Bybit Portfolio Integration**
+- [ ] Bybit API read-only integration for spot balances
+- [ ] Portfolio summary card in Money Hub
+
+**23d — Crypto Dashboard & Insights**
+- [ ] Portfolio value chart, profit/loss, AI Chat crypto questions
+- [ ] Include crypto in net worth calculation
+
+### Phase 24 — Money Hub UX Redesign ✅ DONE
+
+**24a — Money Hub Landing ✅ DONE**
+- [x] Replace sub-tab pills with large summary cards (2x2 desktop, stacked mobile)
+- [x] Tap card → drill into section with back button
+- [x] Badge indicators on cards
+
+**24b — Budget Chart Label Fix ✅ DONE**
+- [x] Angled labels on mobile, 8-char abbreviation, tooltip shows full name
+
+### Phase 25 — Projects (Planned Purchases & Home Improvements)
+
+**25a — Project Data Model & UI**
+- [ ] `projects` + `project_tasks` tables
+- [ ] Project list with status badges, budget progress, deadline countdown
+- [ ] Lives in Money Hub
+
+**25b — Task Checklist**
+- [ ] Checklist per project, progress bar
+
+**25c — Cost Tracking**
+- [ ] Link expenses to projects, budget vs actual comparison
+
+**25d — Savings Goal Link**
+- [ ] Link savings goal to project, show progress on project card
+
+**25e — Notes & Research**
+- [ ] Free-text notes per project, AI Chat context
+
+### Phase 26 — Income Tracking ✅ DONE
+
+**26a — Income Data Model & CRUD ✅ DONE**
+- [x] `income` Supabase table, CRUD with form
+- [x] Sources: Salary, Freelance, Business, Side Hustle, Gift, Refund, Crypto Gains, Other
+- [x] Account-linked income (auto-add to balance)
+
+**26b — Recurring Income ✅ DONE**
+- [x] `recurring_income` table, templates with apply/auto-advance
+- [x] Due/overdue alert banners, badge count
+
+**26c — Income UI ✅ DONE**
+- [x] Income card in Money Hub, list + recurring sub-tabs
+- [x] Summary card with net cash flow, by-source breakdown
+
+**26d — Income vs Expenses (Cash Flow) ✅ DONE**
+- [x] Dashboard 3-column: Income (green) | Expenses (red) | Net Flow
+- [x] Respects period selector and person filter
+
+### Phase 27 — AI Income Recognition (Payslip Scanning)
+
+**Why:** AI Chat currently only parses expenses. Users should be able to upload a payslip or income receipt and have the AI log it as income automatically.
+
+**27a — AI Parses Income from Images & Text**
+- [ ] Update AI system prompt to recognize income scenarios (payslips, salary receipts, freelance payments, GCash/bank transfer screenshots)
+- [ ] AI returns `{"income":[...],"message":"..."}` when it detects income
+- [ ] AI uses net pay (take-home), not gross pay
+- [ ] Fallback: "received 50k salary" or "got paid" → income, not expense
+
+**27b — Save as Income UX in Chat**
+- [ ] ChatTab detects `income` array in AI response
+- [ ] "Save as Income" button (green themed) with individual save/edit/discard
+- [ ] Edit form: Amount, Source, Description, Date, Account link
+
+**27c — Mixed Responses**
+- [ ] AI returns both expenses AND income in one response
+- [ ] Expense cards (red/gold) and income cards (green) rendered separately
+
+### Phase 28 — Life Goals
+
+**Why:** Users want to plan and track big life projects — buying a car, installing solar panels, home renovations — not just save money. Life Goals combines budgeting, milestones, and expense tracking into one motivational feature.
+
+**28a — Life Goal Data Model & CRUD**
+- [ ] Create `life_goals` Supabase table: id (TEXT PK), title, description, icon, cover_color, target_budget (NUMERIC), deadline (DATE), status (TEXT: active/completed/paused), household_id (FK), created_by, created_at, updated_at
+- [ ] Create `life_goal_milestones` Supabase table: id (TEXT PK), goal_id (FK), title, is_completed (BOOL), sort_order (INT), completed_at, created_at
+- [ ] Supabase CRUD helpers for life goals + milestones (+ localStorage fallback)
+- [ ] RLS policies: household members can read/write their household's goals
+- [ ] Clear All Data includes life goals + milestones
+
+**28b — Life Goals UI & Navigation**
+- [ ] New card in Money Hub: "Life Goals" with active goal count, overall progress
+- [ ] Life Goals list view: card per goal showing title, icon, progress ring, budget spent vs target, milestone progress (e.g. "3/7 steps"), deadline countdown
+- [ ] Add/Edit Life Goal modal: title, description, icon picker, target budget (optional), deadline (optional), cover color
+- [ ] Goal detail view (expand or slide-in): full description, milestone checklist, linked expenses list, budget summary
+- [ ] Empty state: motivational message + "Create your first Life Goal" CTA
+
+**28c — Milestones & Progress Tracking**
+- [ ] Add/edit/delete/reorder milestones within a goal (drag or up/down buttons)
+- [ ] Check off milestones — show completion date
+- [ ] Progress bar: milestones completed / total milestones
+- [ ] Overall goal progress: combine milestone % and budget % into a single ring/bar
+- [ ] Mark goal as "Completed" — celebration state (confetti or green highlight, similar to Savings Goals)
+- [ ] Mark goal as "Paused" — dimmed card styling
+
+**28d — Link Expenses to Life Goals**
+- [ ] Add optional `life_goal_id` field to expenses (nullable FK)
+- [ ] When adding/editing an expense, optional "Link to Life Goal" dropdown
+- [ ] Goal detail view shows linked expenses (list + total spent)
+- [ ] Budget tracker on goal card: total linked expenses vs target budget
+- [ ] Over-budget warning (red highlight when linked expenses > target budget)
+
+**28e — Link Savings Goals to Life Goals (Optional)**
+- [ ] Optional `linked_savings_goal_id` on life_goals table
+- [ ] If linked, show savings progress alongside budget spent on the goal card
+- [ ] Combined view: "Saved P50,000 / Spent P30,000 / Budget P150,000"
+
+**28f — AI Integration**
+- [ ] AI chat understands life goals context ("How am I doing on my solar panel project?")
+- [ ] AI can suggest tips for achieving goals faster based on spending patterns
+- [ ] Include life goals summary in AI context when relevant
 
 ---
 
@@ -671,46 +574,14 @@ Dashboard | Expenses | AI Chat | Accounts | More
 
 ---
 
-## Session Notes (2026-03-07)
+## Active Bugs / To Do
 
-### What was done this session:
-1. **Phase 14b — PDF Export** — `printInsight()` in ChatTab.js opens print dialog for saving insights as PDF.
-2. **Custom domain setup** — `rxpenses.com` via Namecheap, DNS → Vercel, SSL provisioned. Google Cloud Console + Supabase redirect URLs updated.
-3. **Phase 13c — Chat History Persistence** — Messages saved to localStorage, survive tab navigation + refreshes. Clear chat button added.
-4. **Phase 11c — Payment Alerts** — Due-soon badge on Accounts nav tab (desktop + mobile). Alert banners in Debts sub-tab (overdue red, due today/soon gold) with quick Pay button. Overdue detection uses due day (day 5 passed on 7th → overdue).
-5. **Phase 11d — Payment History & Monthly Tracking** — Interactive clickable payment grid (toggle paid/unpaid), "Mark all paid" bulk fill, start_date on debts, late_fee on payments, inline edit/delete per payment, payment stats (paid/missed/streak/total).
-6. **Overdue grid fix** — Current month turns red (missed) if today > due date, not gold.
-7. **Phase 11e — Payment Grid UX** — Collapsible year rows (current year expanded, past collapsed with summary). Payment history shows last 5 with "Show all" button.
-8. **Phase 17 — Landing Page** — Full marketing homepage replacing bare LoginScreen. Hero, features (6 cards), how it works (3 steps), CTA, footer. Brand renamed to "RXpenses" in nav + sidebar. `LandingPage.js` extracted as separate file.
-
-### Current DB state:
-- Joseph's household ID: `6ee010f1-7050-4096-b198-d3bc4fae250c`
-- Members: Joseph (owner) + Rowena (member)
-
-### Domain & Hosting:
-- **Domain:** rxpenses.com (registered via Namecheap, 1-year)
-- **DNS:** Namecheap → A record (@ → 76.76.21.21), CNAME (www → cname.vercel-dns.com)
-- **Vercel:** Custom domain added, SSL auto-provisioned
-- **Old URL:** expense-tracker-sage-mu.vercel.app (still works)
-
-### Invite system — how it works:
-- Owner goes to Settings → Invite Partner → enters partner's Gmail → clicks Send
-- Invite record created in `invites` table with `invited_email` set
-- Partner signs in with Google → `handleSession` queries invites table for their email → shows "Accept & Join" screen
-
-### Seph & Tres alt accounts:
-- `trespares2020@gmail.com` (Tres) and `jlacsamana122@gmail.com` (Seph) are Joseph's test accounts
-- Cleanup SQL in previous session notes if needed
-
----
-
-## Active Bugs / To Do Next Session
-
-- [ ] Phase 9e remaining — addedBy uses real profile names, person filter uses real names on Dashboard
-- [ ] Phase 9d remaining — list household members by name in Settings (currently shows count only)
-- [ ] Phase 15 — Stripe subscription (next major feature)
-- [ ] Phase 16 — Branding & PWA (logo, favicon, homescreen icons — manifest.json + sw.js already created in Phase 18d, needs icon files)
-- [ ] Phase 19 — SEO (lower priority, outlined below)
+- [ ] **RLS policies for income/recurring_income** — run INSERT/UPDATE/DELETE policies in Supabase Dashboard
+- [ ] Phase 15 — Stripe subscription (monetization)
+- [ ] Phase 25 — Projects (planned purchases, home improvements)
+- [ ] Phase 27 — AI income recognition (payslip scanning)
+- [ ] Phase 28 — Life Goals (milestones, budgets, linked expenses)
+- [ ] Phase 19e/19f — Off-page SEO + blog content marketing
 
 ---
 
@@ -718,6 +589,5 @@ Dashboard | Expenses | AI Chat | Accounts | More
 
 - No real bank integration — balances are manual entry only
 - Image processing — receipt images sent to Claude API as base64
-- Session-based auth — PIN checked on load, stored in React state
-- Local push notifications via SW (Phase 18d) — server-side push + email not yet implemented
+- Local push notifications via SW — server-side push + email not yet implemented
 - Supabase free tier: 500MB database, 1GB file storage, 50K monthly active users
