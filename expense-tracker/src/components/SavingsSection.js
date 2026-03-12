@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, Edit3, X, AlertTriangle, PiggyBank, RefreshCw } from "lucide-react";
+import { Plus, Trash2, Edit3, X, AlertTriangle, RefreshCw } from "lucide-react";
 import { useApp } from "../AppContext";
 import { CRYPTO_COINS, fmt, uid } from "../constants";
 

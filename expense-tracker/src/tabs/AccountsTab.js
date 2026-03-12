@@ -9,7 +9,7 @@ import SavingsSection from "../components/SavingsSection";
 import IncomeSection from "../components/IncomeSection";
 
 export default function AccountsTab() {
-  const { exp, accts, budgets, genBudget, debts, savGoals, income, recIncome, theme, isDesktop, T, cardS, cryptoPrices } = useApp();
+  const { exp, accts, genBudget, debts, savGoals, income, recIncome, isDesktop, T, cardS, cryptoPrices } = useApp();
   const [accSub, setAccSub] = useState("hub");
 
   const mStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);

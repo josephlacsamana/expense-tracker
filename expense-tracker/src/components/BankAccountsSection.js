@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Plus, Trash2, Edit3, X, Clock, AlertTriangle, Wallet } from "lucide-react";
 import { useApp } from "../AppContext";
-import { aIcons, fmt, td, uid, pld } from "../constants";
+import { aIcons, fmt, uid } from "../constants";
 
 export default function BankAccountsSection() {
   const { exp, accts, acctHist, svA, svAH, tst, theme, isDesktop, T, cardS, inpS, btnP, btnG, mOvS, mInS } = useApp();

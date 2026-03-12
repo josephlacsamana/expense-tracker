@@ -4,7 +4,7 @@ import { useApp } from "../AppContext";
 import { INCOME_SOURCES, fmt, td, uid, pld } from "../constants";
 
 export default function IncomeSection() {
-  const { exp, accts, income, recIncome, svA, svAH, svI, svRI, tst, user, users, theme, isDesktop, T, cardS, pillS, inpS, btnP, btnG, mOvS, mInS } = useApp();
+  const { exp, accts, income, recIncome, svA, svAH, svI, svRI, tst, user, users, theme, T, cardS, pillS, inpS, btnP, btnG, mOvS, mInS } = useApp();
 
   const [incForm, setIncForm] = useState(false);
   const [incEdit, setIncEdit] = useState(null);

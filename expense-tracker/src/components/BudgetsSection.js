@@ -4,7 +4,7 @@ import { useApp } from "../AppContext";
 import { fmt, fmtS, pld } from "../constants";
 
 export default function BudgetsSection() {
-  const { exp, budgets, genBudget, cats, rec, catColors, svE, svB, svCats, svGB, svR, tst, theme, isDesktop, T, cardS, pillS, inpS, btnP, btnG, mOvS, mInS } = useApp();
+  const { exp, budgets, genBudget, cats, rec, catColors, svE, svB, svCats, svGB, svR, tst, theme, isDesktop, T, cardS, inpS, btnP, btnG, mOvS, mInS } = useApp();
 
   const [sbf, setSbf] = useState(false);
   const [bf, setBf] = useState({});
