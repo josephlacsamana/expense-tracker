@@ -643,49 +643,6 @@ Dashboard | Expenses | AI Chat | Accounts | More
 - [ ] Toast confirmation: "Data refreshed"
 - [ ] Only active on mobile (not desktop)
 
-### Phase 23 — Life Goals
-
-**Why:** Users want to plan and track big life projects — buying a car, installing solar panels, home renovations — not just save money. Life Goals combines budgeting, milestones, and expense tracking into one motivational feature.
-
-**23a — Life Goal Data Model & CRUD**
-- [ ] Create `life_goals` Supabase table: id (TEXT PK), title, description, icon, cover_color, target_budget (NUMERIC), deadline (DATE), status (TEXT: active/completed/paused), household_id (FK), created_by, created_at, updated_at
-- [ ] Create `life_goal_milestones` Supabase table: id (TEXT PK), goal_id (FK), title, is_completed (BOOL), sort_order (INT), completed_at, created_at
-- [ ] Supabase CRUD helpers for life goals + milestones (+ localStorage fallback)
-- [ ] RLS policies: household members can read/write their household's goals
-- [ ] Clear All Data includes life goals + milestones
-
-**23b — Life Goals UI & Navigation**
-- [ ] New sub-tab under Accounts: `Accounts | Budgets | Debts | Savings | Life Goals`
-- [ ] Life Goals list view: card per goal showing title, icon, progress ring, budget spent vs target, milestone progress (e.g. "3/7 steps"), deadline countdown
-- [ ] Add/Edit Life Goal modal: title, description, icon picker, target budget (optional), deadline (optional), cover color
-- [ ] Goal detail view (expand or slide-in): full description, milestone checklist, linked expenses list, budget summary
-- [ ] Empty state: motivational message + "Create your first Life Goal" CTA
-
-**23c — Milestones & Progress Tracking**
-- [ ] Add/edit/delete/reorder milestones within a goal (drag or up/down buttons)
-- [ ] Check off milestones — show completion date
-- [ ] Progress bar: milestones completed / total milestones
-- [ ] Overall goal progress: combine milestone % and budget % into a single ring/bar
-- [ ] Mark goal as "Completed" — celebration state (confetti or green highlight, similar to Savings Goals)
-- [ ] Mark goal as "Paused" — dimmed card styling
-
-**23d — Link Expenses to Life Goals**
-- [ ] Add optional `life_goal_id` field to expenses (nullable FK)
-- [ ] When adding/editing an expense, optional "Link to Life Goal" dropdown
-- [ ] Goal detail view shows linked expenses (list + total spent)
-- [ ] Budget tracker on goal card: total linked expenses vs target budget
-- [ ] Over-budget warning (red highlight when linked expenses > target budget)
-
-**23e — Link Savings Goals to Life Goals (Optional)**
-- [ ] Optional `linked_savings_goal_id` on life_goals table
-- [ ] If linked, show savings progress alongside budget spent on the goal card
-- [ ] Combined view: "Saved ₱50,000 / Spent ₱30,000 / Budget ₱150,000"
-
-**23f — AI Integration**
-- [ ] AI chat understands life goals context ("How am I doing on my solar panel project?")
-- [ ] AI can suggest tips for achieving goals faster based on spending patterns
-- [ ] Include life goals summary in AI context when relevant
-
 ### Phase 12 — Code Refactoring ✅ DONE
 
 **Why:** `App.js` was ~1600+ lines. Splitting into feature files makes future work touch only the relevant file.
